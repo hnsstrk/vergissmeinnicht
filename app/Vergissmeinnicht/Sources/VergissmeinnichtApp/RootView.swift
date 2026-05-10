@@ -10,6 +10,7 @@ import VergissmeinnichtKit
 struct RootView: View {
     @Environment(AppContainer.self) private var container
     @State private var viewModel = TaskListViewModel()
+    @State private var showQuickCapture = false
 
     var body: some View {
         @Bindable var vm = viewModel
@@ -23,6 +24,15 @@ struct RootView: View {
             }
             .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 400)
             .toolbar {
+                ToolbarItem {
+                    Button {
+                        showQuickCapture = true
+                    } label: {
+                        Label("Neue Aufgabe", systemImage: "plus")
+                    }
+                    .keyboardShortcut("n", modifiers: .command)
+                    .help("Neue Aufgabe (Cmd+N)")
+                }
                 ToolbarItem {
                     Button {
                         Task { await container.refresh() }
@@ -39,6 +49,10 @@ struct RootView: View {
             DetailView(task: selectedTask)
         }
         .frame(minWidth: 640, minHeight: 360)
+        .sheet(isPresented: $showQuickCapture) {
+            QuickCaptureSheet()
+                .environment(container)
+        }
         .task {
             await container.refresh()
             await container.syncIfConfigured()

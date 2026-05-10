@@ -8,12 +8,13 @@ import SwiftUI
 /// angezeigt, aber **nicht** an die FFI weitergegeben — die FFI exportiert
 /// die Felder noch nicht.
 ///
-/// Bewusst keine `dismiss()`-Aufrufe nach dem Speichern: die
-/// `MenuBarExtra(window)`-Popover schließt sich nicht über die SwiftUI-
-/// `.dismiss`-Action zuverlässig. Stattdessen wird das Eingabefeld nach
-/// erfolgreichem Add geleert, sodass die nächste Capture sofort möglich ist.
+/// Nach erfolgreichem Add: `input` wird geleert und `dismiss()` aufgerufen.
+/// Im MenuBarExtra-Popover-Kontext ist `dismiss()` ein No-Op (Apple-Bug);
+/// dort bleibt das Sheet offen für Folge-Eingaben. Im modalen `.sheet`-
+/// Kontext (Hauptfenster, Toolbar-Button "+") schließt sich das Sheet.
 struct QuickCaptureSheet: View {
     @Environment(AppContainer.self) private var container
+    @Environment(\.dismiss) private var dismiss
     @State private var input: String = ""
     @FocusState private var focused: Bool
 
@@ -110,6 +111,7 @@ struct QuickCaptureSheet: View {
             if await container.addTask(description: description) {
                 input = ""
                 focused = true
+                dismiss()
             }
         }
     }
