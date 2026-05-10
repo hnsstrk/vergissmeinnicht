@@ -1,0 +1,18 @@
+# Rust
+target/
+Cargo.lock
+
+# Xcode / SwiftPM
+.build/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+.swiftpm/
+Package.resolved
+
+# Generated FFI artifacts
+swift-bindings/generated/
+*.xcframework/
+
+# macOS
+.DS_Store
