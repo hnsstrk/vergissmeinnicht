@@ -444,14 +444,41 @@ fileprivate struct FfiConverterString: FfiConverter {
 public protocol TaskStoreProtocol: AnyObject, Sendable {
     
     /**
+     * Hängt eine Annotation an die Task mit `uuid` an. Entry-Zeitstempel = `Utc::now()`.
+     */
+    func addAnnotation(uuid: String, annotation: String) throws 
+    
+    /**
      * Legt einen neuen Task mit der gegebenen Description an und gibt seine UUID zurück.
      */
     func addTask(description: String) throws  -> String
     
     /**
+     * Markiert die Task mit `uuid` als gelöscht (`Status::Deleted`) und committet.
+     * Das Operations-Log bleibt erhalten — kein Purge.
+     */
+    func deleteTask(uuid: String) throws 
+    
+    /**
      * Listet alle aktuell pendenden Tasks (Working Set) als `TaskInfo` mit UUID + Description.
      */
     func listPending() throws  -> [TaskInfo]
+    
+    /**
+     * Markiert die Task mit `uuid` als erledigt (`Status::Completed`) und committet.
+     */
+    func markDone(uuid: String) throws 
+    
+    /**
+     * Ändert die Beschreibung der Task mit `uuid` und committet.
+     */
+    func modifyDescription(uuid: String, newDescription: String) throws 
+    
+    /**
+     * Synchronisiert die Replica gegen einen TaskChampion-Sync-Server.
+     * `client_id` muss ein UUID-String sein. `encryption_secret` wird als UTF-8-Bytes verwendet.
+     */
+    func sync(serverUrl: String, clientId: String, encryptionSecret: String) throws 
     
 }
 open class TaskStore: TaskStoreProtocol, @unchecked Sendable {
@@ -519,6 +546,17 @@ public convenience init(dbPath: String)throws  {
 
     
     /**
+     * Hängt eine Annotation an die Task mit `uuid` an. Entry-Zeitstempel = `Utc::now()`.
+     */
+open func addAnnotation(uuid: String, annotation: String)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_add_annotation(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterString.lower(annotation),$0
+    )
+}
+}
+    
+    /**
      * Legt einen neuen Task mit der gegebenen Description an und gibt seine UUID zurück.
      */
 open func addTask(description: String)throws  -> String  {
@@ -530,6 +568,17 @@ open func addTask(description: String)throws  -> String  {
 }
     
     /**
+     * Markiert die Task mit `uuid` als gelöscht (`Status::Deleted`) und committet.
+     * Das Operations-Log bleibt erhalten — kein Purge.
+     */
+open func deleteTask(uuid: String)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_delete_task(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),$0
+    )
+}
+}
+    
+    /**
      * Listet alle aktuell pendenden Tasks (Working Set) als `TaskInfo` mit UUID + Description.
      */
 open func listPending()throws  -> [TaskInfo]  {
@@ -537,6 +586,40 @@ open func listPending()throws  -> [TaskInfo]  {
     uniffi_vergissmeinnicht_core_fn_method_taskstore_list_pending(self.uniffiClonePointer(),$0
     )
 })
+}
+    
+    /**
+     * Markiert die Task mit `uuid` als erledigt (`Status::Completed`) und committet.
+     */
+open func markDone(uuid: String)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_mark_done(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),$0
+    )
+}
+}
+    
+    /**
+     * Ändert die Beschreibung der Task mit `uuid` und committet.
+     */
+open func modifyDescription(uuid: String, newDescription: String)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_modify_description(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterString.lower(newDescription),$0
+    )
+}
+}
+    
+    /**
+     * Synchronisiert die Replica gegen einen TaskChampion-Sync-Server.
+     * `client_id` muss ein UUID-String sein. `encryption_secret` wird als UTF-8-Bytes verwendet.
+     */
+open func sync(serverUrl: String, clientId: String, encryptionSecret: String)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_sync(self.uniffiClonePointer(),
+        FfiConverterString.lower(serverUrl),
+        FfiConverterString.lower(clientId),
+        FfiConverterString.lower(encryptionSecret),$0
+    )
+}
 }
     
 
@@ -673,6 +756,10 @@ public enum VmError: Swift.Error {
     )
     case Conversion(msg: String
     )
+    case NotFound(uuid: String
+    )
+    case Sync(msg: String
+    )
     case Internal(msg: String
     )
 }
@@ -697,7 +784,13 @@ public struct FfiConverterTypeVmError: FfiConverterRustBuffer {
         case 2: return .Conversion(
             msg: try FfiConverterString.read(from: &buf)
             )
-        case 3: return .Internal(
+        case 3: return .NotFound(
+            uuid: try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .Sync(
+            msg: try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .Internal(
             msg: try FfiConverterString.read(from: &buf)
             )
 
@@ -722,8 +815,18 @@ public struct FfiConverterTypeVmError: FfiConverterRustBuffer {
             FfiConverterString.write(msg, into: &buf)
             
         
-        case let .Internal(msg):
+        case let .NotFound(uuid):
             writeInt(&buf, Int32(3))
+            FfiConverterString.write(uuid, into: &buf)
+            
+        
+        case let .Sync(msg):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(msg, into: &buf)
+            
+        
+        case let .Internal(msg):
+            writeInt(&buf, Int32(5))
             FfiConverterString.write(msg, into: &buf)
             
         }
@@ -809,10 +912,25 @@ private let initializationResult: InitializationResult = {
     if (uniffi_vergissmeinnicht_core_checksum_func_ping() != 12489) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_add_annotation() != 16896) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_add_task() != 25883) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_delete_task() != 18758) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_list_pending() != 58150) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_mark_done() != 54635) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_modify_description() != 10881) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_sync() != 8453) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_vergissmeinnicht_core_checksum_constructor_taskstore_new() != 10478) {

@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use taskchampion::{
     chrono::Utc,
     storage::AccessMode,
-    Operations, Replica, SqliteStorage, Status,
+    Annotation, Operations, Replica, ServerConfig, SqliteStorage, Status,
 };
 use uuid::Uuid;
 
@@ -27,6 +27,10 @@ pub enum VmError {
     Storage { msg: String },
     #[error("Conversion: {msg}")]
     Conversion { msg: String },
+    #[error("Not found: {uuid}")]
+    NotFound { uuid: String },
+    #[error("Sync: {msg}")]
+    Sync { msg: String },
     #[error("Internal: {msg}")]
     Internal { msg: String },
 }
@@ -36,9 +40,14 @@ impl From<taskchampion::Error> for VmError {
         match e {
             taskchampion::Error::Database(s) => Self::Storage { msg: s },
             taskchampion::Error::Usage(s) => Self::Internal { msg: s },
+            taskchampion::Error::Server(s) => Self::Sync { msg: s },
             other => Self::Internal { msg: other.to_string() },
         }
     }
+}
+
+fn parse_uuid(uuid: &str) -> Result<Uuid, VmError> {
+    Uuid::parse_str(uuid).map_err(|e| VmError::Conversion { msg: e.to_string() })
 }
 
 // ─── FFI Record ─────────────────────────────────────────────────────────────
@@ -130,5 +139,130 @@ impl TaskStore {
         })?;
 
         Ok(infos)
+    }
+
+    /// Markiert die Task mit `uuid` als erledigt (`Status::Completed`) und committet.
+    pub fn mark_done(&self, uuid: String) -> Result<(), VmError> {
+        let task_uuid = parse_uuid(&uuid)?;
+        let mut guard = self
+            .replica
+            .lock()
+            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let replica: &mut AppReplica = &mut *guard;
+
+        self.rt.block_on(async {
+            let mut ops = Operations::new();
+            let mut task = replica
+                .get_task(task_uuid)
+                .await?
+                .ok_or(VmError::NotFound { uuid: uuid.clone() })?;
+            task.set_status(Status::Completed, &mut ops)?;
+            replica.commit_operations(ops).await?;
+            Ok::<_, VmError>(())
+        })
+    }
+
+    /// Ändert die Beschreibung der Task mit `uuid` und committet.
+    pub fn modify_description(
+        &self,
+        uuid: String,
+        new_description: String,
+    ) -> Result<(), VmError> {
+        let task_uuid = parse_uuid(&uuid)?;
+        let mut guard = self
+            .replica
+            .lock()
+            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let replica: &mut AppReplica = &mut *guard;
+
+        self.rt.block_on(async {
+            let mut ops = Operations::new();
+            let mut task = replica
+                .get_task(task_uuid)
+                .await?
+                .ok_or(VmError::NotFound { uuid: uuid.clone() })?;
+            task.set_description(new_description, &mut ops)?;
+            replica.commit_operations(ops).await?;
+            Ok::<_, VmError>(())
+        })
+    }
+
+    /// Markiert die Task mit `uuid` als gelöscht (`Status::Deleted`) und committet.
+    /// Das Operations-Log bleibt erhalten — kein Purge.
+    pub fn delete_task(&self, uuid: String) -> Result<(), VmError> {
+        let task_uuid = parse_uuid(&uuid)?;
+        let mut guard = self
+            .replica
+            .lock()
+            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let replica: &mut AppReplica = &mut *guard;
+
+        self.rt.block_on(async {
+            let mut ops = Operations::new();
+            let mut task = replica
+                .get_task(task_uuid)
+                .await?
+                .ok_or(VmError::NotFound { uuid: uuid.clone() })?;
+            task.set_status(Status::Deleted, &mut ops)?;
+            replica.commit_operations(ops).await?;
+            Ok::<_, VmError>(())
+        })
+    }
+
+    /// Hängt eine Annotation an die Task mit `uuid` an. Entry-Zeitstempel = `Utc::now()`.
+    pub fn add_annotation(&self, uuid: String, annotation: String) -> Result<(), VmError> {
+        let task_uuid = parse_uuid(&uuid)?;
+        let mut guard = self
+            .replica
+            .lock()
+            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let replica: &mut AppReplica = &mut *guard;
+
+        self.rt.block_on(async {
+            let mut ops = Operations::new();
+            let mut task = replica
+                .get_task(task_uuid)
+                .await?
+                .ok_or(VmError::NotFound { uuid: uuid.clone() })?;
+            task.add_annotation(
+                Annotation {
+                    entry: Utc::now(),
+                    description: annotation,
+                },
+                &mut ops,
+            )?;
+            replica.commit_operations(ops).await?;
+            Ok::<_, VmError>(())
+        })
+    }
+
+    /// Synchronisiert die Replica gegen einen TaskChampion-Sync-Server.
+    /// `client_id` muss ein UUID-String sein. `encryption_secret` wird als UTF-8-Bytes verwendet.
+    pub fn sync(
+        &self,
+        server_url: String,
+        client_id: String,
+        encryption_secret: String,
+    ) -> Result<(), VmError> {
+        let client_uuid = parse_uuid(&client_id)?;
+        let mut guard = self
+            .replica
+            .lock()
+            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let replica: &mut AppReplica = &mut *guard;
+
+        self.rt.block_on(async {
+            let mut server = ServerConfig::Remote {
+                url: server_url,
+                client_id: client_uuid,
+                encryption_secret: encryption_secret.into_bytes(),
+            }
+            .into_server()
+            .await?;
+            replica.sync(&mut server, false).await?;
+            Ok::<_, taskchampion::Error>(())
+        })?;
+
+        Ok(())
     }
 }
