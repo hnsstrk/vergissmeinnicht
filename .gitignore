@@ -18,6 +18,7 @@ swift-bindings/generated/
 # Build outputs
 *.app
 *.dSYM/
+build/
 
 # macOS
 .DS_Store

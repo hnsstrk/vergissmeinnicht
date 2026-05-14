@@ -25,6 +25,7 @@
 		C3D4E5F60718293A4B5CDE01 /* DueDateParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F60718293A4B5CDE0123 /* DueDateParser.swift */; };
 		E5F60718293A4B5CDE012345 /* TaskDetailWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60718293A4B5CDE01234567 /* TaskDetailWindow.swift */; };
 		0718293A4B5CDE0123456789 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 18293A4B5CDE0123456789AB /* Localizable.xcstrings */; };
+		A55E751234567890ABCDEF12 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A55E7512345678901234FEED /* Assets.xcassets */; };
 		8293A4B5CDE0123456789AB1 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A4B5CDE0123456789AB123 /* AboutView.swift */; };
 		A4B5CDE0123456789AB1239A /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5CDE0123456789AB123A4B5 /* AppSettings.swift */; };
 		CDE0123456789AB1239A4B5C /* RecurParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0123456789AB1239A4B5CD /* RecurParser.swift */; };
@@ -56,6 +57,7 @@
 		D4E5F60718293A4B5CDE0123 /* DueDateParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DueDateParser.swift; sourceTree = "<group>"; };
 		F60718293A4B5CDE01234567 /* TaskDetailWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailWindow.swift; sourceTree = "<group>"; };
 		18293A4B5CDE0123456789AB /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Resources/Localizable.xcstrings; sourceTree = "<group>"; };
+		A55E7512345678901234FEED /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Resources/Assets.xcassets; sourceTree = "<group>"; };
 		93A4B5CDE0123456789AB123 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		B5CDE0123456789AB123A4B5 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		DE0123456789AB1239A4B5CD /* RecurParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurParser.swift; sourceTree = "<group>"; };
@@ -109,6 +111,7 @@
 				0A366649E38C220DB45BFB37 /* Packages */,
 				31A7D6091F9EB78DE94FB5C9 /* Sources */,
 				18293A4B5CDE0123456789AB /* Localizable.xcstrings */,
+				A55E7512345678901234FEED /* Assets.xcassets */,
 				038770FB1B4BB2B448F7C84C /* Products */,
 			);
 			sourceTree = "<group>";
@@ -248,6 +251,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0718293A4B5CDE0123456789 /* Localizable.xcstrings in Resources */,
+				A55E751234567890ABCDEF12 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
