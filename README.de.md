@@ -6,12 +6,7 @@ SwiftUI-Frontend, Rust-Core via UniFFI, sandboxed, App-Store-tauglich.
 
 🇬🇧 [English version](README.md)
 
-## Status
-
-Produktiv im Einsatz beim Autor. Feature-Complete v4 deckt den typischen
-Workflow eines modernen Taskmanagers ab — Erfassen, Organisieren, Planen,
-Synchronisieren. Noch nicht über den App Store veröffentlicht; lokaler Build
-über die Schritte unten.
+![Vergissmeinnicht — Heute-Ansicht im Dark Mode](docs/screenshots/main.png)
 
 ## Features
 

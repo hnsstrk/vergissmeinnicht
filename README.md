@@ -9,11 +9,7 @@ front-end, Rust core via UniFFI, sandboxed, App-Store-friendly.
 
 🇩🇪 [Deutsche Version](README.de.md)
 
-## Status
-
-Production-ready for the author's own use. Feature-complete v4 covers the
-typical workflow of a modern task manager — capture, organize, schedule, sync.
-Not yet shipped via the App Store; build it locally with the steps below.
+![Vergissmeinnicht — Today view in dark mode](docs/screenshots/main.png)
 
 ## Features
 
