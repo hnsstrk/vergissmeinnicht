@@ -400,6 +400,62 @@ fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
+    typealias FfiType = UInt32
+    typealias SwiftType = UInt32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterInt64: FfiConverterPrimitive {
+    typealias FfiType = Int64
+    typealias SwiftType = Int64
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int64 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int64, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterBool : FfiConverter {
+    typealias FfiType = Int8
+    typealias SwiftType = Bool
+
+    public static func lift(_ value: Int8) throws -> Bool {
+        return value != 0
+    }
+
+    public static func lower(_ value: Bool) -> Int8 {
+        return value ? 1 : 0
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Bool, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
@@ -449,9 +505,22 @@ public protocol TaskStoreProtocol: AnyObject, Sendable {
     func addAnnotation(uuid: String, annotation: String) throws 
     
     /**
+     * Fügt einen einzelnen User-Tag hinzu. No-op, falls der Tag bereits existiert.
+     */
+    func addTag(uuid: String, tag: String) throws 
+    
+    /**
      * Legt einen neuen Task mit der gegebenen Description an und gibt seine UUID zurück.
      */
     func addTask(description: String) throws  -> String
+    
+    /**
+     * Legt einen neuen Task mit voller Metadaten-Persistierung an: project (raw value),
+     * User-Tags und due (Unix-Sekunden). Leere Tags und None/Empty-Project werden
+     * nicht geschrieben. Tag-Strings müssen TaskChampion-konform sein
+     * (kein Whitespace, kein Operator-Zeichen am Anfang, kein Doppelpunkt darin).
+     */
+    func addTaskFull(description: String, project: String?, tags: [String], due: Int64?) throws  -> String
     
     /**
      * Markiert die Task mit `uuid` als gelöscht (`Status::Deleted`) und committet.
@@ -460,9 +529,20 @@ public protocol TaskStoreProtocol: AnyObject, Sendable {
     func deleteTask(uuid: String) throws 
     
     /**
-     * Listet alle aktuell pendenden Tasks (Working Set) als `TaskInfo` mit UUID + Description.
+     * Backwards-Compat-Alias für die App: nur Pending, mit Working-Set-IDs.
      */
     func listPending() throws  -> [TaskInfo]
+    
+    /**
+     * Listet alle Tasks (Pending oder optional auch Completed).
+     * Deleted-Tasks bleiben immer aussen vor.
+     *
+     * Bei `include_completed = false` wird das Working Set in seiner natürlichen
+     * Reihenfolge durchlaufen (so haben Pending-Tasks einen stabilen
+     * `working_set_id`). Bei `true` werden alle Pending zuerst ausgegeben (mit ID),
+     * danach alle Completed (ohne ID) — die App kann clientseitig sortieren.
+     */
+    func listTasks(includeCompleted: Bool) throws  -> [TaskInfo]
     
     /**
      * Markiert die Task mit `uuid` als erledigt (`Status::Completed`) und committet.
@@ -470,15 +550,86 @@ public protocol TaskStoreProtocol: AnyObject, Sendable {
     func markDone(uuid: String) throws 
     
     /**
+     * Markiert eine Pending-Task als erledigt und legt — sofern `recur` und
+     * `new_due` gesetzt sind — in derselben Operations-Batch eine neue Pending-
+     * Instanz an. Description/Project/Tags/Priority werden kopiert; Annotations
+     * werden bewusst NICHT übertragen, da Annotations zeitpunktbezogen sind.
+     * Gibt die UUID der neu erzeugten Folge-Instanz zurück (`None`, wenn keine).
+     */
+    func markDoneWithFollowup(uuid: String, newDue: Int64?, recur: String?, priority: String?, project: String?, tags: [String], description: String) throws  -> String?
+    
+    /**
      * Ändert die Beschreibung der Task mit `uuid` und committet.
      */
     func modifyDescription(uuid: String, newDescription: String) throws 
+    
+    /**
+     * Reaktiviert einen Task: Status zurück auf Pending. Aufgerufen z.B., wenn
+     * User einen versehentlich erledigten Task wiederherstellen will.
+     */
+    func reactivate(uuid: String) throws 
+    
+    /**
+     * Entfernt die Annotation mit dem gegebenen Entry-Zeitstempel (Unix-Sekunden).
+     * Wird vom Detail-Editor zum Löschen einzelner Annotations genutzt.
+     */
+    func removeAnnotation(uuid: String, entry: Int64) throws 
+    
+    /**
+     * Entfernt einen User-Tag. No-op, falls der Tag nicht existiert.
+     */
+    func removeTag(uuid: String, tag: String) throws 
+    
+    /**
+     * Setzt das `due`-Property (Unix-Sekunden). `None` entfernt die Fälligkeit.
+     */
+    func setDue(uuid: String, due: Int64?) throws 
+    
+    /**
+     * Setzt das `priority`-Property (`H` / `M` / `L`). `None` oder leerer String
+     * entfernt es. Es wird nicht validiert — Taskwarrior toleriert beliebige
+     * Strings, sortiert aber clientseitig nach diesem Wert.
+     */
+    func setPriority(uuid: String, priority: String?) throws 
+    
+    /**
+     * Setzt das `project`-Property. `None` oder leerer String entfernt es.
+     */
+    func setProject(uuid: String, project: String?) throws 
+    
+    /**
+     * Setzt das `recur`-Property (z.B. `daily`, `weekly`, `1d`, `2w`). `None` oder
+     * leerer String entfernen es. Wird app-seitig interpretiert — TaskChampion-Lib
+     * generiert keine Children automatisch.
+     */
+    func setRecur(uuid: String, recur: String?) throws 
+    
+    /**
+     * Setzt das `scheduled`-Property (Start-Datum als Unix-Sekunden). `None`
+     * entfernt es. Tasks mit `scheduled` in der Zukunft gelten App-seitig als
+     * „geplant".
+     */
+    func setScheduled(uuid: String, scheduled: Int64?) throws 
+    
+    /**
+     * Setzt das `wait`-Property (Unix-Sekunden). `None` entfernt es. Tasks mit
+     * `wait` in der Zukunft gelten als „wartend" (Snooze).
+     */
+    func setWait(uuid: String, wait: Int64?) throws 
     
     /**
      * Synchronisiert die Replica gegen einen TaskChampion-Sync-Server.
      * `client_id` muss ein UUID-String sein. `encryption_secret` wird als UTF-8-Bytes verwendet.
      */
     func sync(serverUrl: String, clientId: String, encryptionSecret: String) throws 
+    
+    /**
+     * Aktualisiert Metadaten eines bestehenden Tasks in einer einzigen Commit-Batch:
+     * Description, project (None = clear), Tags (komplette Ersetzung), due (None = clear).
+     * Verwendet vom Reparatur-Lauf, der Legacy-Tasks (`+tag` / `project:foo` in der
+     * Description als Text) in saubere Properties überführt.
+     */
+    func updateTaskMetadata(uuid: String, description: String, project: String?, tags: [String], due: Int64?) throws 
     
 }
 open class TaskStore: TaskStoreProtocol, @unchecked Sendable {
@@ -557,12 +708,40 @@ open func addAnnotation(uuid: String, annotation: String)throws   {try rustCallW
 }
     
     /**
+     * Fügt einen einzelnen User-Tag hinzu. No-op, falls der Tag bereits existiert.
+     */
+open func addTag(uuid: String, tag: String)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_add_tag(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterString.lower(tag),$0
+    )
+}
+}
+    
+    /**
      * Legt einen neuen Task mit der gegebenen Description an und gibt seine UUID zurück.
      */
 open func addTask(description: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeVmError_lift) {
     uniffi_vergissmeinnicht_core_fn_method_taskstore_add_task(self.uniffiClonePointer(),
         FfiConverterString.lower(description),$0
+    )
+})
+}
+    
+    /**
+     * Legt einen neuen Task mit voller Metadaten-Persistierung an: project (raw value),
+     * User-Tags und due (Unix-Sekunden). Leere Tags und None/Empty-Project werden
+     * nicht geschrieben. Tag-Strings müssen TaskChampion-konform sein
+     * (kein Whitespace, kein Operator-Zeichen am Anfang, kein Doppelpunkt darin).
+     */
+open func addTaskFull(description: String, project: String?, tags: [String], due: Int64?)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_add_task_full(self.uniffiClonePointer(),
+        FfiConverterString.lower(description),
+        FfiConverterOptionString.lower(project),
+        FfiConverterSequenceString.lower(tags),
+        FfiConverterOptionInt64.lower(due),$0
     )
 })
 }
@@ -579,11 +758,28 @@ open func deleteTask(uuid: String)throws   {try rustCallWithError(FfiConverterTy
 }
     
     /**
-     * Listet alle aktuell pendenden Tasks (Working Set) als `TaskInfo` mit UUID + Description.
+     * Backwards-Compat-Alias für die App: nur Pending, mit Working-Set-IDs.
      */
 open func listPending()throws  -> [TaskInfo]  {
     return try  FfiConverterSequenceTypeTaskInfo.lift(try rustCallWithError(FfiConverterTypeVmError_lift) {
     uniffi_vergissmeinnicht_core_fn_method_taskstore_list_pending(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Listet alle Tasks (Pending oder optional auch Completed).
+     * Deleted-Tasks bleiben immer aussen vor.
+     *
+     * Bei `include_completed = false` wird das Working Set in seiner natürlichen
+     * Reihenfolge durchlaufen (so haben Pending-Tasks einen stabilen
+     * `working_set_id`). Bei `true` werden alle Pending zuerst ausgegeben (mit ID),
+     * danach alle Completed (ohne ID) — die App kann clientseitig sortieren.
+     */
+open func listTasks(includeCompleted: Bool)throws  -> [TaskInfo]  {
+    return try  FfiConverterSequenceTypeTaskInfo.lift(try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_list_tasks(self.uniffiClonePointer(),
+        FfiConverterBool.lower(includeCompleted),$0
     )
 })
 }
@@ -599,12 +795,140 @@ open func markDone(uuid: String)throws   {try rustCallWithError(FfiConverterType
 }
     
     /**
+     * Markiert eine Pending-Task als erledigt und legt — sofern `recur` und
+     * `new_due` gesetzt sind — in derselben Operations-Batch eine neue Pending-
+     * Instanz an. Description/Project/Tags/Priority werden kopiert; Annotations
+     * werden bewusst NICHT übertragen, da Annotations zeitpunktbezogen sind.
+     * Gibt die UUID der neu erzeugten Folge-Instanz zurück (`None`, wenn keine).
+     */
+open func markDoneWithFollowup(uuid: String, newDue: Int64?, recur: String?, priority: String?, project: String?, tags: [String], description: String)throws  -> String?  {
+    return try  FfiConverterOptionString.lift(try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_mark_done_with_followup(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterOptionInt64.lower(newDue),
+        FfiConverterOptionString.lower(recur),
+        FfiConverterOptionString.lower(priority),
+        FfiConverterOptionString.lower(project),
+        FfiConverterSequenceString.lower(tags),
+        FfiConverterString.lower(description),$0
+    )
+})
+}
+    
+    /**
      * Ändert die Beschreibung der Task mit `uuid` und committet.
      */
 open func modifyDescription(uuid: String, newDescription: String)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
     uniffi_vergissmeinnicht_core_fn_method_taskstore_modify_description(self.uniffiClonePointer(),
         FfiConverterString.lower(uuid),
         FfiConverterString.lower(newDescription),$0
+    )
+}
+}
+    
+    /**
+     * Reaktiviert einen Task: Status zurück auf Pending. Aufgerufen z.B., wenn
+     * User einen versehentlich erledigten Task wiederherstellen will.
+     */
+open func reactivate(uuid: String)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_reactivate(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),$0
+    )
+}
+}
+    
+    /**
+     * Entfernt die Annotation mit dem gegebenen Entry-Zeitstempel (Unix-Sekunden).
+     * Wird vom Detail-Editor zum Löschen einzelner Annotations genutzt.
+     */
+open func removeAnnotation(uuid: String, entry: Int64)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_remove_annotation(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterInt64.lower(entry),$0
+    )
+}
+}
+    
+    /**
+     * Entfernt einen User-Tag. No-op, falls der Tag nicht existiert.
+     */
+open func removeTag(uuid: String, tag: String)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_remove_tag(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterString.lower(tag),$0
+    )
+}
+}
+    
+    /**
+     * Setzt das `due`-Property (Unix-Sekunden). `None` entfernt die Fälligkeit.
+     */
+open func setDue(uuid: String, due: Int64?)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_set_due(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterOptionInt64.lower(due),$0
+    )
+}
+}
+    
+    /**
+     * Setzt das `priority`-Property (`H` / `M` / `L`). `None` oder leerer String
+     * entfernt es. Es wird nicht validiert — Taskwarrior toleriert beliebige
+     * Strings, sortiert aber clientseitig nach diesem Wert.
+     */
+open func setPriority(uuid: String, priority: String?)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_set_priority(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterOptionString.lower(priority),$0
+    )
+}
+}
+    
+    /**
+     * Setzt das `project`-Property. `None` oder leerer String entfernt es.
+     */
+open func setProject(uuid: String, project: String?)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_set_project(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterOptionString.lower(project),$0
+    )
+}
+}
+    
+    /**
+     * Setzt das `recur`-Property (z.B. `daily`, `weekly`, `1d`, `2w`). `None` oder
+     * leerer String entfernen es. Wird app-seitig interpretiert — TaskChampion-Lib
+     * generiert keine Children automatisch.
+     */
+open func setRecur(uuid: String, recur: String?)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_set_recur(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterOptionString.lower(recur),$0
+    )
+}
+}
+    
+    /**
+     * Setzt das `scheduled`-Property (Start-Datum als Unix-Sekunden). `None`
+     * entfernt es. Tasks mit `scheduled` in der Zukunft gelten App-seitig als
+     * „geplant".
+     */
+open func setScheduled(uuid: String, scheduled: Int64?)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_set_scheduled(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterOptionInt64.lower(scheduled),$0
+    )
+}
+}
+    
+    /**
+     * Setzt das `wait`-Property (Unix-Sekunden). `None` entfernt es. Tasks mit
+     * `wait` in der Zukunft gelten als „wartend" (Snooze).
+     */
+open func setWait(uuid: String, wait: Int64?)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_set_wait(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterOptionInt64.lower(wait),$0
     )
 }
 }
@@ -618,6 +942,23 @@ open func sync(serverUrl: String, clientId: String, encryptionSecret: String)thr
         FfiConverterString.lower(serverUrl),
         FfiConverterString.lower(clientId),
         FfiConverterString.lower(encryptionSecret),$0
+    )
+}
+}
+    
+    /**
+     * Aktualisiert Metadaten eines bestehenden Tasks in einer einzigen Commit-Batch:
+     * Description, project (None = clear), Tags (komplette Ersetzung), due (None = clear).
+     * Verwendet vom Reparatur-Lauf, der Legacy-Tasks (`+tag` / `project:foo` in der
+     * Description als Text) in saubere Properties überführt.
+     */
+open func updateTaskMetadata(uuid: String, description: String, project: String?, tags: [String], due: Int64?)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_update_task_metadata(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterString.lower(description),
+        FfiConverterOptionString.lower(project),
+        FfiConverterSequenceString.lower(tags),
+        FfiConverterOptionInt64.lower(due),$0
     )
 }
 }
@@ -678,15 +1019,197 @@ public func FfiConverterTypeTaskStore_lower(_ value: TaskStore) -> UnsafeMutable
 
 
 
-public struct TaskInfo {
-    public var uuid: String
+public struct AnnotationInfo {
+    /**
+     * Entry-Zeitpunkt der Annotation als Unix-Sekunden (i64). Dient gleichzeitig als
+     * Schlüssel beim Entfernen.
+     */
+    public var entry: Int64
     public var description: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(uuid: String, description: String) {
+    public init(
+        /**
+         * Entry-Zeitpunkt der Annotation als Unix-Sekunden (i64). Dient gleichzeitig als
+         * Schlüssel beim Entfernen.
+         */entry: Int64, description: String) {
+        self.entry = entry
+        self.description = description
+    }
+}
+
+#if compiler(>=6)
+extension AnnotationInfo: Sendable {}
+#endif
+
+
+extension AnnotationInfo: Equatable, Hashable {
+    public static func ==(lhs: AnnotationInfo, rhs: AnnotationInfo) -> Bool {
+        if lhs.entry != rhs.entry {
+            return false
+        }
+        if lhs.description != rhs.description {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(entry)
+        hasher.combine(description)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAnnotationInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AnnotationInfo {
+        return
+            try AnnotationInfo(
+                entry: FfiConverterInt64.read(from: &buf), 
+                description: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AnnotationInfo, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.entry, into: &buf)
+        FfiConverterString.write(value.description, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAnnotationInfo_lift(_ buf: RustBuffer) throws -> AnnotationInfo {
+    return try FfiConverterTypeAnnotationInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAnnotationInfo_lower(_ value: AnnotationInfo) -> RustBuffer {
+    return FfiConverterTypeAnnotationInfo.lower(value)
+}
+
+
+public struct TaskInfo {
+    public var uuid: String
+    public var description: String
+    /**
+     * Wert der `project`-Property; leer falls nicht gesetzt.
+     */
+    public var project: String?
+    /**
+     * User-Tags (synthetische TaskChampion-Tags wie PENDING/OVERDUE sind herausgefiltert).
+     */
+    public var tags: [String]
+    /**
+     * Due-Date als Unix-Sekunden (i64). UniFFI bildet `Option<chrono::DateTime>` nicht direkt
+     * auf Swift ab; der i64-Pfad ist robust und auf Swift-Seite via `Date(timeIntervalSince1970:)`
+     * trivial konvertierbar.
+     */
+    public var due: Int64?
+    /**
+     * Status des Tasks (pending / completed / deleted).
+     */
+    public var status: TaskStatus
+    /**
+     * Entry-Zeitpunkt der Task (Anlage-Datum) als Unix-Sekunden. Wird beim Anlegen gesetzt.
+     */
+    public var entry: Int64?
+    /**
+     * Working-Set-ID (Taskwarrior-typische numerische ID, 1-N). Nur für Pending-Tasks
+     * definiert; für Completed/Deleted ist `None`.
+     */
+    public var workingSetId: UInt32?
+    /**
+     * Priority-Property als Rohwert (typisch `H` / `M` / `L`); nicht validiert.
+     */
+    public var priority: String?
+    /**
+     * Annotations zum Task, in beliebiger Reihenfolge.
+     */
+    public var annotations: [AnnotationInfo]
+    /**
+     * Wait-Property (Snooze) als Unix-Sekunden. Liegt ein Wert in der Zukunft,
+     * gilt der Task als „wartend" — Taskwarrior versteckt solche Tasks per Default
+     * aus `task list`; die App zeigt sie in einer eigenen Sidebar-Sektion.
+     */
+    public var wait: Int64?
+    /**
+     * Recur-Property als Rohstring (z.B. `daily`, `weekly`, `monthly`, `1d`, `2w`).
+     * Wir interpretieren es App-seitig — TaskChampion-Lib generiert keine Children.
+     */
+    public var recur: String?
+    /**
+     * Scheduled-Property (Start-Datum / Defer-Until) als Unix-Sekunden. Tasks mit
+     * `scheduled` in der Zukunft sind „geplant" und werden aus ToDo/Inbox/Überfällig
+     * ausgeblendet, bis das Datum erreicht ist (Hide-until-date).
+     */
+    public var scheduled: Int64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(uuid: String, description: String, 
+        /**
+         * Wert der `project`-Property; leer falls nicht gesetzt.
+         */project: String?, 
+        /**
+         * User-Tags (synthetische TaskChampion-Tags wie PENDING/OVERDUE sind herausgefiltert).
+         */tags: [String], 
+        /**
+         * Due-Date als Unix-Sekunden (i64). UniFFI bildet `Option<chrono::DateTime>` nicht direkt
+         * auf Swift ab; der i64-Pfad ist robust und auf Swift-Seite via `Date(timeIntervalSince1970:)`
+         * trivial konvertierbar.
+         */due: Int64?, 
+        /**
+         * Status des Tasks (pending / completed / deleted).
+         */status: TaskStatus, 
+        /**
+         * Entry-Zeitpunkt der Task (Anlage-Datum) als Unix-Sekunden. Wird beim Anlegen gesetzt.
+         */entry: Int64?, 
+        /**
+         * Working-Set-ID (Taskwarrior-typische numerische ID, 1-N). Nur für Pending-Tasks
+         * definiert; für Completed/Deleted ist `None`.
+         */workingSetId: UInt32?, 
+        /**
+         * Priority-Property als Rohwert (typisch `H` / `M` / `L`); nicht validiert.
+         */priority: String?, 
+        /**
+         * Annotations zum Task, in beliebiger Reihenfolge.
+         */annotations: [AnnotationInfo], 
+        /**
+         * Wait-Property (Snooze) als Unix-Sekunden. Liegt ein Wert in der Zukunft,
+         * gilt der Task als „wartend" — Taskwarrior versteckt solche Tasks per Default
+         * aus `task list`; die App zeigt sie in einer eigenen Sidebar-Sektion.
+         */wait: Int64?, 
+        /**
+         * Recur-Property als Rohstring (z.B. `daily`, `weekly`, `monthly`, `1d`, `2w`).
+         * Wir interpretieren es App-seitig — TaskChampion-Lib generiert keine Children.
+         */recur: String?, 
+        /**
+         * Scheduled-Property (Start-Datum / Defer-Until) als Unix-Sekunden. Tasks mit
+         * `scheduled` in der Zukunft sind „geplant" und werden aus ToDo/Inbox/Überfällig
+         * ausgeblendet, bis das Datum erreicht ist (Hide-until-date).
+         */scheduled: Int64?) {
         self.uuid = uuid
         self.description = description
+        self.project = project
+        self.tags = tags
+        self.due = due
+        self.status = status
+        self.entry = entry
+        self.workingSetId = workingSetId
+        self.priority = priority
+        self.annotations = annotations
+        self.wait = wait
+        self.recur = recur
+        self.scheduled = scheduled
     }
 }
 
@@ -703,12 +1226,56 @@ extension TaskInfo: Equatable, Hashable {
         if lhs.description != rhs.description {
             return false
         }
+        if lhs.project != rhs.project {
+            return false
+        }
+        if lhs.tags != rhs.tags {
+            return false
+        }
+        if lhs.due != rhs.due {
+            return false
+        }
+        if lhs.status != rhs.status {
+            return false
+        }
+        if lhs.entry != rhs.entry {
+            return false
+        }
+        if lhs.workingSetId != rhs.workingSetId {
+            return false
+        }
+        if lhs.priority != rhs.priority {
+            return false
+        }
+        if lhs.annotations != rhs.annotations {
+            return false
+        }
+        if lhs.wait != rhs.wait {
+            return false
+        }
+        if lhs.recur != rhs.recur {
+            return false
+        }
+        if lhs.scheduled != rhs.scheduled {
+            return false
+        }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(uuid)
         hasher.combine(description)
+        hasher.combine(project)
+        hasher.combine(tags)
+        hasher.combine(due)
+        hasher.combine(status)
+        hasher.combine(entry)
+        hasher.combine(workingSetId)
+        hasher.combine(priority)
+        hasher.combine(annotations)
+        hasher.combine(wait)
+        hasher.combine(recur)
+        hasher.combine(scheduled)
     }
 }
 
@@ -722,13 +1289,35 @@ public struct FfiConverterTypeTaskInfo: FfiConverterRustBuffer {
         return
             try TaskInfo(
                 uuid: FfiConverterString.read(from: &buf), 
-                description: FfiConverterString.read(from: &buf)
+                description: FfiConverterString.read(from: &buf), 
+                project: FfiConverterOptionString.read(from: &buf), 
+                tags: FfiConverterSequenceString.read(from: &buf), 
+                due: FfiConverterOptionInt64.read(from: &buf), 
+                status: FfiConverterTypeTaskStatus.read(from: &buf), 
+                entry: FfiConverterOptionInt64.read(from: &buf), 
+                workingSetId: FfiConverterOptionUInt32.read(from: &buf), 
+                priority: FfiConverterOptionString.read(from: &buf), 
+                annotations: FfiConverterSequenceTypeAnnotationInfo.read(from: &buf), 
+                wait: FfiConverterOptionInt64.read(from: &buf), 
+                recur: FfiConverterOptionString.read(from: &buf), 
+                scheduled: FfiConverterOptionInt64.read(from: &buf)
         )
     }
 
     public static func write(_ value: TaskInfo, into buf: inout [UInt8]) {
         FfiConverterString.write(value.uuid, into: &buf)
         FfiConverterString.write(value.description, into: &buf)
+        FfiConverterOptionString.write(value.project, into: &buf)
+        FfiConverterSequenceString.write(value.tags, into: &buf)
+        FfiConverterOptionInt64.write(value.due, into: &buf)
+        FfiConverterTypeTaskStatus.write(value.status, into: &buf)
+        FfiConverterOptionInt64.write(value.entry, into: &buf)
+        FfiConverterOptionUInt32.write(value.workingSetId, into: &buf)
+        FfiConverterOptionString.write(value.priority, into: &buf)
+        FfiConverterSequenceTypeAnnotationInfo.write(value.annotations, into: &buf)
+        FfiConverterOptionInt64.write(value.wait, into: &buf)
+        FfiConverterOptionString.write(value.recur, into: &buf)
+        FfiConverterOptionInt64.write(value.scheduled, into: &buf)
     }
 }
 
@@ -746,6 +1335,83 @@ public func FfiConverterTypeTaskInfo_lift(_ buf: RustBuffer) throws -> TaskInfo 
 public func FfiConverterTypeTaskInfo_lower(_ value: TaskInfo) -> RustBuffer {
     return FfiConverterTypeTaskInfo.lower(value)
 }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum TaskStatus {
+    
+    case pending
+    case completed
+    case deleted
+}
+
+
+#if compiler(>=6)
+extension TaskStatus: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTaskStatus: FfiConverterRustBuffer {
+    typealias SwiftType = TaskStatus
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TaskStatus {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .pending
+        
+        case 2: return .completed
+        
+        case 3: return .deleted
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: TaskStatus, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .pending:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .completed:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .deleted:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTaskStatus_lift(_ buf: RustBuffer) throws -> TaskStatus {
+    return try FfiConverterTypeTaskStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTaskStatus_lower(_ value: TaskStatus) -> RustBuffer {
+    return FfiConverterTypeTaskStatus.lower(value)
+}
+
+
+extension TaskStatus: Equatable, Hashable {}
+
+
+
+
+
 
 
 public enum VmError: Swift.Error {
@@ -866,6 +1532,128 @@ extension VmError: Foundation.LocalizedError {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionUInt32: FfiConverterRustBuffer {
+    typealias SwiftType = UInt32?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterUInt32.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterUInt32.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionInt64: FfiConverterRustBuffer {
+    typealias SwiftType = Int64?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterInt64.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterInt64.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
+    typealias SwiftType = String?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]
+
+    public static func write(_ value: [String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterString.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [String]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeAnnotationInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [AnnotationInfo]
+
+    public static func write(_ value: [AnnotationInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAnnotationInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AnnotationInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AnnotationInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAnnotationInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeTaskInfo: FfiConverterRustBuffer {
     typealias SwiftType = [TaskInfo]
 
@@ -915,22 +1703,64 @@ private let initializationResult: InitializationResult = {
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_add_annotation() != 16896) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_add_tag() != 42420) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_add_task() != 25883) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_add_task_full() != 4153) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_delete_task() != 18758) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_list_pending() != 58150) {
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_list_pending() != 3320) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_list_tasks() != 42214) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_mark_done() != 54635) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_mark_done_with_followup() != 55075) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_modify_description() != 10881) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_reactivate() != 43078) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_remove_annotation() != 19111) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_remove_tag() != 3845) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_set_due() != 39542) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_set_priority() != 34575) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_set_project() != 48540) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_set_recur() != 13383) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_set_scheduled() != 11085) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_set_wait() != 31016) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_sync() != 8453) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_update_task_metadata() != 4155) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_vergissmeinnicht_core_checksum_constructor_taskstore_new() != 10478) {
