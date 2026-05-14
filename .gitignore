@@ -6,6 +6,7 @@ Cargo.lock
 .build/
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
 DerivedData/
 .swiftpm/
 Package.resolved
@@ -14,5 +15,20 @@ Package.resolved
 swift-bindings/generated/
 *.xcframework/
 
+# Build outputs
+*.app
+*.dSYM/
+
 # macOS
 .DS_Store
+**/.DS_Store
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+
+# Claude Code — share agent definitions, ignore local user settings
+.claude/settings.local.json
+.claude/projects/
+.claude/.credentials.json
