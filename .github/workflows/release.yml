@@ -1,0 +1,114 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.1.0). Must already exist.'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & publish (macOS arm64)
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: Show toolchain versions
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+          rustc --version
+
+      - name: Cache Cargo registry & target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('rust/**/Cargo.toml', 'rust/**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+            ${{ runner.os }}-cargo-
+
+      - name: Build Rust core + Swift bindings + XCFramework
+        run: ./scripts/build-macos.sh
+
+      - name: Build app (Release)
+        run: |
+          xcodebuild \
+            -project app/Vergissmeinnicht/Vergissmeinnicht.xcodeproj \
+            -scheme Vergissmeinnicht \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/ \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Determine version tag
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Zip app bundle
+        run: |
+          cd build/Build/Products/Release
+          /usr/bin/ditto -c -k --keepParent Vergissmeinnicht.app \
+            "$GITHUB_WORKSPACE/Vergissmeinnicht-${{ steps.tag.outputs.tag }}-arm64.zip"
+
+      - name: Generate checksum
+        run: |
+          shasum -a 256 "Vergissmeinnicht-${{ steps.tag.outputs.tag }}-arm64.zip" \
+            > "Vergissmeinnicht-${{ steps.tag.outputs.tag }}-arm64.zip.sha256"
+          cat "Vergissmeinnicht-${{ steps.tag.outputs.tag }}-arm64.zip.sha256"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Vergissmeinnicht ${{ steps.tag.outputs.tag }}
+          files: |
+            Vergissmeinnicht-*-arm64.zip
+            Vergissmeinnicht-*-arm64.zip.sha256
+          body: |
+            ## Vergissmeinnicht ${{ steps.tag.outputs.tag }}
+
+            Unsigned **arm64-only** build for Apple Silicon. Requires macOS 14 (Sonoma) or later.
+
+            ### Install
+
+            ```sh
+            # 1. Download Vergissmeinnicht-${{ steps.tag.outputs.tag }}-arm64.zip and unzip
+            unzip Vergissmeinnicht-${{ steps.tag.outputs.tag }}-arm64.zip
+
+            # 2. Drag Vergissmeinnicht.app to /Applications
+
+            # 3. Remove the quarantine flag (build is not notarized)
+            xattr -dr com.apple.quarantine /Applications/Vergissmeinnicht.app
+
+            # 4. Open
+            open /Applications/Vergissmeinnicht.app
+            ```
+
+            Without step 3 Gatekeeper will block the app with "Apple could not verify ...".
+            The build is not signed by an Apple Developer ID, so this is expected. The
+            checksum file (`.sha256`) lets you verify the download.
+
+            ### From source
+
+            See [`docs/building.md`](https://github.com/hnsstrk/vergissmeinnicht/blob/main/docs/building.md).

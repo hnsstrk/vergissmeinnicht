@@ -65,6 +65,27 @@ The app runs sandboxed. Its replica lives in
 `~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application Support/`.
 There is no direct access to `~/.task/` — sync goes through the server.
 
+## Download
+
+Pre-built `.app` bundles are available **arm64-only** (Apple Silicon, macOS 14+):
+
+- **Releases** — versioned builds at [github.com/hnsstrk/vergissmeinnicht/releases](https://github.com/hnsstrk/vergissmeinnicht/releases).
+- **Dev builds** — every CI run on `main` uploads a Debug build as workflow artifact
+  ([latest CI runs](https://github.com/hnsstrk/vergissmeinnicht/actions/workflows/ci.yml)).
+  14-day retention.
+
+Both downloads are **unsigned**. macOS Gatekeeper will block the launch unless
+you remove the quarantine flag:
+
+```sh
+unzip Vergissmeinnicht-*.zip
+xattr -dr com.apple.quarantine Vergissmeinnicht.app
+open Vergissmeinnicht.app
+```
+
+There is no notarized release yet — that requires an Apple Developer ID
+($99/year) and is on the backlog. If you want signed builds, build from source.
+
 ## Requirements
 
 - macOS 14 Sonoma or later (arm64; Intel support is on the backlog)

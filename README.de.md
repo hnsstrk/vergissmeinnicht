@@ -65,6 +65,28 @@ Die App läuft sandboxed. Die Replica liegt unter
 Kein direkter Zugriff auf `~/.task/` — Datenaustausch ausschließlich über den
 Sync-Server.
 
+## Download
+
+Vorgebaute `.app`-Bundles sind **arm64-only** verfügbar (Apple Silicon, macOS 14+):
+
+- **Releases** — versionierte Builds unter [github.com/hnsstrk/vergissmeinnicht/releases](https://github.com/hnsstrk/vergissmeinnicht/releases).
+- **Dev-Builds** — jeder CI-Lauf auf `main` lädt einen Debug-Build als Workflow-Artifact hoch
+  ([letzte CI-Läufe](https://github.com/hnsstrk/vergissmeinnicht/actions/workflows/ci.yml)).
+  14 Tage Aufbewahrung.
+
+Beide Downloads sind **unsigniert**. macOS-Gatekeeper blockiert den Start, bis du
+das Quarantäne-Flag entfernst:
+
+```sh
+unzip Vergissmeinnicht-*.zip
+xattr -dr com.apple.quarantine Vergissmeinnicht.app
+open Vergissmeinnicht.app
+```
+
+Es gibt noch keinen notarized Release — dafür wird eine Apple-Developer-ID
+(99 €/Jahr) gebraucht; steht im Backlog. Wenn du signierte Builds willst, baue
+selbst aus dem Quellcode.
+
 ## Voraussetzungen
 
 - macOS 14 Sonoma oder neuer (arm64; Intel-Support steht im Backlog)
