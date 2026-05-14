@@ -83,7 +83,7 @@ struct TaskRowView: View {
                 Label(project, systemImage: "folder")
                     .labelStyle(MetaChipStyle())
             }
-            ForEach(task.tags, id: \.self) { tag in
+            ForEach(task.tags.sorted(), id: \.self) { tag in
                 Label(tag, systemImage: "tag")
                     .labelStyle(MetaChipStyle())
             }

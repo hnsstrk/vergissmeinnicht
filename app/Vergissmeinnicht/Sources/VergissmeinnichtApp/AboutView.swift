@@ -51,6 +51,7 @@ struct ShortcutHelpView: View {
                 Entry(label: "Suchen…",                keys: "⌘F"),
                 Entry(label: "Aktualisieren",          keys: "⌘R"),
                 Entry(label: "Synchronisieren",        keys: "⇧⌘S"),
+                Entry(label: "Erledigte ausblenden",   keys: "⇧⌘H"),
             ]),
             Section(title: "Detail-Editor", entries: [
                 Entry(label: "Speichern",              keys: "⌘S"),

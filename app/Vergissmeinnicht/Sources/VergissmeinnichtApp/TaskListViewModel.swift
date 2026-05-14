@@ -28,7 +28,7 @@ enum SidebarFilter: Hashable {
         case .all:
             return true
         case .today:
-            // „Heute machbar": pending + nicht versteckt + (überfällig ODER fällig heute
+            // "Heute machbar": pending + nicht versteckt + (überfällig ODER fällig heute
             // ODER scheduled heute/vorbei und kein due).
             guard task.status == .pending,
                   !Self.isWaiting(task, now: now),
@@ -132,11 +132,15 @@ final class TaskListViewModel {
     var sortAscending: Bool = true
     /// Anzahl Tage für "Bald fällig" — vom Settings-Pane überschrieben.
     var dueSoonDays: Int = 7
+    /// Wenn `true`, werden erledigte Tasks aus der sichtbaren Liste ausgeblendet.
+    var hideCompleted: Bool = false
 
-    /// Filtert nach `activeFilter` + `searchQuery` und sortiert gemäß `sortOrder` + `sortAscending`.
+    /// Filtert nach `activeFilter` + `searchQuery` + `hideCompleted` und sortiert
+    /// gemäß `sortOrder` + `sortAscending`.
     func visibleTasks(from tasks: [TaskInfo], now: Date = Date()) -> [TaskInfo] {
         let filtered = tasks
             .filter { activeFilter.matches($0, now: now, dueSoonDays: dueSoonDays) }
+            .filter { hideCompleted ? $0.status != .completed : true }
             .filter { matchesSearch($0) }
         let sorted = filtered.sorted { lhs, rhs in sortComparator(lhs, rhs) }
         return sortAscending ? sorted : sorted.reversed()

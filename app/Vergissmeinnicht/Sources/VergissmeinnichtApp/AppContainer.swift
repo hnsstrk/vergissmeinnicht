@@ -23,9 +23,18 @@ final class AppContainer {
     }
     private(set) var isSyncing: Bool = false
     private(set) var lastSyncDate: Date?
+    /// Anzahl lokaler Operationen, die noch nicht synchronisiert wurden.
+    private(set) var localChanges: UInt64 = 0
+    /// Nächster geplanter Auto-Sync-Zeitpunkt (nil wenn kein Timer aktiv).
+    private(set) var nextSyncDate: Date?
 
     private let store: TaskStore
     let backupService: BackupService
+
+    /// Aktuell aktiver Auto-Sync-Modus — vom View gesetzt via `configureAutoSync`.
+    private var currentSyncMode: AutoSyncMode = .manual
+    /// Task-Referenz für den laufenden Auto-Sync-Timer. Wird bei Neukonfiguration gecancelt.
+    private var autoSyncTask: Task<Void, Never>?
 
     init() throws {
         let url = try Self.replicaURL()
@@ -55,6 +64,7 @@ final class AppContainer {
         } catch {
             self.lastError = userMessage(for: error)
         }
+        await refreshLocalChanges()
     }
 
     /// Legt einen neuen Task an. Gibt die UUID des angelegten Tasks zurück
@@ -244,7 +254,7 @@ final class AppContainer {
     }
 
     /// Benennt ein Projekt global um — alle Pending-Tasks mit `project == oldName`
-    /// bekommen `newName`. Leerer newName entspricht „löschen".
+    /// bekommen `newName`. Leerer newName entspricht "löschen".
     @discardableResult
     func renameProject(from oldName: String, to newName: String) async -> Int {
         let target = newName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -264,7 +274,7 @@ final class AppContainer {
     }
 
     /// Benennt einen Tag global um — alle Pending-Tasks mit `oldName` bekommen `newName`
-    /// hinzugefügt und verlieren `oldName`. Leerer newName entspricht „nur entfernen".
+    /// hinzugefügt und verlieren `oldName`. Leerer newName entspricht "nur entfernen".
     @discardableResult
     func renameTag(from oldName: String, to newName: String) async -> Int {
         let target = newName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -356,6 +366,9 @@ final class AppContainer {
             return false
         }
         await refresh()
+        if currentSyncMode == .immediate {
+            Task { await syncIfConfigured() }
+        }
         return true
     }
 
@@ -375,6 +388,9 @@ final class AppContainer {
             return nil
         }
         await refresh()
+        if currentSyncMode == .immediate {
+            Task { await syncIfConfigured() }
+        }
         return result
     }
 
@@ -432,13 +448,60 @@ final class AppContainer {
         }
     }
 
-    /// Liest Credentials aus dem Keychain und ruft `sync()` — no-op falls nicht konfiguriert.
+    /// Liest Credentials aus dem Keychain und ruft `sync()`. Falls keine Credentials
+    /// konfiguriert sind, fällt die Methode auf einen lokalen `refresh()` zurück —
+    /// damit ist der Sync-Button in der Toolbar auch ohne Server-Konfiguration
+    /// sinnvoll und bringt die UI auf den aktuellen Replica-Stand.
     func syncIfConfigured() async {
         guard let serverUrl = KeychainStore.load(key: .serverUrl), !serverUrl.isEmpty,
               let clientId = KeychainStore.load(key: .clientId), !clientId.isEmpty,
               let secret = KeychainStore.load(key: .encryptionSecret), !secret.isEmpty
-        else { return }
+        else {
+            await refresh()
+            return
+        }
         await sync(serverUrl: serverUrl, clientId: clientId, encryptionSecret: secret)
+    }
+
+    /// Liest die Anzahl der noch nicht synchronisierten lokalen Operationen vom Store.
+    /// Non-blocking: Fehler werden stumm als 0 behandelt.
+    func refreshLocalChanges() async {
+        let store = self.store
+        let count: UInt64
+        do {
+            count = try await Task.detached(priority: .utility) {
+                try store.numLocalOperations()
+            }.value
+        } catch {
+            count = 0
+        }
+        self.localChanges = count
+    }
+
+    /// Konfiguriert den Auto-Sync-Scheduler. Cancelt den bisherigen Timer und startet
+    /// einen neuen, falls der Modus ein Intervall hat.
+    func configureAutoSync(mode: AutoSyncMode) {
+        currentSyncMode = mode
+        autoSyncTask?.cancel()
+        autoSyncTask = nil
+        nextSyncDate = nil
+
+        guard let interval = mode.interval else { return }
+
+        let next = Date().addingTimeInterval(interval)
+        nextSyncDate = next
+
+        autoSyncTask = Task { [weak self] in
+            var scheduledNext = next
+            while !Task.isCancelled {
+                let delay = max(0, scheduledNext.timeIntervalSinceNow)
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                guard !Task.isCancelled else { break }
+                await self?.syncIfConfigured()
+                scheduledNext = Date().addingTimeInterval(interval)
+                await MainActor.run { self?.nextSyncDate = scheduledNext }
+            }
+        }
     }
 
     /// Pfad zum Replica-Verzeichnis im App-Container. Im Sandbox liefert

@@ -416,6 +416,22 @@ fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
+    typealias FfiType = UInt64
+    typealias SwiftType = UInt64
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt64 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterInt64: FfiConverterPrimitive {
     typealias FfiType = Int64
     typealias SwiftType = Int64
@@ -562,6 +578,16 @@ public protocol TaskStoreProtocol: AnyObject, Sendable {
      * Ändert die Beschreibung der Task mit `uuid` und committet.
      */
     func modifyDescription(uuid: String, newDescription: String) throws 
+    
+    /**
+     * Gibt die Anzahl der lokalen Operationen zurück, die noch nicht mit dem Server
+     * synchronisiert wurden. Wird vom Sync-Toolbar-Counter der App genutzt.
+     *
+     * `usize` aus taskchampion wird als `u64` zurückgegeben, da UniFFI den Typ `usize`
+     * nicht direkt abbilden kann. Auf 64-bit-macOS (und 32-bit-Targets) ist der Cast
+     * verlustfrei aufwärts.
+     */
+    func numLocalOperations() throws  -> UInt64
     
     /**
      * Reaktiviert einen Task: Status zurück auf Pending. Aufgerufen z.B., wenn
@@ -824,6 +850,21 @@ open func modifyDescription(uuid: String, newDescription: String)throws   {try r
         FfiConverterString.lower(newDescription),$0
     )
 }
+}
+    
+    /**
+     * Gibt die Anzahl der lokalen Operationen zurück, die noch nicht mit dem Server
+     * synchronisiert wurden. Wird vom Sync-Toolbar-Counter der App genutzt.
+     *
+     * `usize` aus taskchampion wird als `u64` zurückgegeben, da UniFFI den Typ `usize`
+     * nicht direkt abbilden kann. Auf 64-bit-macOS (und 32-bit-Targets) ist der Cast
+     * verlustfrei aufwärts.
+     */
+open func numLocalOperations()throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_num_local_operations(self.uniffiClonePointer(),$0
+    )
+})
 }
     
     /**
@@ -1728,6 +1769,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_modify_description() != 10881) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_num_local_operations() != 5356) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_reactivate() != 43078) {

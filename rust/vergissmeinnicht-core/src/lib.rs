@@ -386,6 +386,26 @@ impl TaskStore {
         self.list_tasks(false)
     }
 
+    /// Gibt die Anzahl der lokalen Operationen zurück, die noch nicht mit dem Server
+    /// synchronisiert wurden. Wird vom Sync-Toolbar-Counter der App genutzt.
+    ///
+    /// `usize` aus taskchampion wird als `u64` zurückgegeben, da UniFFI den Typ `usize`
+    /// nicht direkt abbilden kann. Auf 64-bit-macOS (und 32-bit-Targets) ist der Cast
+    /// verlustfrei aufwärts.
+    pub fn num_local_operations(&self) -> Result<u64, VmError> {
+        let mut guard = self
+            .replica
+            .lock()
+            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let replica: &mut AppReplica = &mut *guard;
+
+        let count = self.rt.block_on(async {
+            replica.num_local_operations().await
+        })?;
+
+        Ok(count as u64)
+    }
+
     /// Markiert die Task mit `uuid` als erledigt (`Status::Completed`) und committet.
     pub fn mark_done(&self, uuid: String) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;

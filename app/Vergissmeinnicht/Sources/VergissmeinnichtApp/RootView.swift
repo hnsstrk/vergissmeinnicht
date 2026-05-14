@@ -49,6 +49,8 @@ struct RootView: View {
     @AppStorage(AppSettingsKey.sortAscending) private var sortAscending: Bool = true
     @AppStorage(AppSettingsKey.dueSoonDays)   private var dueSoonDays: Int = 7
     @AppStorage(AppSettingsKey.notifications) private var notificationsEnabled: Bool = false
+    @AppStorage(AppSettingsKey.hideCompleted) private var hideCompleted: Bool = false
+    @AppStorage(AppSettingsKey.autoSyncMode)  private var autoSyncModeRaw: String = AutoSyncMode.manual.rawValue
 
     var body: some View {
         @Bindable var vm = viewModel
@@ -109,6 +111,8 @@ struct RootView: View {
         }
         .task {
             applyDefaults()
+            let syncMode = AutoSyncMode(rawValue: autoSyncModeRaw) ?? .manual
+            container.configureAutoSync(mode: syncMode)
             if notificationsEnabled {
                 await NotificationService.shared.requestAuthorizationIfNeeded()
             }
@@ -135,6 +139,12 @@ struct RootView: View {
         }
         .onChange(of: dueSoonDays) { _, newValue in
             viewModel.dueSoonDays = newValue
+        }
+        .onChange(of: hideCompleted) { _, newValue in
+            viewModel.hideCompleted = newValue
+        }
+        .onChange(of: autoSyncModeRaw) { _, new in
+            container.configureAutoSync(mode: AutoSyncMode(rawValue: new) ?? .manual)
         }
         .onChange(of: container.tasks) { _, newTasks in
             viewModel.selectedUuids = viewModel.selectedUuids.filter { uuid in
@@ -219,14 +229,6 @@ struct RootView: View {
             .help("Ausgewählte Aufgabe(n) löschen (Cmd+⌫)")
         }
         ToolbarItem {
-            Button {
-                Task { await container.refresh() }
-            } label: {
-                Label("Aktualisieren", systemImage: "arrow.clockwise")
-            }
-            .help("Liste neu laden")
-        }
-        ToolbarItem {
             SyncStatusView()
         }
     }
@@ -235,6 +237,7 @@ struct RootView: View {
 
     private func applyDefaults() {
         viewModel.dueSoonDays = dueSoonDays
+        viewModel.hideCompleted = hideCompleted
         if viewModel.activeFilter == .inbox,
            let f = DefaultFilter(rawValue: defaultFilterRaw) {
             viewModel.activeFilter = f.asSidebarFilter

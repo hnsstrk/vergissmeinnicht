@@ -31,19 +31,19 @@ struct SidebarView: View {
 
     var body: some View {
         List(selection: selectionBinding) {
-            Section("Übersicht") {
+            Section {
                 inboxRow
-                row(.today,    label: "Heute",         systemImage: "star",                   count: todayCount)
-                row(.todo,     label: "Zu erledigen",  systemImage: "list.bullet",            count: todoCount)
-                row(.overdue,  label: "Überfällig",    systemImage: "exclamationmark.circle", count: overdueCount)
-                row(.dueSoon,  label: "Bald fällig",   systemImage: "clock",                  count: dueSoonCount)
+                coloredRow(.today,   label: "Heute",        systemImage: "star.fill",                   color: .yellow,  count: todayCount)
+                coloredRow(.todo,    label: "Zu erledigen", systemImage: "list.bullet",                 color: .green,   count: todoCount)
+                coloredRow(.overdue, label: "Überfällig",   systemImage: "exclamationmark.circle.fill", color: .red,     count: overdueCount)
+                coloredRow(.dueSoon, label: "Bald fällig",  systemImage: "clock.fill",                  color: .orange,  count: dueSoonCount)
                 if upcomingCount > 0 {
-                    row(.upcoming, label: "Geplant",   systemImage: "calendar",              count: upcomingCount)
+                    coloredRow(.upcoming, label: "Geplant",  systemImage: "calendar",                   color: .indigo,  count: upcomingCount)
                 }
                 if waitingCount > 0 {
-                    row(.waiting, label: "Wartend",    systemImage: "moon.zzz",              count: waitingCount)
+                    coloredRow(.waiting, label: "Wartend",   systemImage: "moon.zzz.fill",              color: .gray,    count: waitingCount)
                 }
-                row(.all,      label: "Alle",          systemImage: "tray.full",              count: tasks.count)
+                coloredRow(.all,     label: "Alle",          systemImage: "tray.full.fill",             color: .purple,  count: tasks.count)
             }
 
             if !projects.isEmpty {
@@ -71,35 +71,53 @@ struct SidebarView: View {
 
     // MARK: - Rows
 
+    /// Zeigt eine Sidebar-Zeile mit farbigem Symbol im farbiger Hintergrund.
     @ViewBuilder
-    private func row(_ filter: SidebarFilter, label: LocalizedStringKey, systemImage: String, count: Int) -> some View {
-        Label(label, systemImage: systemImage)
-            .badge(count)
-            .tag(filter)
+    private func coloredRow(_ filter: SidebarFilter, label: LocalizedStringKey, systemImage: String, color: Color, count: Int) -> some View {
+        Label {
+            Text(label)
+        } icon: {
+            coloredIcon(systemImage: systemImage, color: color)
+        }
+        .badge(count)
+        .tag(filter)
+    }
+
+    /// Farbiges SF-Symbol ohne Hintergrund (ohne Hintergrund).
+    @ViewBuilder
+    private func coloredIcon(systemImage: String, color: Color) -> some View {
+        Image(systemName: systemImage)
+            .foregroundStyle(color)
     }
 
     @ViewBuilder
     private var inboxRow: some View {
         DropTargetRow(
-            label: Label("Eingang", systemImage: "tray"),
             badge: inboxCount,
             filter: .inbox,
             onDrop: { uuids in
                 for uuid in expandedDropUUIDs(uuids) { onDropInbox(uuid) }
             }
-        )
+        ) {
+            Label {
+                Text("Eingang")
+            } icon: {
+                coloredIcon(systemImage: "tray.fill", color: .blue)
+            }
+        }
     }
 
     @ViewBuilder
     private func projectRow(_ project: String) -> some View {
         DropTargetRow(
-            label: Label(project, systemImage: "folder"),
             badge: tasks.filter { $0.status == .pending && $0.project == project }.count,
             filter: .project(project),
             onDrop: { uuids in
                 for uuid in expandedDropUUIDs(uuids) { onDropProject(uuid, project) }
             }
-        )
+        ) {
+            Label(project, systemImage: "folder")
+        }
         .contextMenu {
             Button("Umbenennen …") { onRenameProject(project) }
             Button("Aus allen Tasks entfernen", role: .destructive) {
@@ -111,13 +129,14 @@ struct SidebarView: View {
     @ViewBuilder
     private func tagRow(_ tag: String) -> some View {
         DropTargetRow(
-            label: Label(tag, systemImage: "tag"),
             badge: tasks.filter { $0.status == .pending && $0.tags.contains(tag) }.count,
             filter: .tag(tag),
             onDrop: { uuids in
                 for uuid in expandedDropUUIDs(uuids) { onDropTag(uuid, tag) }
             }
-        )
+        ) {
+            Label(tag, systemImage: "tag")
+        }
         .contextMenu {
             Button("Umbenennen …") { onRenameTag(tag) }
             Button("Aus allen Tasks entfernen", role: .destructive) {
@@ -166,16 +185,16 @@ struct SidebarView: View {
 
 /// Sidebar-Zeile mit Drop-Target und visuellem Highlight während des Drags.
 /// Wird für Eingang, Projekte und Tags wiederverwendet.
-private struct DropTargetRow: View {
-    let label: Label<Text, Image>
+private struct DropTargetRow<LabelContent: View>: View {
     let badge: Int
     let filter: SidebarFilter
     let onDrop: ([String]) -> Void
+    @ViewBuilder let labelContent: () -> LabelContent
 
     @State private var isTargeted: Bool = false
 
     var body: some View {
-        label
+        labelContent()
             .badge(badge)
             .tag(filter)
             .listRowBackground(

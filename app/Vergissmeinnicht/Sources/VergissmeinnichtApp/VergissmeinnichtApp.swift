@@ -18,6 +18,7 @@ struct VergissmeinnichtApp: App {
     @State private var container: AppContainer?
     @State private var initError: String?
     @State private var showShortcuts = false
+    @AppStorage(AppSettingsKey.hideCompleted) private var hideCompleted: Bool = false
 
     init() {
         // Sprach-Override muss VOR App-Body-Init in `AppleLanguages` stehen,
@@ -76,6 +77,10 @@ struct VergissmeinnichtApp: App {
                 }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
                 .disabled(container == nil)
+            }
+            CommandMenu("Ansicht") {
+                Toggle("Erledigte Aufgaben ausblenden", isOn: $hideCompleted)
+                    .keyboardShortcut("h", modifiers: [.shift, .command])
             }
             CommandMenu("Aufgabe") {
                 Button("Als erledigt markieren") {

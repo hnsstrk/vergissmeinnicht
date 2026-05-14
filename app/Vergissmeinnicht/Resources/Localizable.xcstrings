@@ -895,6 +895,66 @@
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Backing up…" } }
       }
+    },
+    "Erledigte Aufgaben ausblenden" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hide Completed Tasks" } }
+      }
+    },
+    "Erledigte ausblenden" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hide Completed" } }
+      }
+    },
+    "Nur manuell" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Manual only" } }
+      }
+    },
+    "Alle 5 Minuten" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Every 5 minutes" } }
+      }
+    },
+    "Alle 15 Minuten" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Every 15 minutes" } }
+      }
+    },
+    "Alle 60 Minuten" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Every 60 minutes" } }
+      }
+    },
+    "Bei jeder Änderung" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "On every change" } }
+      }
+    },
+    "Automatisch synchronisieren" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Auto-sync" } }
+      }
+    },
+    "Synchronisation" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Synchronization" } }
+      }
+    },
+    "Bei \"Bei jeder Änderung\" wird nach jeder Mutation ein Sync ausgelöst. Timer-Modi synchronisieren im Hintergrund. Manuell erfordert den Sync-Button in der Toolbar." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "\"On every change\" triggers a sync after each mutation. Timer modes synchronize in the background. \"Manual only\" requires using the sync button in the toolbar." } }
+      }
+    },
+    "Sync-Fehler: %@" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sync error: %@" } }
+      }
+    },
+    "%llu lokale Änderung(en) noch nicht synchronisiert" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%llu local change(s) not yet synchronized" } }
+      }
     }
   },
   "version" : "1.0"

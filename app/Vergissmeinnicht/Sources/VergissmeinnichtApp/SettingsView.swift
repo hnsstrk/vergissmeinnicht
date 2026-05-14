@@ -14,6 +14,7 @@ struct SettingsView: View {
     @AppStorage(AppSettingsKey.defaultFilter) private var defaultFilter: String = DefaultFilter.inbox.rawValue
     @AppStorage(AppSettingsKey.defaultSort)   private var defaultSort: String = SortOrder.id.rawValue
     @AppStorage(AppSettingsKey.notifications) private var notificationsEnabled: Bool = false
+    @AppStorage(AppSettingsKey.autoSyncMode)  private var autoSyncMode: String = AutoSyncMode.manual.rawValue
 
     var body: some View {
         TabView {
@@ -85,7 +86,22 @@ struct SettingsView: View {
             } header: {
                 Text("Bald fällig").font(.headline)
             } footer: {
-                Text("Tasks innerhalb dieses Fensters erscheinen unter „Bald fällig“.")
+                Text("Tasks innerhalb dieses Fensters erscheinen unter \"Bald fällig\".")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section {
+                Picker("Automatisch synchronisieren", selection: $autoSyncMode) {
+                    ForEach(AutoSyncMode.allCases) { mode in
+                        Text(mode.label).tag(mode.rawValue)
+                    }
+                }
+            } header: {
+                Text("Synchronisation").font(.headline)
+            } footer: {
+                Text("Bei \"Bei jeder Änderung\" wird nach jeder Mutation ein Sync ausgelöst. Timer-Modi synchronisieren im Hintergrund. Manuell erfordert den Sync-Button in der Toolbar.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

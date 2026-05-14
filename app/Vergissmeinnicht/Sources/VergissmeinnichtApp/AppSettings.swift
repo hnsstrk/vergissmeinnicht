@@ -14,6 +14,8 @@ enum AppSettingsKey {
     static let notifications  = "notificationsEnabled" // Bool, Default false
     static let projectsExpanded = "sidebarProjectsExpanded" // Bool, Default true
     static let tagsExpanded     = "sidebarTagsExpanded"     // Bool, Default true
+    static let hideCompleted    = "hideCompleted"           // Bool, Default false
+    static let autoSyncMode     = "autoSyncMode"            // String (AutoSyncMode.rawValue), Default "manual"
 }
 
 enum AppLanguage: String, CaseIterable, Identifiable {
@@ -73,6 +75,34 @@ enum DefaultFilter: String, CaseIterable, Identifiable {
         case .overdue:  return .overdue
         case .dueSoon:  return .dueSoon
         case .upcoming: return .upcoming
+        }
+    }
+}
+
+/// Auto-Sync-Modus: wie häufig soll die App automatisch synchronisieren.
+enum AutoSyncMode: String, CaseIterable, Identifiable {
+    case manual, m5, m15, m60, immediate
+
+    var id: String { rawValue }
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .manual:    return "Nur manuell"
+        case .m5:        return "Alle 5 Minuten"
+        case .m15:       return "Alle 15 Minuten"
+        case .m60:       return "Alle 60 Minuten"
+        case .immediate: return "Bei jeder Änderung"
+        }
+    }
+
+    /// Intervall in Sekunden. `nil` für Modi ohne Timer (manual, immediate).
+    var interval: TimeInterval? {
+        switch self {
+        case .manual:    return nil
+        case .m5:        return 5 * 60
+        case .m15:       return 15 * 60
+        case .m60:       return 60 * 60
+        case .immediate: return nil
         }
     }
 }
