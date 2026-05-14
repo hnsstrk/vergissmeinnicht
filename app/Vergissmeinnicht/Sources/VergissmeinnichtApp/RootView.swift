@@ -1,85 +1,399 @@
 import SwiftUI
 import VergissmeinnichtKit
 
-/// Read-Pfad-Root: `NavigationSplitView` mit Sidebar (FilterBar + TaskListView)
-/// und Detail-Pane.
+/// Read-Pfad-Root: Sidebar (Navigation) | TaskListView (Hauptbereich).
+/// Die DetailView lebt in einem eigenständigen Fenster (`task-detail` WindowGroup),
+/// das per Doppelklick auf eine Task-Zeile geöffnet wird.
 ///
-/// `AppContainer` liefert die rohe `pending`-Liste; das `TaskListViewModel`
-/// hält UI-State (Search-Query, Selection) und liefert die gefilterte/sortierte
-/// Sicht. Refresh-Button im Toolbar lädt explizit neu, `.task` lädt initial.
+/// Liest die Default-Settings (Standard-Filter, Standard-Sort, Bald-Fällig-Fenster)
+/// aus `AppStorage` und propagiert sie in den `TaskListViewModel`.
+/// Identifizierbares Ziel für das Rename-Sheet — sowohl Project- als auch Tag-Rename
+/// nutzen denselben Sheet.
+enum RenameTarget: Identifiable {
+    case project(String)
+    case tag(String)
+
+    var id: String {
+        switch self {
+        case .project(let n): return "p:\(n)"
+        case .tag(let n):     return "t:\(n)"
+        }
+    }
+    var name: String {
+        switch self {
+        case .project(let n), .tag(let n): return n
+        }
+    }
+    var titleKey: LocalizedStringKey {
+        switch self {
+        case .project: return "Projekt umbenennen"
+        case .tag:     return "Tag umbenennen"
+        }
+    }
+}
+
 struct RootView: View {
     @Environment(AppContainer.self) private var container
+    @Environment(\.openWindow) private var openWindow
     @State private var viewModel = TaskListViewModel()
     @State private var showQuickCapture = false
+    @State private var pendingDelete: Set<String> = []
+    @State private var renameTarget: RenameTarget?
+    /// Während Drag&Drop gefüllt: alle UUIDs, die zur aktuellen Multi-Selection
+    /// gehören. Wenn der Drag von einer selektierten Task startet, zieht sie die
+    /// gesamte Selection mit; sonst nur sich selbst.
+    @State private var dragSelection: Set<String> = []
+
+    @AppStorage(AppSettingsKey.defaultFilter) private var defaultFilterRaw: String = DefaultFilter.inbox.rawValue
+    @AppStorage(AppSettingsKey.defaultSort)   private var defaultSortRaw: String = SortOrder.id.rawValue
+    @AppStorage(AppSettingsKey.sortAscending) private var sortAscending: Bool = true
+    @AppStorage(AppSettingsKey.dueSoonDays)   private var dueSoonDays: Int = 7
+    @AppStorage(AppSettingsKey.notifications) private var notificationsEnabled: Bool = false
 
     var body: some View {
         @Bindable var vm = viewModel
-        let visible = viewModel.visibleTasks(from: container.pending)
+        let projects = viewModel.projects(from: container.tasks)
+        let tags = viewModel.tags(from: container.tasks)
+        let visible = viewModel.visibleTasks(from: container.tasks)
 
         NavigationSplitView {
-            VStack(spacing: 0) {
-                FilterBar(searchQuery: $vm.searchQuery)
-                Divider()
-                TaskListView(tasks: visible, selectedUuid: $vm.selectedUuid)
-            }
-            .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 400)
-            .toolbar {
-                ToolbarItem {
-                    Button {
-                        showQuickCapture = true
-                    } label: {
-                        Label("Neue Aufgabe", systemImage: "plus")
-                    }
-                    .keyboardShortcut("n", modifiers: .command)
-                    .help("Neue Aufgabe (Cmd+N)")
-                }
-                ToolbarItem {
-                    Button {
-                        Task { await container.refresh() }
-                    } label: {
-                        Label("Aktualisieren", systemImage: "arrow.clockwise")
-                    }
-                    .help("Pending-Liste neu laden")
-                }
-                ToolbarItem {
-                    SyncStatusView()
-                }
-            }
+            SidebarView(
+                tasks: container.tasks,
+                activeFilter: $vm.activeFilter,
+                projects: projects,
+                tags: tags,
+                dueSoonDays: dueSoonDays,
+                dragSelection: dragSelection,
+                onDropProject: handleDropProject,
+                onDropTag: handleDropTag,
+                onDropInbox: handleDropInbox,
+                onRenameProject: { renameTarget = .project($0) },
+                onClearProject: handleClearProject,
+                onRenameTag: { renameTarget = .tag($0) },
+                onClearTag: handleClearTag
+            )
+            .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
         } detail: {
-            DetailView(task: selectedTask)
+            TaskListView(
+                tasks: visible,
+                activeFilter: vm.activeFilter,
+                projects: projects,
+                tags: tags,
+                selectedUuids: $vm.selectedUuids,
+                dragSelection: $dragSelection,
+                onOpenDetail: openDetailWindow,
+                onMarkDone: handleMarkDone,
+                onRequestDelete: requestDelete,
+                onSnooze: handleSnooze,
+                onAssignProject: handleAssignProject,
+                onAddTag: handleAddTag,
+                onSetPriority: handleSetPriority,
+                onSetDue: handleSetDue
+            )
+            .navigationTitle(filterTitle)
+            .searchable(text: $vm.searchQuery, prompt: Text("Suchen…"))
+            .toolbar { detailToolbar(vm: vm) }
         }
-        .frame(minWidth: 640, minHeight: 360)
+        .frame(minWidth: 720, minHeight: 420)
         .sheet(isPresented: $showQuickCapture) {
             QuickCaptureSheet()
                 .environment(container)
         }
+        .sheet(item: $renameTarget) { target in
+            RenameSheet(
+                title: target.titleKey,
+                oldName: target.name
+            ) { newName in
+                handleRename(target: target, newName: newName)
+            }
+        }
         .task {
+            applyDefaults()
+            if notificationsEnabled {
+                await NotificationService.shared.requestAuthorizationIfNeeded()
+            }
             await container.refresh()
             await container.syncIfConfigured()
-        }
-        .onChange(of: container.pending) { _, newPending in
-            // Stale-Selection bereinigen, falls die UUID nach einem Refresh
-            // nicht mehr in der Liste enthalten ist.
-            if let uuid = viewModel.selectedUuid,
-               !newPending.contains(where: { $0.uuid == uuid }) {
-                viewModel.selectedUuid = nil
+            if notificationsEnabled {
+                await NotificationService.shared.notifyOverdueIfNeeded(tasks: container.tasks)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .vmCommand)) { notif in
+            guard let cmd = notif.object as? AppCommand else { return }
+            switch cmd {
+            case .newTask:
+                showQuickCapture = true
+            case .markDoneSelection:
+                handleMarkDoneSelection()
+            case .deleteSelection:
+                requestDelete(uuids: viewModel.selectedUuids)
+            case .openDetail:
+                if let uuid = viewModel.selectedUuid {
+                    openDetailWindow(uuid)
+                }
+            }
+        }
+        .onChange(of: dueSoonDays) { _, newValue in
+            viewModel.dueSoonDays = newValue
+        }
+        .onChange(of: container.tasks) { _, newTasks in
+            viewModel.selectedUuids = viewModel.selectedUuids.filter { uuid in
+                newTasks.contains(where: { $0.uuid == uuid })
+            }
+        }
+        .confirmationDialog(
+            Text(deleteDialogTitle),
+            isPresented: deleteDialogBinding,
+            titleVisibility: .visible
+        ) {
+            Button("Löschen", role: .destructive) {
+                performDelete()
+            }
+            Button("Abbrechen", role: .cancel) { pendingDelete.removeAll() }
+        } message: {
+            Text("Diese Aktion ist nicht umkehrbar.")
         }
         .overlay(alignment: .bottom) {
             if let error = container.lastError {
-                Text(error)
-                    .font(.callout)
-                    .foregroundStyle(.red)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
-                    .padding(8)
+                ErrorBannerView(
+                    message: error,
+                    onRetry: { Task { await container.syncIfConfigured() } },
+                    onDismiss: { container.clearError() }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .task(id: error) {
+                    // Auto-Dismiss nach 6 s. Cancel automatisch, wenn ein neuer
+                    // Fehler kommt (neue task-id triggert neuen Lauf).
+                    try? await Task.sleep(nanoseconds: 6_000_000_000)
+                    container.clearError()
+                }
             }
         }
     }
 
-    private var selectedTask: TaskInfo? {
-        guard let uuid = viewModel.selectedUuid else { return nil }
-        return container.pending.first { $0.uuid == uuid }
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private func detailToolbar(vm: TaskListViewModel) -> some ToolbarContent {
+        ToolbarItem {
+            Menu {
+                Picker(selection: Binding(get: { vm.sortOrder }, set: { vm.sortOrder = $0; defaultSortRaw = $0.rawValue })) {
+                    ForEach(SortOrder.allCases) { order in
+                        Text(order.label).tag(order)
+                    }
+                } label: { Text("Sortieren") }
+                Divider()
+                Picker(selection: Binding(get: { vm.sortAscending }, set: { vm.sortAscending = $0; sortAscending = $0 })) {
+                    Text("Aufsteigend").tag(true)
+                    Text("Absteigend").tag(false)
+                } label: { Text("Richtung") }
+            } label: {
+                Label("Sortieren", systemImage: vm.sortAscending ? "arrow.up.arrow.down" : "arrow.up.arrow.down.circle")
+            }
+            .help("Sortierung")
+        }
+        ToolbarItem {
+            Button {
+                showQuickCapture = true
+            } label: {
+                Label("Neue Aufgabe", systemImage: "plus")
+            }
+            .help("Neue Aufgabe (Cmd+N)")
+        }
+        ToolbarItem {
+            Button {
+                handleMarkDoneSelection()
+            } label: {
+                Label("Erledigt", systemImage: "checkmark.circle")
+            }
+            .disabled(vm.selectedUuids.isEmpty)
+            .help("Ausgewählte Aufgabe(n) als erledigt markieren (Cmd+D)")
+        }
+        ToolbarItem {
+            Button {
+                requestDelete(uuids: vm.selectedUuids)
+            } label: {
+                Label("Löschen", systemImage: "trash")
+            }
+            .disabled(vm.selectedUuids.isEmpty)
+            .help("Ausgewählte Aufgabe(n) löschen (Cmd+⌫)")
+        }
+        ToolbarItem {
+            Button {
+                Task { await container.refresh() }
+            } label: {
+                Label("Aktualisieren", systemImage: "arrow.clockwise")
+            }
+            .help("Liste neu laden")
+        }
+        ToolbarItem {
+            SyncStatusView()
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func applyDefaults() {
+        viewModel.dueSoonDays = dueSoonDays
+        if viewModel.activeFilter == .inbox,
+           let f = DefaultFilter(rawValue: defaultFilterRaw) {
+            viewModel.activeFilter = f.asSidebarFilter
+        }
+        if let s = SortOrder(rawValue: defaultSortRaw) {
+            viewModel.sortOrder = s
+        }
+        viewModel.sortAscending = sortAscending
+    }
+
+    private func openDetailWindow(_ uuid: String) {
+        openWindow(id: "task-detail", value: uuid)
+    }
+
+    private func handleMarkDone(_ uuid: String) {
+        Task { await container.markDoneWithRecurrence(uuid: uuid) }
+    }
+
+    private func handleMarkDoneSelection() {
+        let uuids = viewModel.selectedUuids
+        Task {
+            for uuid in uuids {
+                _ = await container.markDoneWithRecurrence(uuid: uuid)
+            }
+        }
+    }
+
+    private func requestDelete(uuids: Set<String>) {
+        guard !uuids.isEmpty else { return }
+        pendingDelete = uuids
+    }
+
+    private func performDelete() {
+        let uuids = pendingDelete
+        pendingDelete.removeAll()
+        Task {
+            for uuid in uuids {
+                _ = await container.deleteTask(uuid: uuid)
+            }
+        }
+    }
+
+    private func handleSnooze(_ uuid: String, _ wait: Int64?) {
+        Task { await container.setWait(uuid: uuid, wait: wait) }
+    }
+
+    private func handleAssignProject(_ uuids: Set<String>, _ project: String?) {
+        Task {
+            for uuid in uuids {
+                _ = await container.setProject(uuid: uuid, project: project)
+            }
+        }
+    }
+
+    private func handleAddTag(_ uuids: Set<String>, _ tag: String) {
+        Task {
+            for uuid in uuids {
+                _ = await container.addTag(uuid: uuid, tag: tag)
+            }
+        }
+    }
+
+    private func handleSetPriority(_ uuids: Set<String>, _ priority: String?) {
+        Task {
+            for uuid in uuids {
+                _ = await container.setPriority(uuid: uuid, priority: priority)
+            }
+        }
+    }
+
+    private func handleSetDue(_ uuids: Set<String>, _ due: Int64?) {
+        Task {
+            for uuid in uuids {
+                _ = await container.setDue(uuid: uuid, due: due)
+            }
+        }
+    }
+
+    private func handleRename(target: RenameTarget, newName: String) {
+        Task {
+            switch target {
+            case .project(let oldName):
+                _ = await container.renameProject(from: oldName, to: newName)
+                if viewModel.activeFilter == .project(oldName) {
+                    viewModel.activeFilter = .project(newName)
+                }
+            case .tag(let oldName):
+                _ = await container.renameTag(from: oldName, to: newName)
+                if viewModel.activeFilter == .tag(oldName) {
+                    viewModel.activeFilter = .tag(newName)
+                }
+            }
+        }
+    }
+
+    private func handleClearProject(_ name: String) {
+        Task {
+            _ = await container.clearProject(name: name)
+            if viewModel.activeFilter == .project(name) {
+                viewModel.activeFilter = .inbox
+            }
+        }
+    }
+
+    private func handleClearTag(_ name: String) {
+        Task {
+            _ = await container.clearTag(name: name)
+            if viewModel.activeFilter == .tag(name) {
+                viewModel.activeFilter = .inbox
+            }
+        }
+    }
+
+    private func handleDropProject(_ uuid: String, _ project: String) {
+        Task { await container.setProject(uuid: uuid, project: project) }
+    }
+
+    private func handleDropTag(_ uuid: String, _ tag: String) {
+        Task { await container.addTag(uuid: uuid, tag: tag) }
+    }
+
+    private func handleDropInbox(_ uuid: String) {
+        Task {
+            guard let task = container.tasks.first(where: { $0.uuid == uuid }) else { return }
+            _ = await container.setProject(uuid: uuid, project: nil)
+            for tag in task.tags {
+                _ = await container.removeTag(uuid: uuid, tag: tag)
+            }
+        }
+    }
+
+    private var deleteDialogBinding: Binding<Bool> {
+        Binding(
+            get: { !pendingDelete.isEmpty },
+            set: { if !$0 { pendingDelete.removeAll() } }
+        )
+    }
+
+    private var deleteDialogTitle: LocalizedStringKey {
+        if pendingDelete.count <= 1 {
+            return "Aufgabe wirklich löschen?"
+        } else {
+            // Plural via xcstrings-Substitution.
+            return "\(pendingDelete.count) Aufgaben werden gelöscht. Vorgang ist nicht umkehrbar."
+        }
+    }
+
+    private var filterTitle: LocalizedStringKey {
+        switch viewModel.activeFilter {
+        case .all:               return "Alle"
+        case .today:             return "Heute"
+        case .todo:              return "Zu erledigen"
+        case .inbox:             return "Eingang"
+        case .overdue:           return "Überfällig"
+        case .dueSoon:           return "Bald fällig"
+        case .upcoming:          return "Geplant"
+        case .waiting:           return "Wartend"
+        case .project(let p):    return LocalizedStringKey(p)
+        case .tag(let t):        return LocalizedStringKey(t)
+        }
     }
 }

@@ -5,48 +5,129 @@ import VergissmeinnichtKit
 ///
 /// Hält die Replica im sandboxed App-Container offen
 /// (`~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application Support/vergissmeinnicht/replica/`)
-/// und stellt UI-Code eine `pending`-Liste zur Verfügung. FFI-Calls laufen
-/// auf einem detached Task, damit der MainActor frei bleibt.
+/// und stellt UI-Code eine `tasks`-Liste mit allen Pending- und Completed-Tasks
+/// zur Verfügung. Sidebar/ViewModel filtern clientseitig nach Status. FFI-Calls
+/// laufen auf einem detached Task, damit der MainActor frei bleibt.
 @MainActor
 @Observable
 final class AppContainer {
-    private(set) var pending: [TaskInfo] = []
+    /// Alle Tasks (Pending + Completed). Deleted bleiben ausgeschlossen.
+    private(set) var tasks: [TaskInfo] = []
+    /// Backwards-Compat-Alias für UI-Code, der nur die Pending-Sicht braucht.
+    var pending: [TaskInfo] { tasks.filter { $0.status == .pending } }
     private(set) var lastError: String?
+
+    /// Letzten Fehler verwerfen (vom Banner-Close-Button oder Auto-Dismiss).
+    func clearError() {
+        lastError = nil
+    }
     private(set) var isSyncing: Bool = false
     private(set) var lastSyncDate: Date?
 
     private let store: TaskStore
+    let backupService: BackupService
 
     init() throws {
         let url = try Self.replicaURL()
         self.store = try TaskStore(dbPath: url.path)
+        self.backupService = try BackupService(replicaURL: url, backupsURL: nil)
+
+        // Sanity-Check: kann der Store die Replica lesen? Beim Listing eines
+        // leeren Working-Sets ist die Operation Read-only; ein Fehler hier weist
+        // auf eine kaputte Replica-Datei oder Permissions-Problem hin. Wir
+        // logen den Fehler nur — die UI bekommt ihn beim ersten `refresh`.
+        do {
+            _ = try self.store.listTasks(includeCompleted: false)
+        } catch {
+            print("⚠️ Vergissmeinnicht: Sanity-Check listTasks() failed: \(error)")
+        }
     }
 
-    /// Lädt die Pending-Liste aus dem Store. FFI-Aufruf läuft off-MainActor.
+    /// Lädt die volle Task-Liste (Pending + Completed) aus dem Store.
     func refresh() async {
         let store = self.store
         do {
-            let pending = try await Task.detached(priority: .userInitiated) {
-                try store.listPending()
+            let all = try await Task.detached(priority: .userInitiated) {
+                try store.listTasks(includeCompleted: true)
             }.value
-            self.pending = pending
+            self.tasks = all
             self.lastError = nil
         } catch {
             self.lastError = userMessage(for: error)
         }
     }
 
-    /// Legt einen neuen Task an. Persistiert in dieser Welle nur die Description —
-    /// Tags/Project/Due/Priority werden in `QuickCaptureSheet` als Vorschau angezeigt,
-    /// aber nicht über die FFI gespeichert (FFI exportiert die Felder noch nicht).
-    /// Rückgabe: `true` bei erfolgreicher Mutation, `false` falls die FFI geworfen hat
-    /// (in dem Fall ist `lastError` gesetzt). UI nutzt das Resultat, um Sheets nur
-    /// bei Erfolg zu schließen oder Eingaben zu leeren.
+    /// Legt einen neuen Task an. Gibt die UUID des angelegten Tasks zurück
+    /// (oder `nil` bei FFI-Fehler — `lastError` ist dann gesetzt).
     @discardableResult
-    func addTask(description: String) async -> Bool {
-        await mutate { store in
-            _ = try store.addTask(description: description)
+    func addTask(description: String) async -> String? {
+        await mutateReturning { store in
+            try store.addTask(description: description)
         }
+    }
+
+    /// Legt einen neuen Task mit Metadaten an: project (raw), User-Tags, due (Unix-Sekunden).
+    /// Gibt die UUID des angelegten Tasks zurück.
+    @discardableResult
+    func addTask(description: String, project: String?, tags: [String], due: Int64?) async -> String? {
+        await mutateReturning { store in
+            try store.addTaskFull(
+                description: description,
+                project: project,
+                tags: tags,
+                due: due
+            )
+        }
+    }
+
+    /// Reparatur-Lauf für Legacy-Tasks: Tasks, deren Description noch `+tag` / `project:foo`
+    /// / `due:bar` als Text enthält und die selbst noch keine Properties haben, werden
+    /// nachgezogen — Description wird auf den reinen Text zurückgeschnitten und Metadaten
+    /// als Properties gesetzt.
+    ///
+    /// Rückgabe: Anzahl der reparierten Tasks (0 ist normal, wenn nichts zu tun ist).
+    /// Tasks, die bereits Metadaten haben, bleiben unangetastet — Karpathy 3.
+    @discardableResult
+    func repairLegacyTasks() async -> Int {
+        let store = self.store
+        let snapshot = self.pending
+        var repaired = 0
+        for task in snapshot {
+            let preview = QuickCaptureParser.parse(task.description)
+            // Nur reparieren, wenn (a) die Description tatsächlich Metadaten-Text enthält
+            // und (b) die FFI-Properties dieser Task noch leer sind. Damit umgehen wir,
+            // dass ein bereits korrekt getaggter Task mit "+foo" in der Description-Prosa
+            // versehentlich umgeschrieben wird.
+            guard preview.hasMetadata,
+                  task.project == nil,
+                  task.tags.isEmpty,
+                  task.due == nil
+            else { continue }
+
+            let newDescription = preview.description.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !newDescription.isEmpty else { continue }
+            let dueTs = preview.due.flatMap { DueDateParser.parse($0) }
+
+            do {
+                try await Task.detached(priority: .userInitiated) { [preview] in
+                    try store.updateTaskMetadata(
+                        uuid: task.uuid,
+                        description: newDescription,
+                        project: preview.project,
+                        tags: preview.tags,
+                        due: dueTs
+                    )
+                }.value
+                repaired += 1
+            } catch {
+                self.lastError = userMessage(for: error)
+                break
+            }
+        }
+        if repaired > 0 {
+            await refresh()
+        }
+        return repaired
     }
 
     /// Markiert den Task als erledigt (entspricht `task done` in Taskwarrior).
@@ -82,11 +163,188 @@ final class AppContainer {
         }
     }
 
-    /// Führt eine FFI-Mutation off-MainActor aus und refresht anschließend
-    /// `pending`, damit die UI nicht auf veralteten Daten arbeitet.
-    /// Rückgabe: `true` falls die Mutation ohne Fehler durchlief, `false` sonst.
-    /// Bei Fehler wird `lastError` über `userMessage(for:)` gesetzt; ein
-    /// erfolgreicher Refresh setzt `lastError` selbst zurück.
+    /// Entfernt die Annotation mit gegebenem Entry-Zeitstempel (Unix-Sekunden).
+    @discardableResult
+    func removeAnnotation(uuid: String, entry: Int64) async -> Bool {
+        await mutate { store in
+            try store.removeAnnotation(uuid: uuid, entry: entry)
+        }
+    }
+
+    /// Setzt das Projekt; `nil` oder leerer String entfernen es.
+    @discardableResult
+    func setProject(uuid: String, project: String?) async -> Bool {
+        await mutate { store in
+            try store.setProject(uuid: uuid, project: project)
+        }
+    }
+
+    /// Setzt die Fälligkeit (Unix-Sekunden); `nil` entfernt sie.
+    @discardableResult
+    func setDue(uuid: String, due: Int64?) async -> Bool {
+        await mutate { store in
+            try store.setDue(uuid: uuid, due: due)
+        }
+    }
+
+    /// Setzt die Priorität (`H`/`M`/`L` oder Custom); `nil` oder leerer String entfernen sie.
+    @discardableResult
+    func setPriority(uuid: String, priority: String?) async -> Bool {
+        await mutate { store in
+            try store.setPriority(uuid: uuid, priority: priority)
+        }
+    }
+
+    /// Fügt einen Tag hinzu (idempotent).
+    @discardableResult
+    func addTag(uuid: String, tag: String) async -> Bool {
+        await mutate { store in
+            try store.addTag(uuid: uuid, tag: tag)
+        }
+    }
+
+    /// Entfernt einen Tag (idempotent).
+    @discardableResult
+    func removeTag(uuid: String, tag: String) async -> Bool {
+        await mutate { store in
+            try store.removeTag(uuid: uuid, tag: tag)
+        }
+    }
+
+    /// Reaktiviert einen erledigten Task (Status zurück auf Pending).
+    @discardableResult
+    func reactivate(uuid: String) async -> Bool {
+        await mutate { store in
+            try store.reactivate(uuid: uuid)
+        }
+    }
+
+    /// Setzt das Wait-Property (Snooze) auf einen Unix-Timestamp; `nil` entfernt es.
+    @discardableResult
+    func setWait(uuid: String, wait: Int64?) async -> Bool {
+        await mutate { store in
+            try store.setWait(uuid: uuid, wait: wait)
+        }
+    }
+
+    /// Setzt das Recur-Property; `nil` oder leerer String entfernen es.
+    @discardableResult
+    func setRecur(uuid: String, recur: String?) async -> Bool {
+        await mutate { store in
+            try store.setRecur(uuid: uuid, recur: recur)
+        }
+    }
+
+    /// Setzt das Scheduled-Property (Start-Datum, Unix-Sekunden). `nil` entfernt es.
+    @discardableResult
+    func setScheduled(uuid: String, scheduled: Int64?) async -> Bool {
+        await mutate { store in
+            try store.setScheduled(uuid: uuid, scheduled: scheduled)
+        }
+    }
+
+    /// Benennt ein Projekt global um — alle Pending-Tasks mit `project == oldName`
+    /// bekommen `newName`. Leerer newName entspricht „löschen".
+    @discardableResult
+    func renameProject(from oldName: String, to newName: String) async -> Int {
+        let target = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let candidates = self.tasks.filter { $0.project == oldName }
+        var count = 0
+        for task in candidates {
+            let ok = await setProject(uuid: task.uuid, project: target.isEmpty ? nil : target)
+            if ok { count += 1 }
+        }
+        return count
+    }
+
+    /// Entfernt das Projekt aus allen Tasks (set_project = nil).
+    @discardableResult
+    func clearProject(name: String) async -> Int {
+        return await renameProject(from: name, to: "")
+    }
+
+    /// Benennt einen Tag global um — alle Pending-Tasks mit `oldName` bekommen `newName`
+    /// hinzugefügt und verlieren `oldName`. Leerer newName entspricht „nur entfernen".
+    @discardableResult
+    func renameTag(from oldName: String, to newName: String) async -> Int {
+        let target = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let candidates = self.tasks.filter { $0.tags.contains(oldName) }
+        var count = 0
+        for task in candidates {
+            if !target.isEmpty {
+                _ = await addTag(uuid: task.uuid, tag: target)
+            }
+            let ok = await removeTag(uuid: task.uuid, tag: oldName)
+            if ok { count += 1 }
+        }
+        return count
+    }
+
+    /// Entfernt einen Tag aus allen Tasks.
+    @discardableResult
+    func clearTag(name: String) async -> Int {
+        return await renameTag(from: name, to: "")
+    }
+
+    /// Markiert einen Task als erledigt. Hat der Task ein `recur`-Property und
+    /// ein `due`-Datum, wird zusätzlich in **derselben Operations-Batch** (atomar)
+    /// eine neue Pending-Instanz mit `due_neu = due_alt + intervall(recur)` angelegt.
+    @discardableResult
+    func markDoneWithRecurrence(uuid: String, calendar: Calendar = .current) async -> Bool {
+        guard let task = self.tasks.first(where: { $0.uuid == uuid }) else { return false }
+        let newDue: Int64? = {
+            guard let raw = task.recur, !raw.isEmpty,
+                  let delta = RecurParser.components(from: raw),
+                  let oldDue = task.due
+            else { return nil }
+            let oldDate = Date(timeIntervalSince1970: TimeInterval(oldDue))
+            guard let newDate = calendar.date(byAdding: delta, to: oldDate) else { return nil }
+            return Int64(newDate.timeIntervalSince1970)
+        }()
+
+        let store = self.store
+        do {
+            _ = try await Task.detached(priority: .userInitiated) { [task] in
+                try store.markDoneWithFollowup(
+                    uuid: uuid,
+                    newDue: newDue,
+                    recur: task.recur,
+                    priority: task.priority,
+                    project: task.project,
+                    tags: task.tags,
+                    description: task.description
+                )
+            }.value
+            await refresh()
+            return true
+        } catch {
+            self.lastError = userMessage(for: error)
+            return false
+        }
+    }
+
+    /// Aktualisiert mehrere Metadaten-Felder eines Tasks atomar — vom Detail-Editor genutzt.
+    @discardableResult
+    func updateMetadata(
+        uuid: String,
+        description: String,
+        project: String?,
+        tags: [String],
+        due: Int64?
+    ) async -> Bool {
+        await mutate { store in
+            try store.updateTaskMetadata(
+                uuid: uuid,
+                description: description,
+                project: project,
+                tags: tags,
+                due: due
+            )
+        }
+    }
+
+    /// Führt eine FFI-Mutation off-MainActor aus und refresht anschließend.
+    /// Rückgabe: `true` falls Erfolg.
     private func mutate(_ operation: @Sendable @escaping (TaskStore) throws -> Void) async -> Bool {
         let store = self.store
         do {
@@ -99,6 +357,25 @@ final class AppContainer {
         }
         await refresh()
         return true
+    }
+
+    /// Wie `mutate`, aber gibt den Rückgabewert der Operation durch (z.B. die UUID
+    /// einer neu angelegten Task). Bei Fehler: `nil` und `lastError` gesetzt.
+    private func mutateReturning<T: Sendable>(
+        _ operation: @Sendable @escaping (TaskStore) throws -> T
+    ) async -> T? {
+        let store = self.store
+        let result: T
+        do {
+            result = try await Task.detached(priority: .userInitiated) {
+                try operation(store)
+            }.value
+        } catch {
+            self.lastError = userMessage(for: error)
+            return nil
+        }
+        await refresh()
+        return result
     }
 
     /// Mappt FFI-Fehler auf knappe deutsche User-Strings für `lastError`.
@@ -118,17 +395,36 @@ final class AppContainer {
         return error.localizedDescription
     }
 
-    /// Synchronisiert die Replica mit dem Server. FFI-Call läuft off-MainActor.
+    /// Synchronisiert die Replica mit dem Server. **Vor jedem Sync** wird ein
+    /// automatisches Backup angelegt (rotierend, Default 10 Stand) — damit ein
+    /// kaputter Sync nicht zu Datenverlust führt. FFI-Call läuft off-MainActor.
     func sync(serverUrl: String, clientId: String, encryptionSecret: String) async {
         guard !isSyncing else { return }
         isSyncing = true
         defer { isSyncing = false }
+
+        // Pre-Sync-Backup. Fehler beim Backup soll Sync nicht blockieren —
+        // wir kommunizieren ihn nur in lastError.
+        let backupService = self.backupService
+        do {
+            _ = try await Task.detached(priority: .userInitiated) {
+                try backupService.createBackup(reason: "pre-sync")
+            }.value
+        } catch {
+            self.lastError = "Backup vor Sync fehlgeschlagen: \(error.localizedDescription)"
+            // Weiter mit Sync — Backup ist Komfort, kein Pflicht-Gate.
+        }
+
         let store = self.store
         do {
+            let beforeCount = self.tasks.count
             try await Task.detached(priority: .userInitiated) {
                 try store.sync(serverUrl: serverUrl, clientId: clientId, encryptionSecret: encryptionSecret)
             }.value
             await refresh()
+            let afterCount = self.tasks.count
+            let delta = afterCount - beforeCount
+            print("📡 Sync OK — Tasks vorher: \(beforeCount), nachher: \(afterCount), Δ: \(delta)")
             lastSyncDate = Date()
             lastError = nil
         } catch {

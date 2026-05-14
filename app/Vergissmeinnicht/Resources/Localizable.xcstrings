@@ -1,0 +1,901 @@
+{
+  "sourceLanguage" : "de",
+  "strings" : {
+    "Abbrechen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel" } }
+      }
+    },
+    "Aktualisieren" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Refresh" } }
+      }
+    },
+    "Alle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "All" } }
+      }
+    },
+    "Angelegt" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Created" } }
+      }
+    },
+    "Annotation entfernen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Remove annotation" } }
+      }
+    },
+    "Annotation hinzufügen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add annotation" } }
+      }
+    },
+    "Annotations" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Annotations" } }
+      }
+    },
+    "Aufgabe löschen?" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete task?" } }
+      }
+    },
+    "Aufgabe wirklich löschen?" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Really delete task?" } }
+      }
+    },
+    "Ausgewählte Aufgabe(n) als erledigt markieren (Cmd+D)" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Mark selected task(s) as completed (Cmd+D)" } }
+      }
+    },
+    "Bald fällig" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Due Soon" } }
+      }
+    },
+    "Beschreibung" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Description" } }
+      }
+    },
+    "Deutsch" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "German" } }
+      }
+    },
+    "Detail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Detail" } }
+      }
+    },
+    "Eingang" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Inbox" } }
+      }
+    },
+    "Einstellungen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Settings" } }
+      }
+    },
+    "Englisch" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "English" } }
+      }
+    },
+    "Erledigt" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Completed" } }
+      }
+    },
+    "Fällig" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Due" } }
+      }
+    },
+    "Fälligkeit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Due Date" } }
+      }
+    },
+    "Fehler beim Speichern: %@" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Save error: %@" } }
+      }
+    },
+    "Fehler: %@" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Error: %@" } }
+      }
+    },
+    "Gelöscht" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Deleted" } }
+      }
+    },
+    "Hilfe" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Help" } }
+      }
+    },
+    "Hinzufügen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add" } }
+      }
+    },
+    "Hoch (H)" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "High (H)" } }
+      }
+    },
+    "ID" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "ID" } }
+      }
+    },
+    "Keine Aufgaben" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No tasks" } }
+      }
+    },
+    "Keine Auswahl" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No selection" } }
+      }
+    },
+    "Keine Tasks in der aktuellen Auswahl." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No tasks in the current selection." } }
+      }
+    },
+    "kommagetrennt, z.B. arbeit, eilig" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "comma-separated, e.g. work, urgent" } }
+      }
+    },
+    "Legacy-Tasks reparieren" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Repair legacy tasks" } }
+      }
+    },
+    "Liste neu laden" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reload list" } }
+      }
+    },
+    "Löschen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete" } }
+      }
+    },
+    "Mittel (M)" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Medium (M)" } }
+      }
+    },
+    "Name" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Name" } }
+      }
+    },
+    "Neue Aufgabe" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "New Task" } }
+      }
+    },
+    "Neue Aufgabe (Cmd+N)" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "New Task (Cmd+N)" } }
+      }
+    },
+    "Niedrig (L)" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Low (L)" } }
+      }
+    },
+    "Noch keine Annotations." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No annotations yet." } }
+      }
+    },
+    "Pending" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Pending" } }
+      }
+    },
+    "Priorität" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Priority" } }
+      }
+    },
+    "Projekt" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Project" } }
+      }
+    },
+    "Projekte" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Projects" } }
+      }
+    },
+    "Reaktivieren" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reactivate" } }
+      }
+    },
+    "Repariere …" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Repairing…" } }
+      }
+    },
+    "Sortieren" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sort" } }
+      }
+    },
+    "Sortierung" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sort order" } }
+      }
+    },
+    "Speichern" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Save" } }
+      }
+    },
+    "Sprache" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Language" } }
+      }
+    },
+    "Sprachwechsel wird nach App-Neustart wirksam." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Language change takes effect after app restart." } }
+      }
+    },
+    "Standardansicht" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Default view" } }
+      }
+    },
+    "Suchen…" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Search…" } }
+      }
+    },
+    "Sync-Server" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sync Server" } }
+      }
+    },
+    "System" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "System" } }
+      }
+    },
+    "Tag" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tag" } }
+      }
+    },
+    "Tage" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Days" } }
+      }
+    },
+    "Tags" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tags" } }
+      }
+    },
+    "Task-Detail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Task detail" } }
+      }
+    },
+    "Task nicht gefunden" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Task not found" } }
+      }
+    },
+    "Test-Sync" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Test sync" } }
+      }
+    },
+    "Überfällig" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Overdue" } }
+      }
+    },
+    "UUID" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "UUID" } }
+      }
+    },
+    "Verbinde …" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Connecting…" } }
+      }
+    },
+    "Vergissmeinnicht" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Vergissmeinnicht" } }
+      }
+    },
+    "Wähle einen Task aus der Liste." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Select a task from the list." } }
+      }
+    },
+    "Wartung" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Maintenance" } }
+      }
+    },
+    "Zu erledigen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "To Do" } }
+      }
+    },
+    "Zurücksetzen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reset" } }
+      }
+    },
+    "(keins)" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "(none)" } }
+      }
+    },
+    "%lld Aufgaben werden gelöscht. Vorgang ist nicht umkehrbar." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld tasks will be deleted. This cannot be undone." } }
+      }
+    },
+    "Diese Aktion ist nicht umkehrbar." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This action cannot be undone." } }
+      }
+    },
+    "Über Vergissmeinnicht" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "About Vergissmeinnicht" } }
+      }
+    },
+    "Nativer macOS-Client für Taskwarrior 3.x." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Native macOS client for Taskwarrior 3.x." } }
+      }
+    },
+    "Tastenkürzel" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Keyboard Shortcuts" } }
+      }
+    },
+    "Schließen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close" } }
+      }
+    },
+    "Eingang ist leer" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Inbox is empty" } }
+      }
+    },
+    "Alle Pending-Aufgaben haben Projekt oder Tag." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "All pending tasks have a project or tag." } }
+      }
+    },
+    "Alles erledigt!" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "All done!" } }
+      }
+    },
+    "Keine offenen Aufgaben." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No open tasks." } }
+      }
+    },
+    "Nichts überfällig" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Nothing overdue" } }
+      }
+    },
+    "Keine überfälligen Aufgaben." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No overdue tasks." } }
+      }
+    },
+    "Nichts bald fällig" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Nothing due soon" } }
+      }
+    },
+    "Keine Aufgaben im Bald-fällig-Fenster." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No tasks in the due-soon window." } }
+      }
+    },
+    "Working Set ist leer." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Working set is empty." } }
+      }
+    },
+    "Detail öffnen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Open detail" } }
+      }
+    },
+    "Allgemein" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "General" } }
+      }
+    },
+    "Beim Start zeigen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Show at start" } }
+      }
+    },
+    "Zeitfenster" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Time window" } }
+      }
+    },
+    "Ausgewählte Aufgabe(n) löschen (Cmd+⌫)" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete selected task(s) (Cmd+⌫)" } }
+      }
+    },
+    "Wartend" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Waiting" } }
+      }
+    },
+    "Verschieben auf …" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Snooze until…" } }
+      }
+    },
+    "Morgen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tomorrow" } }
+      }
+    },
+    "+3 Tage" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "+3 days" } }
+      }
+    },
+    "+1 Woche" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "+1 week" } }
+      }
+    },
+    "Snooze aufheben" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Remove snooze" } }
+      }
+    },
+    "Projekt zuweisen …" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Assign project…" } }
+      }
+    },
+    "Nichts wartend" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Nothing waiting" } }
+      }
+    },
+    "Keine wartenden Aufgaben." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No waiting tasks." } }
+      }
+    },
+    "Wartet bis %@" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Waits until %@" } }
+      }
+    },
+    "Wiederholung" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Recurrence" } }
+      }
+    },
+    "(keine)" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "(none)" } }
+      }
+    },
+    "Täglich" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Daily" } }
+      }
+    },
+    "Wöchentlich" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Weekly" } }
+      }
+    },
+    "Monatlich" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Monthly" } }
+      }
+    },
+    "Jährlich" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Yearly" } }
+      }
+    },
+    "Aufsteigend" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ascending" } }
+      }
+    },
+    "Absteigend" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Descending" } }
+      }
+    },
+    "Richtung" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Direction" } }
+      }
+    },
+    "Tag hinzufügen …" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add tag…" } }
+      }
+    },
+    "Priorität setzen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Set priority" } }
+      }
+    },
+    "Fälligkeit setzen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Set due date" } }
+      }
+    },
+    "Heute" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Today" } }
+      }
+    },
+    "Umbenennen …" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rename…" } }
+      }
+    },
+    "Aus allen Tasks entfernen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Remove from all tasks" } }
+      }
+    },
+    "Projekt umbenennen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rename project" } }
+      }
+    },
+    "Tag umbenennen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rename tag" } }
+      }
+    },
+    "Überfällige Aufgaben" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Overdue tasks" } }
+      }
+    },
+    "Du hast %lld überfällige Aufgabe(n)." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "You have %lld overdue task(s)." } }
+      }
+    },
+    "Benachrichtigungen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Notifications" } }
+      }
+    },
+    "Benachrichtigung bei überfälligen Aufgaben" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Notify about overdue tasks" } }
+      }
+    },
+    "Bei aktivierter Option zeigt die App nach dem Start eine Zusammenfassung der überfälligen Aufgaben." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "If enabled, the app shows an overdue summary after each launch." } }
+      }
+    },
+    "Titel" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Title" } }
+      }
+    },
+    "Notizen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Notes" } }
+      }
+    },
+    "Notiz hinzufügen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add note" } }
+      }
+    },
+    "Noch keine Notizen." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No notes yet." } }
+      }
+    },
+    "Notizen (optional)" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Notes (optional)" } }
+      }
+    },
+    "Hoch" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "High" } }
+      }
+    },
+    "Mittel" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Medium" } }
+      }
+    },
+    "Niedrig" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Low" } }
+      }
+    },
+    "Neues Projekt" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "New project" } }
+      }
+    },
+    "Neues Projekt …" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "New project…" } }
+      }
+    },
+    "Projektname" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Project name" } }
+      }
+    },
+    "Neuer Tag" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "New tag" } }
+      }
+    },
+    "Neuer Tag …" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "New tag…" } }
+      }
+    },
+    "Tag-Name (ohne +)" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tag name (no +)" } }
+      }
+    },
+    "Übernehmen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Apply" } }
+      }
+    },
+    "Bei überfälligen Aufgaben benachrichtigen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Notify on overdue tasks" } }
+      }
+    },
+    "Tasks innerhalb dieses Fensters erscheinen unter „Bald fällig“." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tasks within this window show up under “Due Soon”." } }
+      }
+    },
+    "Vergissmeinnicht konnte nicht starten" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Vergissmeinnicht could not start" } }
+      }
+    },
+    "Erneut versuchen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Try again" } }
+      }
+    },
+    "App nicht initialisiert." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "App not initialized." } }
+      }
+    },
+    "Geplant" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Upcoming" } }
+      }
+    },
+    "Geplant ab" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Scheduled from" } }
+      }
+    },
+    "Geplant ab %@" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Scheduled from %@" } }
+      }
+    },
+    "Heute ist frei" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Today is free" } }
+      }
+    },
+    "Keine fälligen Aufgaben für heute." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No tasks due today." } }
+      }
+    },
+    "Nichts geplant" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Nothing scheduled" } }
+      }
+    },
+    "Keine zukünftig geplanten Aufgaben." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No tasks scheduled for the future." } }
+      }
+    },
+    "Als erledigt markieren" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Mark as completed" } }
+      }
+    },
+    "Aufgabe" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Task" } }
+      }
+    },
+    "Synchronisieren" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Synchronize" } }
+      }
+    },
+    "Synchronisiere …" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Syncing…" } }
+      }
+    },
+    "Aufgaben" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tasks" } }
+      }
+    },
+    "Ansicht" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "View" } }
+      }
+    },
+    "Detail-Editor" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Detail editor" } }
+      }
+    },
+    "Fenster & App" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Window & app" } }
+      }
+    },
+    "Maus & Trackpad" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Mouse & trackpad" } }
+      }
+    },
+    "Fenster schließen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close window" } }
+      }
+    },
+    "Beenden" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Quit" } }
+      }
+    },
+    "Mehrfach-Auswahl" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Multi-select" } }
+      }
+    },
+    "Bereich auswählen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Select range" } }
+      }
+    },
+    "Doppelklick" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Double-click" } }
+      }
+    },
+    "Swipe ▶ (grün)" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Swipe ▶ (green)" } }
+      }
+    },
+    "Swipe ◀ (rot)" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Swipe ◀ (red)" } }
+      }
+    },
+    "Auf Sidebar ziehen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drag to sidebar" } }
+      }
+    },
+    "Drag → Projekt / Tag / Eingang" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drag → Project / Tag / Inbox" } }
+      }
+    },
+    "Datensicherung" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Backup" } }
+      }
+    },
+    "Backup erstellen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Create backup" } }
+      }
+    },
+    "Backups öffnen …" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Show backups…" } }
+      }
+    },
+    "Aus Backup wiederherstellen …" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Restore from backup…" } }
+      }
+    },
+    "Aus Backup wiederherstellen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Restore from backup" } }
+      }
+    },
+    "Wiederherstellen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Restore" } }
+      }
+    },
+    "Replica wirklich ersetzen?" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Replace replica?" } }
+      }
+    },
+    "Die aktuelle Replica wird durch das gewählte Backup ersetzt. Bitte App-Neustart durchführen." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The current replica will be replaced by the selected backup. Please restart the app." } }
+      }
+    },
+    "Die aktuelle Replica wird durch das gewählte Backup ersetzt. Vor dem Restore wird die aktive Replica nochmal als `pre-restore`-Backup gesichert." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The current replica will be replaced by the selected backup. Before restore, the active replica is also saved as a `pre-restore` backup." } }
+      }
+    },
+    "Noch keine Backups vorhanden." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No backups yet." } }
+      }
+    },
+    "Vor jedem Sync wird automatisch ein Backup angelegt (rotierend, letzte 10 Stände werden behalten). Manuell kann jederzeit ein zusätzliches Backup erzeugt oder ein bestehendes Backup als aktive Replica eingespielt werden." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Before every sync, an automatic backup is created (rotating, last 10 are kept). You can manually create an additional backup or restore an existing one as the active replica." } }
+      }
+    },
+    "Sichere …" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Backing up…" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

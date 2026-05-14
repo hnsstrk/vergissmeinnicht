@@ -2,10 +2,9 @@ import Foundation
 
 /// Geparster Vorschau-Snapshot einer QuickCapture-Eingabe.
 ///
-/// Nur `description` wird in Welle 4 an die FFI weitergegeben — die übrigen Felder
-/// werden parsbar gehalten, damit wir die Vorschau zeigen können, ohne den Parser
-/// später noch einmal anfassen zu müssen, wenn die FFI um Tags/Project/Due/Priority
-/// erweitert wird.
+/// Description, Tags, Project und Due werden persistiert (siehe
+/// `QuickCaptureSheet.save()` und `AppContainer.addTask(description:project:tags:due:)`).
+/// Priority wird vom Parser erkannt, aber bislang nicht über die FFI gespeichert.
 struct QuickCapturePreview: Equatable {
     var description: String
     var tags: [String]

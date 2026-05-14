@@ -19,13 +19,18 @@ struct SyncStatusView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Button {
-                Task { await container.syncIfConfigured() }
-            } label: {
-                Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+            if container.isSyncing {
+                ProgressView()
+                    .controlSize(.small)
+                    .help("Synchronisiere …")
+            } else {
+                Button {
+                    Task { await container.syncIfConfigured() }
+                } label: {
+                    Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .help("Jetzt synchronisieren")
             }
-            .disabled(container.isSyncing)
-            .help("Jetzt synchronisieren")
         }
     }
 }
