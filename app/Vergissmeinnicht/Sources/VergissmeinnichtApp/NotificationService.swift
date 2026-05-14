@@ -1,5 +1,5 @@
 import Foundation
-import UserNotifications
+@preconcurrency import UserNotifications
 import VergissmeinnichtKit
 
 /// Verwaltet System-Notifications für überfällige Tasks.
