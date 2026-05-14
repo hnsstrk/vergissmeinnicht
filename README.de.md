@@ -1,5 +1,9 @@
 # Vergissmeinnicht
 
+[![CI](https://github.com/hnsstrk/vergissmeinnicht/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hnsstrk/vergissmeinnicht/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/hnsstrk/vergissmeinnicht?sort=semver)](https://github.com/hnsstrk/vergissmeinnicht/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/hnsstrk/vergissmeinnicht)](LICENSE)
+
 Nativer macOS-Client für [Taskwarrior](https://taskwarrior.org) 3.x, basierend
 auf [TaskChampion](https://github.com/GothenburgBitFactory/taskchampion).
 SwiftUI-Frontend, Rust-Core via UniFFI, sandboxed, App-Store-tauglich.
