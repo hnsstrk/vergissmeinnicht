@@ -138,7 +138,7 @@ final class TaskListViewModel {
         let filtered = tasks
             .filter { activeFilter.matches($0, now: now, dueSoonDays: dueSoonDays) }
             .filter { matchesSearch($0) }
-        let sorted = filtered.sorted(by: sortComparator)
+        let sorted = filtered.sorted { lhs, rhs in sortComparator(lhs, rhs) }
         return sortAscending ? sorted : sorted.reversed()
     }
 
