@@ -4,9 +4,10 @@ import SwiftUI
 ///
 /// Zeigt (von links nach rechts):
 ///  - Fehler-Icon (rot), falls `lastError` gesetzt
-///  - Badge mit Anzahl lokaler, noch nicht synchronisierter Änderungen
 ///  - Countdown bis zum nächsten Auto-Sync (bei aktiven Timer-Modi)
-///  - Sync-Button (Spinner während laufendem Sync)
+///  - Sync-Button (Spinner während laufendem Sync); bei lokalen, noch nicht
+///    synchronisierten Änderungen rechts vom Symbol ein Zähler, der sich die
+///    Hintergrund-Capsule mit dem Sync-Symbol teilt
 struct SyncStatusView: View {
     @Environment(AppContainer.self) private var container
 
@@ -17,17 +18,6 @@ struct SyncStatusView: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
                     .help(String(localized: "Sync-Fehler: \(error)"))
-            }
-
-            // Lokale-Änderungen-Badge
-            if container.localChanges > 0 {
-                Text(verbatim: "\(container.localChanges)")
-                    .font(.caption2.monospacedDigit())
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(Color.orange.opacity(0.18), in: Capsule())
-                    .foregroundStyle(.orange)
-                    .help(String(localized: "\(container.localChanges) lokale Änderung(en) noch nicht synchronisiert"))
             }
 
             // Countdown bis zum nächsten Auto-Sync
@@ -43,12 +33,37 @@ struct SyncStatusView: View {
                 }
             }
 
-            // Sync-Button / Spinner
+            // Sync-Button / Spinner. Der Lokale-Änderungen-Zähler sitzt rechts
+            // vom Sync-Symbol und teilt sich dessen Hintergrund-Capsule —
+            // sonst klebt er am Papierkorb-Button und liest sich wie eine
+            // Papierkorb-Anzahl (Karpathy 3: nur diese Layout-Korrektur,
+            // Fehler-/Countdown-Teile bleiben unangetastet).
             if container.isSyncing {
                 ProgressView()
                     .controlSize(.small)
                     .help(String(localized: "Synchronisiere …"))
+            } else if container.localChanges > 0 {
+                // Mit anstehenden Änderungen: Zähler rechts vom Sync-Symbol,
+                // beide in einer gemeinsamen orangen Capsule.
+                let pending = container.localChanges
+                Button {
+                    Task { await container.syncIfConfigured() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                        Text(verbatim: "\(pending)")
+                            .font(.caption2.monospacedDigit())
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.orange.opacity(0.18), in: Capsule())
+                    .foregroundStyle(.orange)
+                }
+                .accessibilityLabel(Text("Sync"))
+                .help(String(localized: "\(pending) lokale Änderung(en) — jetzt synchronisieren"))
             } else {
+                // Ohne Änderungen: unveränderter Original-Sync-Button —
+                // Standard-Toolbar-Optik, gleiche Darstellung wie +/✓/Papierkorb.
                 Button {
                     Task { await container.syncIfConfigured() }
                 } label: {

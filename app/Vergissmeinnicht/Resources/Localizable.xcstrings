@@ -955,6 +955,21 @@
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "%llu local change(s) not yet synchronized" } }
       }
+    },
+    "Jetzt synchronisieren" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sync now" } }
+      }
+    },
+    "Sync" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sync" } }
+      }
+    },
+    "%lld lokale Änderung(en) — jetzt synchronisieren" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld local change(s) — sync now" } }
+      }
     }
   },
   "version" : "1.0"
