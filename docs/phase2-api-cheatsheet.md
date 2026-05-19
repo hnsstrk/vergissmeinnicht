@@ -2,6 +2,10 @@
 
 **Erstellt**: 2026-05-10 — Referenz für Phase-2-Implementor
 
+> **Historische Referenz (Stand 2026-05-10).** Versions- und API-Angaben können
+> gegenüber dem aktuellen Code veraltet sein; maßgeblich ist `rust/vergissmeinnicht-core/`.
+> Als Einstiegshilfe für die FFI-Grenze weiterhin nützlich.
+
 ---
 
 ## ⚠️ Versions-Warnung
