@@ -394,18 +394,18 @@ final class AppContainer {
         return result
     }
 
-    /// Mappt FFI-Fehler auf knappe deutsche User-Strings für `lastError`.
+    /// Mappt FFI-Fehler auf knappe User-Strings für `lastError`.
     /// Ohne diesen Mapping würde `String(describing:)` die technische
     /// Reflection-Repräsentation der `VmError`-Cases zeigen
     /// (`VmError.Storage(msg: "…")`), was in der UI unbrauchbar ist.
     private func userMessage(for error: Error) -> String {
         if let vm = error as? VmError {
             switch vm {
-            case .Storage(let msg):    return "Speicherfehler: \(msg)"
-            case .Conversion(let msg): return "Eingabefehler: \(msg)"
-            case .NotFound:            return "Aufgabe nicht gefunden"
-            case .Sync(let msg):       return "Sync-Fehler: \(msg)"
-            case .Internal:            return "Interner Fehler"
+            case .Storage(let msg):    return String(localized: "Speicherfehler: \(msg)")
+            case .Conversion(let msg): return String(localized: "Eingabefehler: \(msg)")
+            case .NotFound:            return String(localized: "Aufgabe nicht gefunden")
+            case .Sync(let msg):       return String(localized: "Sync-Fehler: \(msg)")
+            case .Internal:            return String(localized: "Interner Fehler")
             }
         }
         return error.localizedDescription
@@ -427,7 +427,7 @@ final class AppContainer {
                 try backupService.createBackup(reason: "pre-sync")
             }.value
         } catch {
-            self.lastError = "Backup vor Sync fehlgeschlagen: \(error.localizedDescription)"
+            self.lastError = String(localized: "Backup vor Sync fehlgeschlagen: \(error.localizedDescription)")
             // Weiter mit Sync — Backup ist Komfort, kein Pflicht-Gate.
         }
 

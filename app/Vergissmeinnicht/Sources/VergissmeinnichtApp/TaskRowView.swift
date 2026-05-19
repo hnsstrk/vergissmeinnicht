@@ -48,21 +48,27 @@ struct TaskRowView: View {
     /// Icon-Namen. Reihenfolge: ID, Status, Titel, Projekt, Tags, Fälligkeit.
     private var a11yLabel: String {
         var parts: [String] = []
-        if let id = task.workingSetId { parts.append("Aufgabe \(id)") }
+        if let id = task.workingSetId {
+            parts.append(String(localized: "Aufgabe \(id)", comment: "VoiceOver: Aufgaben-Nummer"))
+        }
         switch task.status {
         case .pending where TimeInterval(task.due ?? 0) < Date().timeIntervalSince1970 && task.due != nil:
-            parts.append("überfällig")
+            parts.append(String(localized: "überfällig", comment: "VoiceOver: Aufgaben-Status"))
         case .completed:
-            parts.append("erledigt")
+            parts.append(String(localized: "erledigt", comment: "VoiceOver: Aufgaben-Status"))
         default:
             break
         }
         parts.append(task.description)
-        if let project = task.project { parts.append("Projekt \(project)") }
-        if !task.tags.isEmpty { parts.append("Tags: " + task.tags.joined(separator: ", ")) }
+        if let project = task.project {
+            parts.append(String(localized: "Projekt \(project)", comment: "VoiceOver: Projekt-Name"))
+        }
+        if !task.tags.isEmpty {
+            parts.append(String(localized: "Tags: \(task.tags.joined(separator: ", "))", comment: "VoiceOver: Tag-Liste"))
+        }
         if let due = task.due {
             let d = Date(timeIntervalSince1970: TimeInterval(due))
-            parts.append("fällig " + d.formatted(date: .abbreviated, time: .omitted))
+            parts.append(String(localized: "fällig \(d.formatted(date: .abbreviated, time: .omitted))", comment: "VoiceOver: Fälligkeitsdatum"))
         }
         return parts.joined(separator: ", ")
     }

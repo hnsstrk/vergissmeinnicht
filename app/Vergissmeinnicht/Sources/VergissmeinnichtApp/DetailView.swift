@@ -34,7 +34,7 @@ struct DetailView: View {
     // Lade-Marker, damit wir nicht jeden Re-Render den State überschreiben.
     @State private var loadedFromUuid: String?
 
-    private static let priorityOptions: [(String, String)] = [
+    private static let priorityOptions: [(String, LocalizedStringKey)] = [
         ("",  "—"),
         ("H", "Hoch (H)"),
         ("M", "Mittel (M)"),
@@ -364,7 +364,7 @@ struct DetailView: View {
         return date.formatted(date: .abbreviated, time: .shortened)
     }
 
-    private func statusInfo(_ status: TaskStatus) -> (String, Color) {
+    private func statusInfo(_ status: TaskStatus) -> (LocalizedStringKey, Color) {
         switch status {
         case .pending:   return ("Pending",   .blue)
         case .completed: return ("Erledigt",  .green)

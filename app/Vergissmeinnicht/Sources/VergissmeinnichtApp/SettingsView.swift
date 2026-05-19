@@ -81,7 +81,7 @@ struct SettingsView: View {
 
             Section {
                 Stepper(value: $dueSoonDays, in: 1...60) {
-                    Text("\(dueSoonDays) \(dueSoonDays == 1 ? "Tag" : "Tage")")
+                    Text(String(localized: "\(dueSoonDays) Tag"))
                 }
             } header: {
                 Text("Bald fällig").font(.headline)
@@ -192,7 +192,7 @@ struct SettingsView: View {
             BackupRestoreSheet(
                 backupService: container.backupService,
                 onRestored: {
-                    statusMessage = "✓ Restore — App-Neustart empfohlen"
+                    statusMessage = String(localized: "✓ Restore — App-Neustart empfohlen")
                 }
             )
         }
@@ -215,7 +215,7 @@ struct SettingsView: View {
             try KeychainStore.save(serverUrl,        for: .serverUrl)
             try KeychainStore.save(clientId,         for: .clientId)
             try KeychainStore.save(encryptionSecret, for: .encryptionSecret)
-            statusMessage = "✓ Gespeichert"
+            statusMessage = String(localized: "✓ Gespeichert")
         } catch {
             statusMessage = String(localized: "Fehler beim Speichern: \(error.localizedDescription)")
         }
@@ -228,7 +228,7 @@ struct SettingsView: View {
             let url = try await Task.detached(priority: .userInitiated) {
                 try service.createBackup(reason: "manual")
             }.value
-            statusMessage = "✓ Backup: \(url.lastPathComponent)"
+            statusMessage = String(localized: "✓ Backup: \(url.lastPathComponent)")
         } catch {
             statusMessage = String(localized: "Fehler: \(error.localizedDescription)")
         }
@@ -240,7 +240,7 @@ struct SettingsView: View {
         if let err = container.lastError {
             statusMessage = String(localized: "Fehler: \(err)")
         } else {
-            statusMessage = "✓ \(count) " + (count == 1 ? "Task repariert" : "Tasks repariert")
+            statusMessage = "✓ " + String(localized: "\(count) Task repariert")
         }
     }
 
@@ -254,7 +254,7 @@ struct SettingsView: View {
         if let err = container.lastError {
             statusMessage = String(localized: "Fehler: \(err)")
         } else {
-            statusMessage = "✓ Sync"
+            statusMessage = String(localized: "✓ Sync")
         }
     }
 }

@@ -24,7 +24,7 @@ struct TaskDetailWindow: View {
             }
         }
         .frame(minWidth: 380, idealWidth: 480, minHeight: 320, idealHeight: 480)
-        .navigationTitle(currentTask?.description ?? "Task-Detail")
+        .navigationTitle(currentTask?.description ?? String(localized: "Task-Detail"))
     }
 
     private var currentTask: TaskInfo? {
