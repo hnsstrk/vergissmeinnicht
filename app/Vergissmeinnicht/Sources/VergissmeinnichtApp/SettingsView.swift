@@ -9,12 +9,13 @@ struct SettingsView: View {
     @State private var statusMessage: String?
     @State private var showRestorePicker: Bool = false
 
-    @AppStorage(AppSettingsKey.language)      private var language: String = AppLanguage.system.rawValue
-    @AppStorage(AppSettingsKey.dueSoonDays)   private var dueSoonDays: Int = 7
-    @AppStorage(AppSettingsKey.defaultFilter) private var defaultFilter: String = DefaultFilter.inbox.rawValue
-    @AppStorage(AppSettingsKey.defaultSort)   private var defaultSort: String = SortOrder.id.rawValue
-    @AppStorage(AppSettingsKey.notifications) private var notificationsEnabled: Bool = false
-    @AppStorage(AppSettingsKey.autoSyncMode)  private var autoSyncMode: String = AutoSyncMode.manual.rawValue
+    @AppStorage(AppSettingsKey.language)           private var language: String = AppLanguage.system.rawValue
+    @AppStorage(AppSettingsKey.dueSoonDays)        private var dueSoonDays: Int = 7
+    @AppStorage(AppSettingsKey.defaultFilter)      private var defaultFilter: String = DefaultFilter.inbox.rawValue
+    @AppStorage(AppSettingsKey.defaultSort)        private var defaultSort: String = SortOrder.id.rawValue
+    @AppStorage(AppSettingsKey.notifications)      private var notificationsEnabled: Bool = false
+    @AppStorage(AppSettingsKey.autoSyncMode)       private var autoSyncMode: String = AutoSyncMode.manual.rawValue
+    @AppStorage(AppSettingsKey.sidebarColoredIcons) private var sidebarColoredIcons: Bool = true
 
     var body: some View {
         TabView {
@@ -61,6 +62,17 @@ struct SettingsView: View {
                 }
             } header: {
                 Text("Standardansicht").font(.headline)
+            }
+
+            Section {
+                Toggle("Farbige Symbole in der Seitenleiste", isOn: $sidebarColoredIcons)
+            } header: {
+                Text("Darstellung").font(.headline)
+            } footer: {
+                Text("Aus: Symbole erscheinen einfarbig wie Projekt- und Tag-Einträge.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Section {

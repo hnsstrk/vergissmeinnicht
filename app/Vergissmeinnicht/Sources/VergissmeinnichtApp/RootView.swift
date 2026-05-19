@@ -92,6 +92,7 @@ struct RootView: View {
                 onSetPriority: handleSetPriority,
                 onSetDue: handleSetDue
             )
+            .safeAreaInset(edge: .bottom) { syncFooter }
             .navigationTitle(filterTitle)
             .searchable(text: $vm.searchQuery, prompt: Text("Suchen…"))
             .toolbar { detailToolbar(vm: vm) }
@@ -200,6 +201,7 @@ struct RootView: View {
             } label: {
                 Label("Sortieren", systemImage: vm.sortAscending ? "arrow.up.arrow.down" : "arrow.up.arrow.down.circle")
             }
+            .menuIndicator(.hidden)
             .help("Sortierung")
         }
         ToolbarItem {
@@ -231,6 +233,36 @@ struct RootView: View {
         ToolbarItem {
             SyncStatusView()
         }
+    }
+
+    // MARK: - Sync-Footer
+
+    /// Live tickender Auto-Sync-Countdown am unteren Rand der Aufgabenliste.
+    /// Bewusst hier statt in der Toolbar: variabel breiter Text bricht das
+    /// Icon-Raster, und ein macOS-Tooltip kann nicht sekündlich aktualisieren.
+    /// `TimelineView` re-rendert nur diesen Footer, nicht die Liste.
+    @ViewBuilder
+    private var syncFooter: some View {
+        if let nextSync = container.nextSyncDate, !container.isSyncing {
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                HStack {
+                    Spacer()
+                    Text("Nächster Sync in \(syncCountdownString(to: nextSync))")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 12)
+                .padding(.top, 6)
+                .padding(.leading, 12)
+            }
+        }
+    }
+
+    /// Formatiert die verbleibende Zeit bis `date` als `m:ss`. Negativ → "0:00".
+    private func syncCountdownString(to date: Date) -> String {
+        let total = Int(max(0, date.timeIntervalSinceNow))
+        return String(format: "%d:%02d", total / 60, total % 60)
     }
 
     // MARK: - Helpers

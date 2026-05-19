@@ -67,6 +67,15 @@ System rows of the sidebar use **filled SF Symbols with color applied directly t
 
 An earlier variant (white symbol on a colored square) was rejected: too heavy, visually collides with badges. Colored symbol without a background = lighter, faster to identify.
 
+The colors are user-toggleable: `AppSettingsKey.sidebarColoredIcons` (Bool, default `true`). When off, `coloredIcon` falls back to `.secondary` so system rows match the monochrome project/tag rows. Single change point — `coloredRow` and `inboxRow` share `coloredIcon`.
+
+### Toolbar Icon Style
+
+Unified concept: **every toolbar entry is a single SF-Symbol glyph in a standard `Button`/`Menu` — no inline text in the button label, no custom padding, no visible menu indicator.** Result: identical round hover surface for all items. Consequences for future edits:
+- The sort `Menu` carries `.menuIndicator(.hidden)` so it matches the plain icon buttons.
+- `SyncStatusView` is a standard `Button` (no `.padding`/Capsule background). The pending counter is a layout-neutral `.overlay` badge on the icon; icon and spinner share a fixed `.frame(width: 16, height: 16)` so the glyph never jumps between idle/syncing/pending states.
+- Do not reintroduce custom-padded HStacks inside toolbar button labels — that was the original cause of the circle-vs-pill-vs-oval inconsistency.
+
 ### Karpathy Principles
 Code comments explicitly reference "Karpathy 2 (Simplicity)" and "Karpathy 3 (Surgical)" as justification. Keep the style — no speculative features, no adjacent refactorings.
 

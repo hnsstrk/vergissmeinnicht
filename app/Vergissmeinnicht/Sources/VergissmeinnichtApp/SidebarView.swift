@@ -26,8 +26,9 @@ struct SidebarView: View {
     var onRenameTag: (String) -> Void                    // open rename sheet for tag
     var onClearTag: (String) -> Void                     // remove tag from all tasks
 
-    @AppStorage(AppSettingsKey.projectsExpanded) private var projectsExpanded: Bool = true
-    @AppStorage(AppSettingsKey.tagsExpanded)     private var tagsExpanded:     Bool = true
+    @AppStorage(AppSettingsKey.projectsExpanded)   private var projectsExpanded: Bool = true
+    @AppStorage(AppSettingsKey.tagsExpanded)       private var tagsExpanded:     Bool = true
+    @AppStorage(AppSettingsKey.sidebarColoredIcons) private var coloredIcons:   Bool = true
 
     var body: some View {
         List(selection: selectionBinding) {
@@ -83,11 +84,12 @@ struct SidebarView: View {
         .tag(filter)
     }
 
-    /// Farbiges SF-Symbol ohne Hintergrund.
+    /// Farbiges SF-Symbol ohne Hintergrund. Bei deaktivierter Farboption
+    /// erscheinen System-Zeilen einfarbig wie Projekt-/Tag-Zeilen.
     @ViewBuilder
     private func coloredIcon(systemImage: String, color: Color) -> some View {
         Image(systemName: systemImage)
-            .foregroundStyle(color)
+            .foregroundStyle(coloredIcons ? AnyShapeStyle(color) : AnyShapeStyle(.secondary))
     }
 
     @ViewBuilder

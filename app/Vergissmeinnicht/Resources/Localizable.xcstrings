@@ -2230,6 +2230,56 @@
           }
         }
       }
+    },
+    "Aus: Symbole erscheinen einfarbig wie Projekt- und Tag-Einträge.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off: icons appear monochrome like project and tag entries."
+          }
+        }
+      }
+    },
+    "Darstellung": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appearance"
+          }
+        }
+      }
+    },
+    "Farbige Symbole in der Seitenleiste": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Colored sidebar icons"
+          }
+        }
+      }
+    },
+    "Nicht synchronisierte Änderungen — jetzt synchronisieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsynced changes — sync now"
+          }
+        }
+      }
+    },
+    "Nächster Sync in %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next sync in %@"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

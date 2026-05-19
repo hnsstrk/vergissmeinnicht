@@ -15,7 +15,8 @@ enum AppSettingsKey {
     static let projectsExpanded = "sidebarProjectsExpanded" // Bool, Default true
     static let tagsExpanded     = "sidebarTagsExpanded"     // Bool, Default true
     static let hideCompleted    = "hideCompleted"           // Bool, Default false
-    static let autoSyncMode     = "autoSyncMode"            // String (AutoSyncMode.rawValue), Default "manual"
+    static let autoSyncMode          = "autoSyncMode"            // String (AutoSyncMode.rawValue), Default "manual"
+    static let sidebarColoredIcons   = "sidebarColoredIcons"    // Bool, Default true
 }
 
 enum AppLanguage: String, CaseIterable, Identifiable {

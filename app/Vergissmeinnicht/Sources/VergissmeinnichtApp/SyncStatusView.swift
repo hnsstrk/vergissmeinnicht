@@ -3,87 +3,78 @@ import SwiftUI
 /// Kompakte Toolbar-Einheit für Sync-Status und -Trigger.
 ///
 /// Zeigt (von links nach rechts):
-///  - Fehler-Icon (rot), falls `lastError` gesetzt
-///  - Countdown bis zum nächsten Auto-Sync (bei aktiven Timer-Modi)
-///  - Sync-Button (Spinner während laufendem Sync); bei lokalen, noch nicht
-///    synchronisierten Änderungen rechts vom Symbol ein Zähler, der sich die
-///    Hintergrund-Capsule mit dem Sync-Symbol teilt
+///  - Fehler-Icon (rot, nicht-interaktiv), falls `lastError` gesetzt
+///  - Sync-Button: Standard-Button ohne Custom-Padding/Capsule — identische runde
+///    Hover-Fläche wie plus/checkmark/trash in der Toolbar (Karpathy 3: keine
+///    adjazenten Geometrie-Eingriffe). Bei nicht-synchronisierten Änderungen ein
+///    kleiner Indikator-Punkt am Icon (kein Zähler — `num_local_operations`
+///    zählt rohe CRDT-Operationen, nicht User-Aktionen; die Zahl wäre
+///    irreführend). Layout-neutral, kein Glyph-Springen beim Zustandswechsel.
+/// Die Auto-Sync-Restzeit ist bewusst KEIN eigenes Toolbar-Element: ein
+/// variabel breiter Text fügt sich nicht ins gleichmäßige Icon-Raster der
+/// Toolbar ein (wiederkehrendes Spacing-Problem). Sie lebt im live tickenden
+/// Status-Footer der Aufgabenliste (`RootView.syncFooter`) — Tooltips können
+/// auf macOS nicht sekündlich aktualisieren.
 struct SyncStatusView: View {
     @Environment(AppContainer.self) private var container
 
     var body: some View {
         HStack(spacing: 6) {
-            // Fehler-Indikator
+            // Fehler-Indikator (nicht-interaktiv, kein Button-Verhalten)
             if let error = container.lastError {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
                     .help(String(localized: "Sync-Fehler: \(error)"))
             }
 
-            // Countdown bis zum nächsten Auto-Sync
-            if let nextSync = container.nextSyncDate {
-                TimelineView(.periodic(from: .now, by: 1)) { _ in
-                    HStack(spacing: 3) {
-                        Image(systemName: "timer")
-                            .font(.caption2)
-                        Text(verbatim: countdownString(to: nextSync))
-                            .font(.caption2.monospacedDigit())
-                    }
-                    .foregroundStyle(.secondary)
-                }
-            }
-
-            // Sync-Steuerung. JEDER Zustand nutzt dieselbe gepolsterte
-            // HStack-Box (Padding 7/3) — das Sync-Symbol sitzt immer an
-            // derselben Position, springt also nicht, wenn Zähler/Spinner
-            // erscheinen oder verschwinden. Nur Capsule-Füllung, Zähler und
-            // Spinner-vs-Symbol wechseln; der Zähler wächst nach rechts.
-            // Kein `.buttonStyle(.plain)` (Toolbar-Spacing bleibt), kein
-            // `.tint` (kein Blau im Leer-Zustand) — die beiden früheren
-            // Fixes bleiben (Karpathy 3: nur die Spacing-Konstanz).
+            // Sync-Steuerung. Karpathy 3: Standard-Button, kein Custom-Padding, keine
+            // Capsule-Background — identische Hover-Fläche wie plus/checkmark/trash.
+            // Das Image bleibt in JEDEM Zustand im Layout (nur während des Syncs
+            // ausgeblendet) und definiert die feste 16×16-Box; der Spinner liegt
+            // als ZStack-Overlay darüber und ändert die Box nicht. Ohne das
+            // bricht ein View-Tausch Image↔ProgressView die Toolbar-Reihe auf
+            // (ProgressView misst sich anders, Identitätswechsel → Reflow).
             let pending = container.localChanges
-            if container.isSyncing {
-                HStack(spacing: 4) {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .help(String(localized: "Synchronisiere …"))
-            } else {
-                Button {
-                    Task { await container.syncIfConfigured() }
-                } label: {
-                    HStack(spacing: 4) {
+            Button {
+                Task { await container.syncIfConfigured() }
+            } label: {
+                Label {
+                    Text("Sync")
+                } icon: {
+                    ZStack {
                         Image(systemName: "arrow.triangle.2.circlepath")
-                        if pending > 0 {
-                            Text(verbatim: "\(pending)")
-                                .font(.caption2.monospacedDigit())
+                            .opacity(container.isSyncing ? 0 : 1)
+                        if container.isSyncing {
+                            ProgressView()
+                                .controlSize(.small)
                         }
                     }
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background {
-                        if pending > 0 {
-                            Capsule().fill(Color.orange.opacity(0.18))
+                    .frame(width: 16, height: 16)
+                    .overlay(alignment: .topTrailing) {
+                        if !container.isSyncing && pending > 0 {
+                            Circle()
+                                .fill(Color.orange)
+                                .frame(width: 6, height: 6)
+                                .offset(x: 4, y: -4)
                         }
                     }
-                    .foregroundStyle(pending > 0 ? AnyShapeStyle(.orange) : AnyShapeStyle(.primary))
                 }
-                .accessibilityLabel(Text("Sync"))
-                .help(pending > 0
-                      ? String(localized: "\(pending) lokale Änderung(en) — jetzt synchronisieren")
-                      : String(localized: "Jetzt synchronisieren"))
             }
+            .disabled(container.isSyncing)
+            .help(syncHelp)
         }
     }
 
-    /// Formatiert die verbleibende Zeit bis `date` als `mm:ss`. Negative Werte → "0:00".
-    private func countdownString(to date: Date) -> String {
-        let remaining = max(0, date.timeIntervalSinceNow)
-        let totalSeconds = Int(remaining)
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%d:%02d", minutes, seconds)
+    /// Tooltip-Text des Sync-Buttons. Die Auto-Sync-Restzeit gehört bewusst
+    /// NICHT hierher (macOS-Tooltips können nicht live ticken) — sie lebt im
+    /// Status-Footer der Aufgabenliste.
+    private var syncHelp: String {
+        if container.isSyncing {
+            return String(localized: "Synchronisiere …")
+        }
+        if container.localChanges > 0 {
+            return String(localized: "Nicht synchronisierte Änderungen — jetzt synchronisieren")
+        }
+        return String(localized: "Jetzt synchronisieren")
     }
 }
