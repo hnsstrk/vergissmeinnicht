@@ -19,7 +19,7 @@ front-end, Rust core via UniFFI, sandboxed, App-Store-friendly.
 
 - **Sidebar perspectives** — Inbox · To Do · Today · Overdue · Soon · Waiting ·
   Scheduled · All · per Project · per Tag. Counts per row, drop targets.
-- **Quick Capture** (⌘N) — capture sheet with title, notes, project, tags,
+- **Quick Capture** (⌘N) — focused capture sheet with title, notes, project, tags,
   due, priority, recurrence. Or terminal-style tokens (`+tag project:foo
   due:tomorrow`).
 - **Detail editor** in its own window — title, project, tags, due, scheduled,
@@ -159,8 +159,6 @@ implemented natively in Swift — no subprocesses, sandbox-clean.
 - [Taskwarrior](https://taskwarrior.org) and the GothenburgBitFactory team for
   [TaskChampion](https://github.com/GothenburgBitFactory/taskchampion) and the
   sync server.
-- Design notes: ,
-  , .
 
 ## License
 

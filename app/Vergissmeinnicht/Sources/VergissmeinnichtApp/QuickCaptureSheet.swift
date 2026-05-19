@@ -1,7 +1,7 @@
 import SwiftUI
 import VergissmeinnichtKit
 
-/// QuickCapture-Eingabe: Sheet-Pattern mit Titel-Feld, optionaler Notiz und
+/// QuickCapture-Eingabe: Sheet mit Titel-Feld, optionaler Notiz und
 /// Metadaten-Buttons (Projekt, Tags, Due, Priorität, Wiederholung).
 ///
 /// Schreibt Description, Project, Tags und Due über `AppContainer.addTask(...)` voll;

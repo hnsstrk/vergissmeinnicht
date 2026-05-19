@@ -71,7 +71,7 @@ struct SidebarView: View {
 
     // MARK: - Rows
 
-    /// Zeigt eine Sidebar-Zeile mit farbigem Symbol im farbiger Hintergrund.
+    /// Zeigt eine Sidebar-Zeile mit farbigem Symbol (ohne Hintergrund).
     @ViewBuilder
     private func coloredRow(_ filter: SidebarFilter, label: LocalizedStringKey, systemImage: String, color: Color, count: Int) -> some View {
         Label {
@@ -83,7 +83,7 @@ struct SidebarView: View {
         .tag(filter)
     }
 
-    /// Farbiges SF-Symbol ohne Hintergrund (ohne Hintergrund).
+    /// Farbiges SF-Symbol ohne Hintergrund.
     @ViewBuilder
     private func coloredIcon(systemImage: String, color: Color) -> some View {
         Image(systemName: systemImage)

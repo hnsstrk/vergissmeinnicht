@@ -43,7 +43,7 @@ Neue `.swift`-Dateien im App-Target **müssen** in `app/Vergissmeinnicht/Vergiss
 - `AppContainer` hält die Task-Liste — ViewModels nur abgeleiteter UI-State.
 - Filter-/Count-Logik zentral in `SidebarFilter.matches(_:now:dueSoonDays:)` — Sidebar-Badges und Hauptliste nutzen dieselbe Funktion.
 
-### Sidebar-Icon-Stil (Icon-Stil-Konvention)
+### Sidebar-Icon-Stil
 
 System-Zeilen der Sidebar nutzen **gefüllte SF-Symbols mit Farbe direkt am Symbol** (`.foregroundStyle(<color>)`) — **kein** farbiger Hintergrund, **kein** RoundedRectangle. Projekt- und Tag-Zeilen bleiben uncolored (Folder/Tag-Outline). Verbindliche Zuordnung:
 
@@ -58,7 +58,7 @@ System-Zeilen der Sidebar nutzen **gefüllte SF-Symbols mit Farbe direkt am Symb
 | Wartend       | `moon.zzz.fill`                 | `.gray`     | Pausiert |
 | Alle          | `tray.full.fill`                | `.purple`   | Meta-Sicht |
 
-Vorher (farbiger Hintergrund — weißes Symbol auf farbigem Quadrat) verworfen: zu schwer, kollidiert visuell mit Badges. eigener Stil = leichter, identifiziert schneller.
+Eine frühere Variante (weißes Symbol auf farbigem Quadrat) wurde verworfen: zu schwer, kollidiert visuell mit Badges. Farbiges Symbol ohne Hintergrund = leichter, schneller identifizierbar.
 
 ### Karpathy-Prinzipien
 Code-Comments referenzieren explizit „Karpathy 2 (Simplicity)" und „Karpathy 3 (Surgical)" als Begründung. Den Stil beibehalten — keine spekulativen Features, keine adjazenten Refactorings.

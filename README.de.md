@@ -17,7 +17,7 @@ SwiftUI-Frontend, Rust-Core via UniFFI, sandboxed, App-Store-tauglich.
 - **Sidebar-Perspektiven** — Eingang · Zu erledigen · Heute · Überfällig · Bald
   fällig · Wartend · Geplant · Alle · pro Projekt · pro Tag. Mit Counts und
   Drop-Targets.
-- **Quick Capture** (⌘N) — Eingabe-Sheet mit Titel, Notizen, Projekt,
+- **Quick Capture** (⌘N) — fokussiertes Eingabe-Sheet mit Titel, Notizen, Projekt,
   Tags, Fälligkeit, Priorität, Wiederholung. Alternativ Token-Syntax (`+tag
   project:foo due:tomorrow`).
 - **Detail-Editor** in eigenem Fenster — Titel, Projekt, Tags, Fälligkeit,
@@ -160,8 +160,6 @@ nativ in Swift umgesetzt — kein Subprocess-Bedarf, sandbox-konform.
 - [Taskwarrior](https://taskwarrior.org) und das GothenburgBitFactory-Team für
   [TaskChampion](https://github.com/GothenburgBitFactory/taskchampion) und den
   Sync-Server.
-- Design-Notiz: ,
-  , .
 
 ## Lizenz
 

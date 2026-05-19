@@ -1190,7 +1190,7 @@ public struct TaskInfo {
     /**
      * Scheduled-Property (Start-Datum / Defer-Until) als Unix-Sekunden. Tasks mit
      * `scheduled` in der Zukunft sind „geplant" und werden aus ToDo/Inbox/Überfällig
-     * ausgeblendet, bis das Datum erreicht ist (Hide-until-date).
+     * ausgeblendet, bis das Datum erreicht ist.
      */
     public var scheduled: Int64?
 
@@ -1236,7 +1236,7 @@ public struct TaskInfo {
         /**
          * Scheduled-Property (Start-Datum / Defer-Until) als Unix-Sekunden. Tasks mit
          * `scheduled` in der Zukunft sind „geplant" und werden aus ToDo/Inbox/Überfällig
-         * ausgeblendet, bis das Datum erreicht ist (Hide-until-date).
+         * ausgeblendet, bis das Datum erreicht ist.
          */scheduled: Int64?) {
         self.uuid = uuid
         self.description = description
