@@ -1,106 +1,114 @@
 # CLAUDE.md
 
-Repo-spezifische Anweisungen für Claude Code. Globale Regeln stehen in `~/.claude/CLAUDE.md` und gelten zusätzlich.
+Repo-specific instructions for Claude Code. Global rules live in `~/.claude/CLAUDE.md` and apply in addition.
 
-## Projekt-Architektur
+## Project Architecture
 
-Nativer macOS-Client für Taskwarrior 3.x. Drei Schichten:
+Native macOS client for Taskwarrior 3.x. Three layers:
 
-| Schicht | Pfad | Sprache |
-|---------|------|---------|
-| Rust-Core / FFI | `rust/vergissmeinnicht-core/` | Rust + uniffi |
-| Swift-Bindings (XCFramework) | `swift/VergissmeinnichtKit/` | Swift, generiert |
-| macOS-App-Target | `app/Vergissmeinnicht/` | SwiftUI |
+| Layer | Path | Language |
+|-------|------|----------|
+| Rust core / FFI | `rust/vergissmeinnicht-core/` | Rust + uniffi |
+| Swift bindings (XCFramework) | `swift/VergissmeinnichtKit/` | Swift, generated |
+| macOS app target | `app/Vergissmeinnicht/` | SwiftUI |
 
-Vollständige Architektur, Build-Toolchain und Failure-Modes: [`docs/building.md`](docs/building.md).
+Full architecture, build toolchain, and failure modes: [`docs/building.md`](docs/building.md).
 
-## Build-Pipeline
+## Build Pipeline
 
-**Nach FFI-Änderung** (Pflicht — sonst läuft Swift mit veralteten Bindings):
+**After an FFI change** (mandatory — otherwise Swift runs against stale bindings):
 ```bash
 bash scripts/build-macos.sh
 ```
-Regeneriert XCFramework + uniffi-Swift-Wrapper.
+Regenerates the XCFramework + uniffi Swift wrapper.
 
-**Lokaler Author-Install** (Rust + App + `/Applications/` + Restart in einem Schritt):
+**Local author install** (Rust + app + `/Applications/` + restart in one step):
 ```bash
 bash scripts/install-local.sh
-# Optionen:
-#   --skip-rust    nur Swift-Änderungen, FFI unverändert
-#   --no-restart   App nach Install nicht starten
+# Options:
+#   --skip-rust    Swift-only changes, FFI unchanged
+#   --no-restart   do not start the app after install
 ```
 
-**CI** (`.github/workflows/ci.yml`): macOS-15 / Xcode 16.0 / Swift 6.0. **Lokal läuft Xcode 26.x / Swift 6.3** — strikter ist CI. Bekannte Stolperfallen:
-- Method-Reference-Closures (z. B. `array.sorted(by: foo)`) werden in Swift 6.0 als throwing inferiert → explizit `{ a, b in foo(a, b) }`.
-- `UNNotificationSettings` ist erst ab späteren SDKs Sendable → `@preconcurrency import UserNotifications`.
+**CI** (`.github/workflows/ci.yml`): macOS-15 / Xcode 16.0 / Swift 6.0. **Locally Xcode 26.x / Swift 6.3 runs** — CI is the stricter one. Known pitfalls:
+- Method-reference closures (e.g. `array.sorted(by: foo)`) are inferred as throwing under Swift 6.0 → use an explicit `{ a, b in foo(a, b) }`.
+- `UNNotificationSettings` only became Sendable in later SDKs → `@preconcurrency import UserNotifications`.
 
-## Pflicht-Konventionen
+## Mandatory Conventions
 
-### xcodeproj — neue Swift-Dateien
-Neue `.swift`-Dateien im App-Target **müssen** in `app/Vergissmeinnicht/Vergissmeinnicht.xcodeproj/project.pbxproj` viermal registriert werden: `PBXBuildFile`, `PBXFileReference`, `PBXGroup`, `PBXSourcesBuildPhase`. Auch `Assets.xcassets` & `Localizable.xcstrings` — siehe v0.1.1-Icon-Hotfix im Journal als Warnung.
+### Language
+
+- **Commit messages: English.** All new commits use English messages. Historical commits are not rewritten (no `git rebase -i` / `filter-repo` on existing history).
+- **Documentation that lands on GitHub: English.** This covers `README.md`, everything under `docs/`, and the agent definitions under `.claude/agents/`. `README.de.md` is the single intentional German counterpart and is kept as a translation (English is canonical).
+- **App source strings: German keys.** New user-facing strings use `String(localized:)` / `LocalizedStringKey` with the German text as the key; English is the catalog translation. See the Localization section — this is intentionally separate from the repo-documentation language.
+- **User communication, vault notes, and journal entries: German** (per the global `~/.claude/CLAUDE.md`). Unchanged.
+
+### xcodeproj — new Swift files
+New `.swift` files in the app target **must** be registered four times in `app/Vergissmeinnicht/Vergissmeinnicht.xcodeproj/project.pbxproj`: `PBXBuildFile`, `PBXFileReference`, `PBXGroup`, `PBXSourcesBuildPhase`. Same for `Assets.xcassets` & `Localizable.xcstrings` — see the v0.1.1 icon hotfix in the journal as a cautionary tale.
 
 ### Single Source of Truth
-- `AppContainer` hält die Task-Liste — ViewModels nur abgeleiteter UI-State.
-- Filter-/Count-Logik zentral in `SidebarFilter.matches(_:now:dueSoonDays:)` — Sidebar-Badges und Hauptliste nutzen dieselbe Funktion.
+- `AppContainer` holds the task list — ViewModels hold only derived UI state.
+- Filter/count logic is centralized in `SidebarFilter.matches(_:now:dueSoonDays:)` — sidebar badges and the main list use the same function.
 
-### Sidebar-Icon-Stil
+### Sidebar Icon Style
 
-System-Zeilen der Sidebar nutzen **gefüllte SF-Symbols mit Farbe direkt am Symbol** (`.foregroundStyle(<color>)`) — **kein** farbiger Hintergrund, **kein** RoundedRectangle. Projekt- und Tag-Zeilen bleiben uncolored (Folder/Tag-Outline). Verbindliche Zuordnung:
+System rows of the sidebar use **filled SF Symbols with color applied directly to the symbol** (`.foregroundStyle(<color>)`) — **no** colored background, **no** RoundedRectangle. Project and tag rows stay uncolored (folder/tag outline). Binding assignment:
 
-| Zeile         | SF-Symbol                       | Farbe       | Semantik |
-|---------------|---------------------------------|-------------|----------|
-| Eingang       | `tray.fill`                     | `.blue`     | Universelles Inbox-Blau |
-| Heute         | `star.fill`                     | `.yellow`   | Jetzt aktionsrelevant |
-| Zu erledigen  | `list.bullet`                   | `.green`    | Alles Actionable |
-| Überfällig    | `exclamationmark.circle.fill`   | `.red`      | Gefahr |
-| Bald fällig   | `clock.fill`                    | `.orange`   | Warnung |
-| Geplant       | `calendar`                      | `.indigo`   | Zukunfts-bezogen, kühl |
-| Wartend       | `moon.zzz.fill`                 | `.gray`     | Pausiert |
-| Alle          | `tray.full.fill`                | `.purple`   | Meta-Sicht |
+| Row           | SF Symbol                       | Color       | Semantics |
+|---------------|---------------------------------|-------------|-----------|
+| Inbox         | `tray.fill`                     | `.blue`     | Universal inbox blue |
+| Today         | `star.fill`                     | `.yellow`   | Actionable right now |
+| To Do         | `list.bullet`                   | `.green`    | Everything actionable |
+| Overdue       | `exclamationmark.circle.fill`   | `.red`      | Danger |
+| Due Soon      | `clock.fill`                    | `.orange`   | Warning |
+| Scheduled     | `calendar`                      | `.indigo`   | Future-related, cool |
+| Waiting       | `moon.zzz.fill`                 | `.gray`     | Paused |
+| All           | `tray.full.fill`                | `.purple`   | Meta view |
 
-Eine frühere Variante (weißes Symbol auf farbigem Quadrat) wurde verworfen: zu schwer, kollidiert visuell mit Badges. Farbiges Symbol ohne Hintergrund = leichter, schneller identifizierbar.
+An earlier variant (white symbol on a colored square) was rejected: too heavy, visually collides with badges. Colored symbol without a background = lighter, faster to identify.
 
-### Karpathy-Prinzipien
-Code-Comments referenzieren explizit „Karpathy 2 (Simplicity)" und „Karpathy 3 (Surgical)" als Begründung. Den Stil beibehalten — keine spekulativen Features, keine adjazenten Refactorings.
+### Karpathy Principles
+Code comments explicitly reference "Karpathy 2 (Simplicity)" and "Karpathy 3 (Surgical)" as justification. Keep the style — no speculative features, no adjacent refactorings.
 
-### Lokalisierung
-Quellsprache **Deutsch**, EN als Übersetzung in `app/Vergissmeinnicht/Resources/Localizable.xcstrings`. Neue User-facing Strings via `String(localized:)` / `LocalizedStringKey`, dann den `localizer`-Subagent aufrufen.
+### Localization
+Source language **German**, EN as the translation in `app/Vergissmeinnicht/Resources/Localizable.xcstrings`. New user-facing strings via `String(localized:)` / `LocalizedStringKey`, then invoke the `localizer` subagent.
 
-## Dokumentations-Pflicht
+## Documentation Obligation
 
-Nach jeder Session, die Code oder Konfiguration berührt:
+After every session that touches code or configuration:
 
-### 1. Vault-Projektordner
+### 1. Vault project folder
 
-Pfad (dynamisch resolven, nicht hardcoden — siehe Skill `obsidian-vault`):
+Path (resolve dynamically, do not hardcode — see the `obsidian-vault` skill):
 ```
 $VAULT_PATH/Projekte/vergissmeinnicht/
 ```
 
-- **[[Vergissmeinnicht Projektuebersicht]]** — Architektur-Stand, Welle-Historie, Status. Aktualisieren bei Architektur-Änderungen, neuen Wellen, abgeschlossenen Roadmap-Punkten.
-- **[[Vergissmeinnicht Backlog 2026-05-14]]** — Tier-1- bis Tier-4-Backlog mit Findings aus den Audits. Erledigte Punkte in der Sektion „Erledigt seit Backlog-Anlage" eintragen, nicht aus den Tier-Tabellen entfernen (Audit-Trail).
+- **[[Vergissmeinnicht Projektuebersicht]]** — architecture state, wave history, status. Update on architecture changes, new waves, completed roadmap items.
+- **[[Vergissmeinnicht Backlog 2026-05-14]]** — tier-1 to tier-4 backlog with findings from the audits. Record completed items in the "Erledigt seit Backlog-Anlage" section, do not remove them from the tier tables (audit trail).
 
-### 2. Daily-Journal-Protokoll
+### 2. Daily journal log
 
-Im heutigen Daily unter `## Claude Code Protokoll` einen Eintrag anhängen — Format und Regeln siehe globale Rule `~/.claude/rules/journal-logging.md`. Pflicht-Inhalt für dieses Projekt:
-- Geänderte Dateien mit konkreten Pfaden
-- FFI-Änderungen explizit benennen (taskchampion-Methode + Swift-Aufrufname)
-- Build-Status (cargo / swift test / xcodebuild)
-- Wiki-Link zu `[[Vergissmeinnicht Projektuebersicht]]` und/oder `[[Vergissmeinnicht Backlog 2026-05-14]]`
+Append an entry under `## Claude Code Protokoll` in today's daily — format and rules see the global rule `~/.claude/rules/journal-logging.md`. Mandatory content for this project:
+- Changed files with concrete paths
+- FFI changes named explicitly (taskchampion method + Swift call name)
+- Build status (cargo / swift test / xcodebuild)
+- Wiki link to `[[Vergissmeinnicht Projektuebersicht]]` and/or `[[Vergissmeinnicht Backlog 2026-05-14]]`
 
-## Subagent-Rezept
+## Subagent Recipe
 
-Für mehrteilige Sessions in dieser Reihenfolge dispatchen (siehe `~/.claude/agents/`):
+For multi-part sessions, dispatch in this order (see `~/.claude/agents/`):
 
-1. `rust-ffi` — wenn FFI berührt wird. Verifiziert via `bash scripts/build-macos.sh` und Smoke-Build des Swift-Targets.
-2. `swift-ui` — UI/ViewModel/AppContainer. Verifiziert via `xcodebuild build`.
-3. `localizer` — DE/EN-Strings in Localizable.xcstrings (kann parallel zu 4 laufen).
+1. `rust-ffi` — when FFI is touched. Verifies via `bash scripts/build-macos.sh` and a smoke build of the Swift target.
+2. `swift-ui` — UI/ViewModel/AppContainer. Verifies via `xcodebuild build`.
+3. `localizer` — DE/EN strings in Localizable.xcstrings (can run in parallel with 4 and 5).
 4. `test-runner` — `cargo test` + `swift test` + `xcodebuild build`.
+5. `docs-translator` — keeps GitHub-facing documentation in English (`README.md`, `docs/`, `.claude/agents/*.md`); can run in parallel with 3 and 4.
 
-`karpathy-planner` vor Sessions mit unklarem Scope, `karpathy-reviewer` vor Finalisierung großer Änderungen.
+`karpathy-planner` before sessions with unclear scope, `karpathy-reviewer` before finalizing large changes.
 
-## Sandbox / Pfade
+## Sandbox / Paths
 
-- Replica liegt im App-Container: `~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application Support/vergissmeinnicht/replica/`
-- Sync-Credentials nur im Keychain (`KeychainStore.swift`), nicht in UserDefaults
-- Kein Zugriff auf `~/.task/` der CLI — Datenaustausch ausschließlich über den User-konfigurierten taskchampion-sync-server
+- The replica lives in the app container: `~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application Support/vergissmeinnicht/replica/`
+- Sync credentials only in the Keychain (`KeychainStore.swift`), not in UserDefaults
+- No access to the CLI's `~/.task/` — data exchange exclusively via the user-configured taskchampion-sync-server
