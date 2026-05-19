@@ -1,18 +1,18 @@
 # Phase 2 API Cheat-Sheet: TaskChampion 3.0.1 + UniFFI 0.29
 
-**Erstellt**: 2026-05-10 — Referenz für Phase-2-Implementor
+**Created**: 2026-05-10 — reference for the Phase 2 implementor
 
-> **Historische Referenz (Stand 2026-05-10).** Versions- und API-Angaben können
-> gegenüber dem aktuellen Code veraltet sein; maßgeblich ist `rust/vergissmeinnicht-core/`.
-> Als Einstiegshilfe für die FFI-Grenze weiterhin nützlich.
+> **Historical reference (as of 2026-05-10).** Version and API details may be
+> outdated relative to the current code; `rust/vergissmeinnicht-core/` is authoritative.
+> Still useful as an entry point for the FFI boundary.
 
 ---
 
-## ⚠️ Versions-Warnung
+## ⚠️ Version Warning
 
-> Task-Beschreibung nennt `0.8`, crates.io liefert **`3.0.1`** (Stand 2026-01-06, Rust ≥ 1.88).
-> Version 0.8 ist veraltet. Wichtigste Breaking-Change:
-> **alle Replica-Methoden sind jetzt `async fn`** → Tokio-Runtime erforderlich.
+> Task description mentions `0.8`, crates.io delivers **`3.0.1`** (as of 2026-01-06, Rust ≥ 1.88).
+> Version 0.8 is outdated. Most important breaking change:
+> **all Replica methods are now `async fn`** → Tokio runtime required.
 
 ---
 
@@ -30,7 +30,7 @@ thiserror    = "2.0"
 uniffi = { version = "0.29", features = ["build"] }
 ```
 
-`storage-sqlite` aktiviert `SqliteStorage`. `bundled` (taskchampion-default) linkt SQLite statisch — gut für macOS/iOS.
+`storage-sqlite` enables `SqliteStorage`. `bundled` (taskchampion default) links SQLite statically — good for macOS/iOS.
 
 ---
 
@@ -39,7 +39,7 @@ uniffi = { version = "0.29", features = ["build"] }
 ```rust
 use taskchampion::{storage::{AccessMode, SqliteStorage}, Replica};
 
-// Typ-Alias wegen Generics (UniFFI kann keine Generics exportieren)
+// Type alias because of generics (UniFFI cannot export generics)
 type AppReplica = Replica<SqliteStorage>;
 
 async fn open_replica(path: std::path::PathBuf) -> Result<AppReplica, taskchampion::Error> {
@@ -50,7 +50,7 @@ async fn open_replica(path: std::path::PathBuf) -> Result<AppReplica, taskchampi
 
 ---
 
-## 3. Add – Task anlegen
+## 3. Add – Create a task
 
 ```rust
 use taskchampion::{Operations, Status};
@@ -68,22 +68,22 @@ async fn add_task(
     task.set_status(Status::Pending, &mut ops)?;
     task.set_entry(Some(chrono::Utc::now()), &mut ops)?;
 
-    replica.commit_operations(ops).await?;  // ← vergessen = Task weg
+    replica.commit_operations(ops).await?;  // ← forgotten = task gone
     Ok(uuid)
 }
 ```
 
-`task.set_*()` schreibt nur in `ops`, **nicht** in die DB. Erst `commit_operations` persistiert.
+`task.set_*()` only writes into `ops`, **not** into the DB. Only `commit_operations` persists.
 
 ---
 
-## 4. List – Pending-Tasks auflisten
+## 4. List – List pending tasks
 
 ```rust
 async fn list_pending(
     replica: &mut AppReplica,
 ) -> Result<Vec<(u64, String, String)>, taskchampion::Error> {
-    let ws = replica.working_set().await?;  // Snapshot Pending-Tasks
+    let ws = replica.working_set().await?;  // snapshot of pending tasks
     let mut result = Vec::new();
     for (index, uuid) in ws.iter() {
         if let Some(task) = replica.get_task(uuid).await? {
@@ -94,27 +94,27 @@ async fn list_pending(
     }
     Ok(result)
 }
-// Alternativ: replica.all_tasks().await? → HashMap<Uuid, Task> (alle Status)
+// Alternatively: replica.all_tasks().await? → HashMap<Uuid, Task> (all statuses)
 ```
 
 ---
 
-## 5. Error-Enum
+## 5. Error enum
 
 ```rust
-// taskchampion::Error — #[non_exhaustive] → match braucht _ =>
+// taskchampion::Error — #[non_exhaustive] → match needs _ =>
 pub enum Error {
-    Server(String),       // Sync-Server-Fehler
+    Server(String),       // sync server error
     Database(String),     // SQLite/Storage
-    OutOfSync,            // Replica veraltet, Sync unmöglich
-    Usage(String),        // API-Missbrauch
-    Other(anyhow::Error), // Catch-all (via From<io::Error> etc.)
+    OutOfSync,            // Replica outdated, sync impossible
+    Usage(String),        // API misuse
+    Other(anyhow::Error), // catch-all (via From<io::Error> etc.)
 }
 ```
 
 ---
 
-## 6. UniFFI 0.29 Skelett (lib.rs)
+## 6. UniFFI 0.29 skeleton (lib.rs)
 
 ```rust
 uniffi::setup_scaffolding!();
@@ -143,7 +143,7 @@ impl From<taskchampion::Error> for VmError {
 #[derive(uniffi::Object)]
 pub struct TaskStore {
     replica: Mutex<AppReplica>,
-    rt: tokio::runtime::Runtime, // einmal cachen, nicht pro Aufruf neu erstellen
+    rt: tokio::runtime::Runtime, // cache once, don't recreate per call
 }
 
 #[uniffi::export]
@@ -175,16 +175,16 @@ impl TaskStore {
 
 ---
 
-## 7. Stolpersteine
+## 7. Pitfalls
 
-| # | Problem | Lösung |
+| # | Problem | Solution |
 |---|---------|--------|
-| 1 | **Alles async** — `SqliteStorage::new`, `create_task`, `commit_operations` | `rt.block_on(...)` im FFI-Wrapper; Runtime als Feld cachen |
-| 2 | **`&mut self` auf Replica** — UniFFI braucht `&self` | `Mutex<AppReplica>` + `lock().unwrap()` |
-| 3 | **Generischer `Replica<S>`** — UniFFI exportiert keine Generics | Typ-Alias `AppReplica = Replica<SqliteStorage>` |
-| 4 | **`Operations` nicht über FFI** — interner Puffer, darf die Grenze nicht kreuzen | Intern in Wrapper-Fns halten, nie exponieren |
-| 5 | **`Task` nicht exportierbar** — hat `&mut self`-Methoden + Lifetime | Nur Primitives (uuid: String, description: String) über FFI liefern |
-| 6 | **`Uuid` kein UniFFI-Basistyp** | Als `String` übergeben, intern `Uuid::parse_str(s)?` |
-| 7 | **`#[non_exhaustive]` Error** | Match immer mit `_ =>` Arm |
-| 8 | **feature `storage-sqlite` fehlt** | Explizit in `Cargo.toml` — ohne it kein `SqliteStorage` |
-| 9 | **`chrono` Dep** | `taskchampion` re-exportiert `chrono`; `use taskchampion::chrono::Utc` |
+| 1 | **Everything async** — `SqliteStorage::new`, `create_task`, `commit_operations` | `rt.block_on(...)` in the FFI wrapper; cache runtime as a field |
+| 2 | **`&mut self` on Replica** — UniFFI needs `&self` | `Mutex<AppReplica>` + `lock().unwrap()` |
+| 3 | **Generic `Replica<S>`** — UniFFI exports no generics | Type alias `AppReplica = Replica<SqliteStorage>` |
+| 4 | **`Operations` not over FFI** — internal buffer, must not cross the boundary | Keep internal to wrapper fns, never expose |
+| 5 | **`Task` not exportable** — has `&mut self` methods + lifetime | Only return primitives (uuid: String, description: String) over FFI |
+| 6 | **`Uuid` not a UniFFI base type** | Pass as `String`, internally `Uuid::parse_str(s)?` |
+| 7 | **`#[non_exhaustive]` Error** | Always match with a `_ =>` arm |
+| 8 | **feature `storage-sqlite` missing** | Explicitly in `Cargo.toml` — without it no `SqliteStorage` |
+| 9 | **`chrono` dep** | `taskchampion` re-exports `chrono`; `use taskchampion::chrono::Utc` |

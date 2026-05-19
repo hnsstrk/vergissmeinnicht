@@ -1,42 +1,42 @@
 # Backup & Restore
 
-## Standorte
+## Locations
 
-| Element | Pfad |
+| Element | Path |
 |---------|------|
-| Aktive Replica | `~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application Support/vergissmeinnicht/replica/` (mit `taskchampion.sqlite3` + `-wal` + `-shm`) |
-| Automatische Backups | `~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application Support/vergissmeinnicht/backups/` |
-| Backup-Dateinamen | `<reason>-<UTC-Timestamp>.sqlite3` (z.B. `pre-sync-20260514-180945.sqlite3`) |
+| Active replica | `~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application Support/vergissmeinnicht/replica/` (with `taskchampion.sqlite3` + `-wal` + `-shm`) |
+| Automatic backups | `~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application Support/vergissmeinnicht/backups/` |
+| Backup file names | `<reason>-<UTC-Timestamp>.sqlite3` (e.g. `pre-sync-20260514-180945.sqlite3`) |
 
-## Automatik
+## Automation
 
-- **Vor jedem Sync** (Auto-Sync beim Launch und manueller Klick auf den Sync-Button) wird ein Snapshot der Replica via SQLite-`VACUUM INTO` erzeugt.
-- Rotation: maximal 10 Backups (älteste werden automatisch gelöscht).
-- Reason-Codes:
-  - `pre-sync` — Auto-Backup vor Sync
-  - `manual` — User-getriggert aus Settings → Wartung
-  - `pre-restore` — Sicherheits-Backup vor einem Restore-Vorgang
+- **Before every sync** (auto-sync on launch and a manual click on the sync button) a snapshot of the replica is created via SQLite `VACUUM INTO`.
+- Rotation: at most 10 backups (oldest are deleted automatically).
+- Reason codes:
+  - `pre-sync` — auto backup before sync
+  - `manual` — user-triggered from Settings → Maintenance
+  - `pre-restore` — safety backup before a restore operation
 
-Backups werden mit SQLite-`VACUUM INTO` erzeugt — das ist auch unter aktivem WAL konsistent (online-backup-API).
+Backups are created with SQLite `VACUUM INTO` — this is consistent even under an active WAL (online backup API).
 
-## Manual über Settings
+## Manually via Settings
 
-Settings → Wartung → **Datensicherung**:
+Settings → Maintenance → **Backup**:
 
-- **Backup erstellen** — sofortiges Snapshot, Status-Meldung mit Dateinamen
-- **Backups öffnen …** — öffnet das Backup-Verzeichnis im Finder (zum manuellen Sichern auf externe Medien)
-- **Aus Backup wiederherstellen …** — öffnet Sheet mit allen Backups (Größe + Datum), nach Bestätigungs-Dialog wird die aktive Replica ersetzt
+- **Create backup** — immediate snapshot, status message with file name
+- **Show backups…** — opens the backup directory in Finder (for manual archiving to external media)
+- **Restore from backup…** — opens a sheet with all backups (size + date); after a confirmation dialog the active replica is replaced
 
-## Restore-Vorgang
+## Restore operation
 
-1. Settings → Wartung → „Aus Backup wiederherstellen …"
-2. Backup-Datei in der Liste wählen
-3. „Wiederherstellen" → Confirm-Dialog → „Wiederherstellen" (destruktiv)
-4. App-Neustart (die offenen FFI-Handles verweisen auf die alte Replica-Sicht)
+1. Settings → Maintenance → "Restore from backup…"
+2. Select the backup file in the list
+3. "Restore" → confirm dialog → "Restore" (destructive)
+4. App restart (the open FFI handles point to the old replica view)
 
-**Vor dem destruktiven Schritt** wird die aktuelle Replica automatisch nochmal als `pre-restore`-Backup gesichert — falls die User-Wahl falsch war, lässt sich darüber wieder zurück.
+**Before the destructive step**, the current replica is automatically backed up again as a `pre-restore` backup — if the user choice was wrong, you can roll back via it.
 
-## Off-App-Backup (empfohlen vor produktivem Einsatz)
+## Off-app backup (recommended before production use)
 
 ```bash
 REPLICA="$HOME/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application Support/vergissmeinnicht/replica"
@@ -45,19 +45,19 @@ mkdir -p "$DEST"
 cp -R "$REPLICA" "$DEST/replica"
 ```
 
-## Notfall-Wiederherstellung von außen
+## Emergency restore from outside
 
-Wenn die App nicht mehr startet (`InitErrorView`):
+If the app no longer starts (`InitErrorView`):
 
-1. App komplett beenden.
-2. Backup-Datei aus `…/vergissmeinnicht/backups/` wählen — z.B. die neueste `pre-sync-*.sqlite3`.
-3. Im Replica-Ordner `taskchampion.sqlite3`, `-wal` und `-shm` löschen.
-4. Backup-Datei nach `taskchampion.sqlite3` im Replica-Ordner kopieren.
-5. App neu starten — sie sollte den `pre-restore`-Pfad jetzt nicht mehr brauchen.
+1. Quit the app completely.
+2. Pick a backup file from `…/vergissmeinnicht/backups/` — e.g. the newest `pre-sync-*.sqlite3`.
+3. In the replica folder, delete `taskchampion.sqlite3`, `-wal` and `-shm`.
+4. Copy the backup file to `taskchampion.sqlite3` in the replica folder.
+5. Restart the app — it should no longer need the `pre-restore` path now.
 
-## Snapshot aus Taskwarrior holen
+## Pull a snapshot from Taskwarrior
 
-Wenn die Replica ganz zerschossen ist, kann ein frischer Taskwarrior-Snapshot eingespielt werden:
+If the replica is completely broken, a fresh Taskwarrior snapshot can be loaded in:
 
 ```bash
 REPLICA="$HOME/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application Support/vergissmeinnicht/replica"
@@ -66,9 +66,9 @@ sqlite3 "$HOME/.task/taskchampion.sqlite3" "VACUUM INTO '$REPLICA/taskchampion.s
 sqlite3 "$REPLICA/taskchampion.sqlite3" "DELETE FROM sync_meta; DELETE FROM operations; VACUUM;"
 ```
 
-Damit ist die App-Replica auf dem Stand der Taskwarrior-CLI. Beim nächsten Sync wird sie mit dem Server abgeglichen.
+This brings the app replica to the state of the Taskwarrior CLI. On the next sync it is reconciled with the server.
 
-## Was nicht gesichert wird
+## What is not backed up
 
-- Sync-Credentials (`server_url`, `client_id`, `encryption_secret`) — die liegen im macOS-Keychain und werden separat von macOS Time Machine berücksichtigt.
-- App-Settings (Sprache, Default-Filter, Bald-Fällig-Fenster) — `~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Preferences/de.hnsstrk.vergissmeinnicht.plist`. Sind nicht datenkritisch.
+- Sync credentials (`server_url`, `client_id`, `encryption_secret`) — these are stored in the macOS Keychain and are handled separately by macOS Time Machine.
+- App settings (language, default filter, due-soon window) — `~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Preferences/de.hnsstrk.vergissmeinnicht.plist`. Not data-critical.
