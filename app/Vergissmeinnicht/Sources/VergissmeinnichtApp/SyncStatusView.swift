@@ -33,43 +33,47 @@ struct SyncStatusView: View {
                 }
             }
 
-            // Sync-Button / Spinner. Der Lokale-Änderungen-Zähler sitzt rechts
-            // vom Sync-Symbol und teilt sich dessen Hintergrund-Capsule —
-            // sonst klebt er am Papierkorb-Button und liest sich wie eine
-            // Papierkorb-Anzahl (Karpathy 3: nur diese Layout-Korrektur,
-            // Fehler-/Countdown-Teile bleiben unangetastet).
+            // Sync-Steuerung. JEDER Zustand nutzt dieselbe gepolsterte
+            // HStack-Box (Padding 7/3) — das Sync-Symbol sitzt immer an
+            // derselben Position, springt also nicht, wenn Zähler/Spinner
+            // erscheinen oder verschwinden. Nur Capsule-Füllung, Zähler und
+            // Spinner-vs-Symbol wechseln; der Zähler wächst nach rechts.
+            // Kein `.buttonStyle(.plain)` (Toolbar-Spacing bleibt), kein
+            // `.tint` (kein Blau im Leer-Zustand) — die beiden früheren
+            // Fixes bleiben (Karpathy 3: nur die Spacing-Konstanz).
+            let pending = container.localChanges
             if container.isSyncing {
-                ProgressView()
-                    .controlSize(.small)
-                    .help(String(localized: "Synchronisiere …"))
-            } else if container.localChanges > 0 {
-                // Mit anstehenden Änderungen: Zähler rechts vom Sync-Symbol,
-                // beide in einer gemeinsamen orangen Capsule.
-                let pending = container.localChanges
+                HStack(spacing: 4) {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .help(String(localized: "Synchronisiere …"))
+            } else {
                 Button {
                     Task { await container.syncIfConfigured() }
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.triangle.2.circlepath")
-                        Text(verbatim: "\(pending)")
-                            .font(.caption2.monospacedDigit())
+                        if pending > 0 {
+                            Text(verbatim: "\(pending)")
+                                .font(.caption2.monospacedDigit())
+                        }
                     }
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
-                    .background(Color.orange.opacity(0.18), in: Capsule())
-                    .foregroundStyle(.orange)
+                    .background {
+                        if pending > 0 {
+                            Capsule().fill(Color.orange.opacity(0.18))
+                        }
+                    }
+                    .foregroundStyle(pending > 0 ? AnyShapeStyle(.orange) : AnyShapeStyle(.primary))
                 }
                 .accessibilityLabel(Text("Sync"))
-                .help(String(localized: "\(pending) lokale Änderung(en) — jetzt synchronisieren"))
-            } else {
-                // Ohne Änderungen: unveränderter Original-Sync-Button —
-                // Standard-Toolbar-Optik, gleiche Darstellung wie +/✓/Papierkorb.
-                Button {
-                    Task { await container.syncIfConfigured() }
-                } label: {
-                    Label("Sync", systemImage: "arrow.triangle.2.circlepath")
-                }
-                .help(String(localized: "Jetzt synchronisieren"))
+                .help(pending > 0
+                      ? String(localized: "\(pending) lokale Änderung(en) — jetzt synchronisieren")
+                      : String(localized: "Jetzt synchronisieren"))
             }
         }
     }
