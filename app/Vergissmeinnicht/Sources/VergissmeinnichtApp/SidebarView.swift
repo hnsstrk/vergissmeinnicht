@@ -14,6 +14,7 @@ import VergissmeinnichtKit
 struct SidebarView: View {
     let tasks: [TaskInfo]
     @Binding var activeFilter: SidebarFilter
+    @Binding var searchQuery: String
     let projects: [String]
     let tags: [String]
     let dueSoonDays: Int
@@ -26,9 +27,23 @@ struct SidebarView: View {
     var onRenameTag: (String) -> Void                    // open rename sheet for tag
     var onClearTag: (String) -> Void                     // remove tag from all tasks
 
-    @AppStorage(AppSettingsKey.projectsExpanded)   private var projectsExpanded: Bool = true
-    @AppStorage(AppSettingsKey.tagsExpanded)       private var tagsExpanded:     Bool = true
-    @AppStorage(AppSettingsKey.sidebarColoredIcons) private var coloredIcons:   Bool = true
+    @AppStorage(AppSettingsKey.projectsExpanded)    private var projectsExpanded: Bool = true
+    @AppStorage(AppSettingsKey.tagsExpanded)        private var tagsExpanded:     Bool = true
+    @AppStorage(AppSettingsKey.sidebarColoredIcons) private var coloredIcons:    Bool = true
+    @AppStorage(AppSettingsKey.savedSearches)       private var savedSearchesRaw: String = "[]"
+
+    @State private var renamingSavedSearch: SavedSearch? = nil
+
+    // Gespeicherte Suchen: Encode/Decode über SavedSearch-Helfer, ohne retroaktive Conformance.
+    // `nonmutating set` korrekt: der Setter schreibt nur durch @AppStorage (referenzsemantisch).
+    private var savedSearches: [SavedSearch] {
+        get { SavedSearch.decodeAll(from: savedSearchesRaw) }
+        nonmutating set { savedSearchesRaw = SavedSearch.encodeAll(newValue) }
+    }
+
+    private var sortedSavedSearches: [SavedSearch] {
+        savedSearches.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
 
     var body: some View {
         List(selection: selectionBinding) {
@@ -45,6 +60,16 @@ struct SidebarView: View {
                     coloredRow(.waiting, label: "Wartend",   systemImage: "moon.zzz.fill",              color: .gray,    count: waitingCount)
                 }
                 coloredRow(.all,     label: "Alle",          systemImage: "tray.full.fill",             color: .purple,  count: tasks.count)
+            }
+
+            if !sortedSavedSearches.isEmpty {
+                Section {
+                    ForEach(sortedSavedSearches) { entry in
+                        savedSearchRow(entry)
+                    }
+                } header: {
+                    Text("Gespeicherte Suchen")
+                }
             }
 
             if !projects.isEmpty {
@@ -68,6 +93,28 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .onChange(of: activeFilter) { oldValue, newValue in
+            // Saved-Search-Wechsel synchronisiert searchQuery (Apple-Pattern, vgl.
+            // Mail Smart Mailbox): aktivieren setzt die Query, Verlassen löscht sie.
+            if case .savedSearch(let id) = newValue,
+               let entry = savedSearches.first(where: { $0.id == id }) {
+                searchQuery = entry.query
+            } else if case .savedSearch = oldValue {
+                searchQuery = ""
+            }
+        }
+        .sheet(item: $renamingSavedSearch) { entry in
+            RenameSheet(
+                title: "Suche umbenennen",
+                oldName: entry.name
+            ) { newName in
+                var searches = savedSearches
+                if let idx = searches.firstIndex(where: { $0.id == entry.id }) {
+                    searches[idx].name = newName
+                    savedSearches = searches
+                }
+            }
+        }
     }
 
     // MARK: - Rows
@@ -145,6 +192,30 @@ struct SidebarView: View {
                 onClearTag(tag)
             }
         }
+    }
+
+    /// Saved-Search-Zeile als reguläre Sidebar-Selektion. Die Query-Synchronisation
+    /// erledigt `applySavedSearchSelection`, damit die List-Selection eindeutig ist
+    /// (kein Custom-Highlight, kein Doppel-Marker mit „Alle").
+    @ViewBuilder
+    private func savedSearchRow(_ entry: SavedSearch) -> some View {
+        Label(entry.name, systemImage: "magnifyingglass")
+            .tag(SidebarFilter.savedSearch(entry.id))
+            .contextMenu {
+                Button("Umbenennen …") { renamingSavedSearch = entry }
+                Button("Löschen", role: .destructive) {
+                    var searches = savedSearches
+                    searches.removeAll { $0.id == entry.id }
+                    savedSearches = searches
+                    // Falls die gerade aktive Saved Search gelöscht wurde:
+                    // sauber zurück auf Eingang, sonst zeigte die List eine
+                    // Selektion auf einer nicht mehr existierenden ID.
+                    if case .savedSearch(let activeId) = activeFilter, activeId == entry.id {
+                        activeFilter = .inbox
+                        searchQuery = ""
+                    }
+                }
+            }
     }
 
     /// Erweitert die per Drag&Drop angelieferten UUIDs um die `dragSelection`, falls

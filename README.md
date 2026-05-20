@@ -19,6 +19,13 @@ front-end, Rust core via UniFFI, sandboxed, App-Store-friendly.
 
 - **Sidebar perspectives** — Inbox · To Do · Today · Overdue · Soon · Waiting ·
   Scheduled · All · per Project · per Tag. Counts per row, drop targets.
+- **Full-text search with operators** (⌘F) — covers title, project, tags, and
+  annotations across the entire store (pending, completed, recurring). Supports
+  AND, quoted phrases, and `project:`, `tag:`, `status:` operators (German and
+  English aliases). When a search is active the sidebar filter is ignored.
+- **Saved searches** (⇧⌘D) — name a search and pin it to the sidebar between
+  system filters and projects. Right-click to rename or delete. The section
+  only appears once you save the first one.
 - **Quick Capture** (⌘N) — focused capture sheet with title, notes, project, tags,
   due, priority, recurrence. Or terminal-style tokens (`+tag project:foo
   due:tomorrow`).

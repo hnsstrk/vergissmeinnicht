@@ -26,13 +26,12 @@ struct QuickCaptureSheet: View {
 
     @FocusState private var titleFocused: Bool
 
+    // Karpathy 3/C2: Single Source of Truth — Logik liegt in TaskListViewModel.
     private var availableProjects: [String] {
-        Array(Set(container.tasks.filter { $0.status == .pending }.compactMap { $0.project }))
-            .sorted(by: { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending })
+        TaskListViewModel.projects(from: container.tasks)
     }
     private var availableTags: [String] {
-        Array(Set(container.tasks.filter { $0.status == .pending }.flatMap { $0.tags }))
-            .sorted(by: { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending })
+        TaskListViewModel.tags(from: container.tasks)
     }
 
     private var trimmedTitle: String {
@@ -321,7 +320,7 @@ struct QuickCaptureSheet: View {
         let desc = trimmedTitle
         guard !desc.isEmpty else { return }
         let projectVal = project.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyOrNil
-        let dueVal: Int64? = hasDue ? Int64(endOfDay(dueDate).timeIntervalSince1970) : nil
+        let dueVal: Int64? = hasDue ? Int64(DueDateParser.endOfDay(for: dueDate).timeIntervalSince1970) : nil
         let priorityVal: String? = priority.isEmpty ? nil : priority
         let recurVal: String? = recur.isEmpty ? nil : recur
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -366,12 +365,6 @@ struct QuickCaptureSheet: View {
         titleFocused = true
     }
 
-    private func endOfDay(_ date: Date) -> Date {
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = .current
-        let start = cal.startOfDay(for: date)
-        return cal.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-1) ?? date
-    }
 }
 
 private extension String {

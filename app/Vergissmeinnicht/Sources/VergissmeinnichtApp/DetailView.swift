@@ -366,9 +366,10 @@ struct DetailView: View {
 
     private func statusInfo(_ status: TaskStatus) -> (LocalizedStringKey, Color) {
         switch status {
-        case .pending:   return ("Pending",   .blue)
-        case .completed: return ("Erledigt",  .green)
-        case .deleted:   return ("Gelöscht",  .red)
+        case .pending:   return ("Ausstehend",    .blue)
+        case .completed: return ("Erledigt",      .green)
+        case .deleted:   return ("Gelöscht",      .red)
+        case .recurring: return ("Wiederkehrend", .purple)
         }
     }
 }

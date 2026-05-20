@@ -177,13 +177,12 @@ struct TaskListView: View {
         return Int64(target.timeIntervalSince1970)
     }
 
+    // Karpathy 3/C1: endOfDay-Berechnung liegt zentral in DueDateParser.endOfDay(for:).
     private func dueOffset(days: Int) -> Int64 {
-        let now = Date()
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = .current
-        let start = cal.date(byAdding: .day, value: days, to: cal.startOfDay(for: now)) ?? now
-        let endOfDay = cal.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-1) ?? start
-        return Int64(endOfDay.timeIntervalSince1970)
+        let target = cal.date(byAdding: .day, value: days, to: cal.startOfDay(for: Date())) ?? Date()
+        return Int64(DueDateParser.endOfDay(for: target).timeIntervalSince1970)
     }
 
     // MARK: - Empty States
@@ -218,6 +217,8 @@ struct TaskListView: View {
             return ("Nichts wartend", "moon.zzz", "Keine wartenden Aufgaben.")
         case .project, .tag:
             return ("Keine Aufgaben", "tray", "Keine Tasks in der aktuellen Auswahl.")
+        case .savedSearch:
+            return ("Keine Treffer", "magnifyingglass", "Diese gespeicherte Suche liefert aktuell keine Treffer.")
         }
     }
 }

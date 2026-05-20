@@ -43,6 +43,8 @@ struct RootView: View {
     /// gehören. Wenn der Drag von einer selektierten Task startet, zieht sie die
     /// gesamte Selection mit; sonst nur sich selbst.
     @State private var dragSelection: Set<String> = []
+    /// Zustand des „Suche sichern"-Popovers.
+    @State private var showSaveSearchPopover = false
 
     @AppStorage(AppSettingsKey.defaultFilter) private var defaultFilterRaw: String = DefaultFilter.inbox.rawValue
     @AppStorage(AppSettingsKey.defaultSort)   private var defaultSortRaw: String = SortOrder.id.rawValue
@@ -50,18 +52,20 @@ struct RootView: View {
     @AppStorage(AppSettingsKey.dueSoonDays)   private var dueSoonDays: Int = 7
     @AppStorage(AppSettingsKey.notifications) private var notificationsEnabled: Bool = false
     @AppStorage(AppSettingsKey.hideCompleted) private var hideCompleted: Bool = false
-    @AppStorage(AppSettingsKey.autoSyncMode)  private var autoSyncModeRaw: String = AutoSyncMode.manual.rawValue
+    @AppStorage(AppSettingsKey.autoSyncMode)    private var autoSyncModeRaw: String = AutoSyncMode.manual.rawValue
+    @AppStorage(AppSettingsKey.savedSearches)  private var savedSearchesRaw: String = "[]"
 
     var body: some View {
         @Bindable var vm = viewModel
-        let projects = viewModel.projects(from: container.tasks)
-        let tags = viewModel.tags(from: container.tasks)
+        let projects = TaskListViewModel.projects(from: container.tasks)
+        let tags = TaskListViewModel.tags(from: container.tasks)
         let visible = viewModel.visibleTasks(from: container.tasks)
 
         NavigationSplitView {
             SidebarView(
                 tasks: container.tasks,
                 activeFilter: $vm.activeFilter,
+                searchQuery: $vm.searchQuery,
                 projects: projects,
                 tags: tags,
                 dueSoonDays: dueSoonDays,
@@ -203,6 +207,24 @@ struct RootView: View {
             }
             .menuIndicator(.hidden)
             .help("Sortierung")
+        }
+        if !vm.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            ToolbarItem {
+                Button {
+                    showSaveSearchPopover = true
+                } label: {
+                    Label("Suche sichern", systemImage: "bookmark")
+                }
+                .help("Suche sichern (⇧⌘D)")
+                .keyboardShortcut("d", modifiers: [.command, .shift])
+                .popover(isPresented: $showSaveSearchPopover) {
+                    SaveSearchPopoverView(
+                        query: vm.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines),
+                        savedSearchesRaw: $savedSearchesRaw,
+                        isPresented: $showSaveSearchPopover
+                    )
+                }
+            }
         }
         ToolbarItem {
             Button {
@@ -429,6 +451,84 @@ struct RootView: View {
         case .waiting:           return "Wartend"
         case .project(let p):    return LocalizedStringKey(p)
         case .tag(let t):        return LocalizedStringKey(t)
+        case .savedSearch(let id):
+            let name = SavedSearch.decodeAll(from: savedSearchesRaw)
+                .first(where: { $0.id == id })?.name
+            return LocalizedStringKey(name ?? "Gespeicherte Suchen")
         }
+    }
+}
+
+// MARK: - Suche sichern Popover
+
+/// Kleines Popover zum Benennen und Speichern einer Suchanfrage.
+/// Karpathy 2: eigener FocusState lebt hier, damit RootView schlank bleibt.
+private struct SaveSearchPopoverView: View {
+    let query: String
+    @Binding var savedSearchesRaw: String
+    @Binding var isPresented: Bool
+
+    @State private var name: String = ""
+    @State private var duplicateName: String? = nil
+    @FocusState private var focused: Bool
+
+    // `nonmutating set` korrekt: der Setter schreibt nur durch @Binding (referenzsemantisch).
+    private var savedSearches: [SavedSearch] {
+        get { SavedSearch.decodeAll(from: savedSearchesRaw) }
+        nonmutating set { savedSearchesRaw = SavedSearch.encodeAll(newValue) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Suche sichern").font(.headline)
+            TextField("Name", text: $name)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 260)
+                .focused($focused)
+                .onSubmit(commit)
+            if let dup = duplicateName {
+                Text("Diese Suche existiert bereits als \u{201E}\(dup)\u{201C}")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .frame(width: 260, alignment: .leading)
+            }
+            HStack {
+                Spacer()
+                Button("Abbrechen") {
+                    isPresented = false
+                    duplicateName = nil
+                }
+                .keyboardShortcut(.cancelAction)
+                Button("Sichern", action: commit)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(
+                        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        || duplicateName != nil
+                    )
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 300)
+        .onAppear {
+            name = query
+            focused = true
+            // Duplikat vorab erkennen: existiert dieselbe Query bereits, ist
+            // Sichern direkt disabled und der Hinweis sichtbar.
+            duplicateName = savedSearches.first(where: { $0.query == query })?.name
+        }
+    }
+
+    private func commit() {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let currentSearches = savedSearches
+        if let existing = currentSearches.first(where: { $0.query == query }) {
+            duplicateName = existing.name
+            return
+        }
+        var searches = currentSearches
+        searches.append(SavedSearch(id: UUID(), name: trimmed, query: query))
+        savedSearches = searches
+        isPresented = false
     }
 }

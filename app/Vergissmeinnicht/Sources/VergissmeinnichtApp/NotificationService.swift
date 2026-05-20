@@ -13,6 +13,7 @@ import VergissmeinnichtKit
 final class NotificationService {
     static let shared = NotificationService()
 
+    /// Schutz durch @MainActor; daher kein zusätzlicher Lock nötig (D7).
     private var lastNotifiedCount: Int = -1
 
     /// Fragt die Notification-Berechtigung an, falls noch nicht entschieden.

@@ -20,9 +20,20 @@ enum SidebarFilter: Hashable {
     case waiting
     case project(String)
     case tag(String)
+    /// Gespeicherte Suche. Wird gleichzeitig mit `searchQuery` gesetzt; die
+    /// Filter-Logik selbst delegiert an die Suche (siehe `visibleTasks`), `matches`
+    /// liefert hier nur `true`, damit die Sidebar-Selektion eindeutig auf der
+    /// Saved-Search-Zeile sitzt (kein Doppel-Highlight mit „Alle").
+    case savedSearch(UUID)
 
     /// Zentrale Filter-Logik. Sidebar-Counts UND ViewModel-Sicht nutzen
     /// diese Funktion, damit nichts driften kann (Karpathy 3).
+    ///
+    /// `.recurring`-Tasks (Master-Vorlagen) brauchen keine explizite Behandlung:
+    /// alle actionable Filter (`.todo`, `.today`, `.inbox`, `.overdue`, `.dueSoon`,
+    /// `.upcoming`, `.waiting`) gatten bereits auf `task.status == .pending`, das
+    /// `.recurring` ausschließt. `.all`, `.project` und `.tag` zeigen `.recurring`
+    /// automatisch, da sie keinen Status-Gate haben — genau das gewünschte Verhalten.
     func matches(_ task: TaskInfo, now: Date, dueSoonDays: Int) -> Bool {
         switch self {
         case .all:
@@ -75,6 +86,10 @@ enum SidebarFilter: Hashable {
             return task.project == name
         case .tag(let name):
             return task.tags.contains(name)
+        case .savedSearch:
+            // Inhalt liefert die parallel gesetzte `searchQuery`. Kommt der Filter
+            // ohne aktive Query an, zeigen wir bewusst alles statt nichts.
+            return true
         }
     }
 
@@ -137,35 +152,163 @@ final class TaskListViewModel {
 
     /// Filtert nach `activeFilter` + `searchQuery` + `hideCompleted` und sortiert
     /// gemäß `sortOrder` + `sortAscending`.
+    ///
+    /// Mit einer aktiven Suche wechselt der Scope: Sidebar-Filter und
+    /// `hideCompleted` werden ignoriert, damit die Suche bestandsweit arbeitet
+    /// und auch erledigte Tasks außerhalb der aktuellen Sidebar-Auswahl findet.
     func visibleTasks(from tasks: [TaskInfo], now: Date = Date()) -> [TaskInfo] {
-        let filtered = tasks
-            .filter { activeFilter.matches($0, now: now, dueSoonDays: dueSoonDays) }
-            .filter { hideCompleted ? $0.status != .completed : true }
-            .filter { matchesSearch($0) }
+        let filtered: [TaskInfo]
+        if let query = parsedSearchQuery() {
+            filtered = tasks.filter { matches($0, query: query) }
+        } else {
+            filtered = tasks
+                .filter { activeFilter.matches($0, now: now, dueSoonDays: dueSoonDays) }
+                .filter { hideCompleted ? $0.status != .completed : true }
+        }
         let sorted = filtered.sorted { lhs, rhs in sortComparator(lhs, rhs) }
         return sortAscending ? sorted : sorted.reversed()
     }
 
-    /// Projekte aus dem Pending-Pool, alphabetisch. Completed werden ignoriert, damit
-    /// abgeräumte Projekte nicht ewig in der Sidebar bleiben.
-    func projects(from tasks: [TaskInfo]) -> [String] {
-        let set = Set(tasks.filter { $0.status == .pending }.compactMap { $0.project })
+    /// Projekte aus dem aktiven Task-Pool (Pending + Recurring-Master), alphabetisch.
+    /// Completed werden ignoriert, damit abgeräumte Projekte nicht ewig in der Sidebar
+    /// bleiben. Recurring zählt mit, sonst wäre ein Projekt mit ausschließlich
+    /// Recurring-Master über die Sidebar nicht erreichbar.
+    /// Static, damit QuickCaptureSheet ohne ViewModel-Instanz darauf zugreifen kann (C2).
+    static func projects(from tasks: [TaskInfo]) -> [String] {
+        let set = Set(tasks.filter { isActive($0) }.compactMap { $0.project })
         return set.sorted(by: { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending })
     }
 
-    /// Tags aus dem Pending-Pool, alphabetisch.
-    func tags(from tasks: [TaskInfo]) -> [String] {
-        let set = Set(tasks.filter { $0.status == .pending }.flatMap { $0.tags })
+    /// Tags aus dem aktiven Task-Pool (Pending + Recurring-Master), alphabetisch.
+    /// Static, damit QuickCaptureSheet ohne ViewModel-Instanz darauf zugreifen kann (C2).
+    static func tags(from tasks: [TaskInfo]) -> [String] {
+        let set = Set(tasks.filter { isActive($0) }.flatMap { $0.tags })
         return set.sorted(by: { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending })
     }
 
-    // MARK: - Private
-
-    private func matchesSearch(_ task: TaskInfo) -> Bool {
-        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return true }
-        return task.description.localizedCaseInsensitiveContains(query)
+    private static func isActive(_ task: TaskInfo) -> Bool {
+        task.status == .pending || task.status == .recurring
     }
+
+    // MARK: - Suche
+
+    /// Geparste Suchanfrage. Alle Bedingungen sind AND-verknüpft.
+    private struct ParsedQuery {
+        var freeTerms: [String] = []
+        var projects: [String] = []
+        var tags: [String] = []
+        var statuses: [TaskStatus] = []
+    }
+
+    /// Parst `searchQuery` in ein typisiertes Modell oder gibt `nil` zurück,
+    /// wenn die Eingabe leer ist. Operatoren: `project:`, `tag:`, `status:`
+    /// jeweils mit deutschen Aliasen (`projekt:`, `status:offen` …). Werte mit
+    /// Leerzeichen können in doppelten Anführungszeichen stehen.
+    private func parsedSearchQuery() -> ParsedQuery? {
+        let trimmed = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        var result = ParsedQuery()
+        for token in tokenize(trimmed) {
+            if let (key, value) = splitOperator(token) {
+                switch key.lowercased() {
+                case "project", "projekt":
+                    result.projects.append(value)
+                case "tag":
+                    result.tags.append(value)
+                case "status":
+                    if let status = parseStatus(value) {
+                        result.statuses.append(status)
+                    } else {
+                        // Unbekannter Status-Wert → als Freitext werten, damit der
+                        // User nicht stumm leere Ergebnisse bekommt.
+                        result.freeTerms.append(token)
+                    }
+                default:
+                    // Unbekannter Operator-Key → kompletter Token als Freitext.
+                    result.freeTerms.append(token)
+                }
+            } else {
+                result.freeTerms.append(token)
+            }
+        }
+        return result
+    }
+
+    private func tokenize(_ input: String) -> [String] {
+        var tokens: [String] = []
+        var current = ""
+        var inQuotes = false
+        for char in input {
+            if char == "\"" {
+                inQuotes.toggle()
+                continue
+            }
+            if char.isWhitespace && !inQuotes {
+                if !current.isEmpty {
+                    tokens.append(current)
+                    current.removeAll()
+                }
+                continue
+            }
+            current.append(char)
+        }
+        if !current.isEmpty { tokens.append(current) }
+        return tokens
+    }
+
+    /// Splittet an erstem `:` und liefert (key, value), sofern beide nicht leer sind.
+    private func splitOperator(_ token: String) -> (String, String)? {
+        guard let colon = token.firstIndex(of: ":") else { return nil }
+        let key = String(token[..<colon])
+        let value = String(token[token.index(after: colon)...])
+        guard !key.isEmpty, !value.isEmpty else { return nil }
+        return (key, value)
+    }
+
+    private func parseStatus(_ value: String) -> TaskStatus? {
+        switch value.lowercased() {
+        case "pending", "offen", "open":           return .pending
+        case "completed", "done", "erledigt":      return .completed
+        case "deleted", "gelöscht", "geloescht":   return .deleted
+        case "recurring", "wiederkehrend":         return .recurring
+        default:                                    return nil
+        }
+    }
+
+    private func matches(_ task: TaskInfo, query: ParsedQuery) -> Bool {
+        if !query.statuses.isEmpty, !query.statuses.contains(task.status) {
+            return false
+        }
+        for project in query.projects {
+            guard let taskProject = task.project,
+                  taskProject.localizedCaseInsensitiveCompare(project) == .orderedSame
+            else { return false }
+        }
+        for tag in query.tags {
+            let hit = task.tags.contains { $0.localizedCaseInsensitiveCompare(tag) == .orderedSame }
+            if !hit { return false }
+        }
+        guard !query.freeTerms.isEmpty else { return true }
+        let haystacks = freeTextHaystacks(for: task)
+        for term in query.freeTerms {
+            let hit = haystacks.contains { $0.localizedCaseInsensitiveContains(term) }
+            if !hit { return false }
+        }
+        return true
+    }
+
+    /// Alle Felder, in denen freier Suchtext suchen darf.
+    private func freeTextHaystacks(for task: TaskInfo) -> [String] {
+        var haystacks: [String] = [task.description]
+        if let project = task.project { haystacks.append(project) }
+        if !task.tags.isEmpty { haystacks.append(task.tags.joined(separator: " ")) }
+        if !task.annotations.isEmpty {
+            haystacks.append(task.annotations.map(\.description).joined(separator: " "))
+        }
+        return haystacks
+    }
+
+    // MARK: - Sortierung
 
     private func sortComparator(_ lhs: TaskInfo, _ rhs: TaskInfo) -> Bool {
         switch sortOrder {

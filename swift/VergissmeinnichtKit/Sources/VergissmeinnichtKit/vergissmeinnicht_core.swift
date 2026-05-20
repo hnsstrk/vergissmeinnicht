@@ -550,13 +550,15 @@ public protocol TaskStoreProtocol: AnyObject, Sendable {
     func listPending() throws  -> [TaskInfo]
     
     /**
-     * Listet alle Tasks (Pending oder optional auch Completed).
+     * Listet alle Tasks (Pending oder optional auch Completed/Recurring).
      * Deleted-Tasks bleiben immer aussen vor.
      *
-     * Bei `include_completed = false` wird das Working Set in seiner natürlichen
-     * Reihenfolge durchlaufen (so haben Pending-Tasks einen stabilen
-     * `working_set_id`). Bei `true` werden alle Pending zuerst ausgegeben (mit ID),
-     * danach alle Completed (ohne ID) — die App kann clientseitig sortieren.
+     * Bei `include_completed = false` wird nur das Working Set durchlaufen — das enthält
+     * ausschließlich Pending-Tasks. Recurring-Master und Completed bleiben in diesem
+     * Modus unsichtbar; wer sie braucht, muss `include_completed = true` setzen.
+     * Bei `true` werden Pending mit `working_set_id` zuerst ausgegeben, danach alle
+     * übrigen sichtbaren Status (Completed, Recurring, sowie ggf. Pending ohne
+     * Working-Set-Eintrag) — die App sortiert clientseitig.
      */
     func listTasks(includeCompleted: Bool) throws  -> [TaskInfo]
     
@@ -794,13 +796,15 @@ open func listPending()throws  -> [TaskInfo]  {
 }
     
     /**
-     * Listet alle Tasks (Pending oder optional auch Completed).
+     * Listet alle Tasks (Pending oder optional auch Completed/Recurring).
      * Deleted-Tasks bleiben immer aussen vor.
      *
-     * Bei `include_completed = false` wird das Working Set in seiner natürlichen
-     * Reihenfolge durchlaufen (so haben Pending-Tasks einen stabilen
-     * `working_set_id`). Bei `true` werden alle Pending zuerst ausgegeben (mit ID),
-     * danach alle Completed (ohne ID) — die App kann clientseitig sortieren.
+     * Bei `include_completed = false` wird nur das Working Set durchlaufen — das enthält
+     * ausschließlich Pending-Tasks. Recurring-Master und Completed bleiben in diesem
+     * Modus unsichtbar; wer sie braucht, muss `include_completed = true` setzen.
+     * Bei `true` werden Pending mit `working_set_id` zuerst ausgegeben, danach alle
+     * übrigen sichtbaren Status (Completed, Recurring, sowie ggf. Pending ohne
+     * Working-Set-Eintrag) — die App sortiert clientseitig.
      */
 open func listTasks(includeCompleted: Bool)throws  -> [TaskInfo]  {
     return try  FfiConverterSequenceTypeTaskInfo.lift(try rustCallWithError(FfiConverterTypeVmError_lift) {
@@ -1385,6 +1389,7 @@ public enum TaskStatus {
     case pending
     case completed
     case deleted
+    case recurring
 }
 
 
@@ -1408,6 +1413,8 @@ public struct FfiConverterTypeTaskStatus: FfiConverterRustBuffer {
         
         case 3: return .deleted
         
+        case 4: return .recurring
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -1426,6 +1433,10 @@ public struct FfiConverterTypeTaskStatus: FfiConverterRustBuffer {
         
         case .deleted:
             writeInt(&buf, Int32(3))
+        
+        
+        case .recurring:
+            writeInt(&buf, Int32(4))
         
         }
     }
@@ -1759,7 +1770,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_list_pending() != 3320) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_list_tasks() != 42214) {
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_list_tasks() != 33535) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_mark_done() != 54635) {

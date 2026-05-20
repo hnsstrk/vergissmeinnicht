@@ -1,6 +1,6 @@
 uniffi::setup_scaffolding!();
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use std::str::FromStr;
 
@@ -13,6 +13,13 @@ use uuid::Uuid;
 
 // UniFFI kann keine Generics exportieren — Typ-Alias auf konkrete Replica-Variante.
 type AppReplica = Replica<SqliteStorage>;
+
+// ─── Property-Key-Konstanten ─────────────────────────────────────────────────
+
+const PROP_PROJECT: &str = "project";
+const PROP_PRIORITY: &str = "priority";
+const PROP_RECUR: &str = "recur";
+const PROP_SCHEDULED: &str = "scheduled";
 
 // ─── Phase 1: Smoketest bleibt erhalten ─────────────────────────────────────
 
@@ -59,24 +66,23 @@ fn timestamp_from_secs(secs: i64) -> Result<DateTime<Utc>, VmError> {
         .ok_or_else(|| VmError::Conversion { msg: format!("due timestamp out of range: {secs}") })
 }
 
+/// Iteriert über die User-Tags eines Tasks (filtert synthetische TaskChampion-Tags
+/// wie PENDING, OVERDUE etc. heraus).
+fn user_tags(task: &taskchampion::Task) -> impl Iterator<Item = Tag> + '_ {
+    task.get_tags().filter(|t| t.is_user())
+}
+
 /// Baut ein `TaskInfo` aus einem `taskchampion::Task` plus optionaler Working-Set-ID.
 /// Zentralisiert die Property-Extraktion (project, tags, due, entry, priority, annotations).
 fn build_task_info(task: &taskchampion::Task, uuid: Uuid, working_set_id: Option<u32>) -> TaskInfo {
     let project = task
-        .get_value("project")
+        .get_value(PROP_PROJECT)
         .map(|s| s.to_owned())
         .filter(|s| !s.is_empty());
-    let tags: Vec<String> = task
-        .get_tags()
-        .filter(|t| t.is_user())
-        .map(|t| t.to_string())
-        .collect();
+    let tags: Vec<String> = user_tags(task).map(|t| t.to_string()).collect();
     let due = task.get_due().map(|ts| ts.timestamp());
     let entry = task.get_entry().map(|ts| ts.timestamp());
-    let priority = {
-        let p = task.get_priority();
-        if p.is_empty() { None } else { Some(p.to_owned()) }
-    };
+    let priority = Some(task.get_priority().to_owned()).filter(|p| !p.is_empty());
     let annotations: Vec<AnnotationInfo> = task
         .get_annotations()
         .map(|a| AnnotationInfo {
@@ -86,16 +92,20 @@ fn build_task_info(task: &taskchampion::Task, uuid: Uuid, working_set_id: Option
         .collect();
     let wait = task.get_wait().map(|ts| ts.timestamp());
     let recur = task
-        .get_value("recur")
+        .get_value(PROP_RECUR)
         .map(|s| s.to_owned())
         .filter(|s| !s.is_empty());
     let scheduled = task
-        .get_value("scheduled")
+        .get_value(PROP_SCHEDULED)
         .and_then(|s| s.parse::<i64>().ok());
     let status = match task.get_status() {
         Status::Pending => TaskStatus::Pending,
         Status::Completed => TaskStatus::Completed,
-        _ => TaskStatus::Deleted,
+        Status::Deleted => TaskStatus::Deleted,
+        Status::Recurring => TaskStatus::Recurring,
+        // Unknown-Status (zukünftige taskchampion-Erweiterungen) konservativ als Deleted —
+        // weniger schlimm als zu zeigen.
+        Status::Unknown(_) => TaskStatus::Deleted,
     };
     TaskInfo {
         uuid: uuid.to_string(),
@@ -122,6 +132,7 @@ pub enum TaskStatus {
     Pending,
     Completed,
     Deleted,
+    Recurring,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -176,6 +187,21 @@ pub struct TaskStore {
     rt: tokio::runtime::Runtime,
 }
 
+impl TaskStore {
+    /// Lokkt die Replica-Mutex. Zentralisiert den 21× wiederkehrenden Boilerplate.
+    ///
+    /// SICHERHEITSHINWEIS: `Replica<SqliteStorage>` ist `!Send`, deshalb wird der
+    /// MutexGuard über den gesamten `rt.block_on`-Aufruf gehalten. Die current-thread-
+    /// Runtime (Feature `rt`, kein `rt-multi-thread`) ist dafür Voraussetzung. Das
+    /// bewusste Halten des Guards über `block_on` ist intentional — kein anderer Thread
+    /// kann die Replica konkurrierend verwenden.
+    fn lock_replica(&self) -> Result<MutexGuard<'_, AppReplica>, VmError> {
+        self.replica
+            .lock()
+            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })
+    }
+}
+
 #[uniffi::export]
 impl TaskStore {
     /// Öffnet (oder legt an) eine TaskChampion-SQLite-Replica unter `db_path`.
@@ -204,10 +230,7 @@ impl TaskStore {
 
     /// Legt einen neuen Task mit der gegebenen Description an und gibt seine UUID zurück.
     pub fn add_task(&self, description: String) -> Result<String, VmError> {
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         let uuid = self.rt.block_on(async {
@@ -235,10 +258,7 @@ impl TaskStore {
         tags: Vec<String>,
         due: Option<i64>,
     ) -> Result<String, VmError> {
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         let due_ts = match due {
@@ -255,7 +275,7 @@ impl TaskStore {
             task.set_entry(Some(Utc::now()), &mut ops)?;
 
             if let Some(p) = project.as_ref().filter(|s| !s.is_empty()) {
-                task.set_value("project", Some(p.clone()), &mut ops)?;
+                task.set_value(PROP_PROJECT, Some(p.clone()), &mut ops)?;
             }
             for tag_str in &tags {
                 let tag = Tag::from_str(tag_str)
@@ -286,10 +306,7 @@ impl TaskStore {
         due: Option<i64>,
     ) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         let due_ts = match due {
@@ -308,13 +325,10 @@ impl TaskStore {
 
             // Project: explizit setzen oder clearen.
             let project_value = project.filter(|s| !s.is_empty());
-            task.set_value("project", project_value, &mut ops)?;
+            task.set_value(PROP_PROJECT, project_value, &mut ops)?;
 
             // Tags: User-Tags vorher entfernen, dann neue setzen (Synthetics bleiben).
-            let current_user_tags: Vec<Tag> = task
-                .get_tags()
-                .filter(|t| t.is_user())
-                .collect();
+            let current_user_tags: Vec<Tag> = user_tags(&task).collect();
             for t in &current_user_tags {
                 task.remove_tag(t, &mut ops)?;
             }
@@ -331,18 +345,17 @@ impl TaskStore {
         })
     }
 
-    /// Listet alle Tasks (Pending oder optional auch Completed).
+    /// Listet alle Tasks (Pending oder optional auch Completed/Recurring).
     /// Deleted-Tasks bleiben immer aussen vor.
     ///
-    /// Bei `include_completed = false` wird das Working Set in seiner natürlichen
-    /// Reihenfolge durchlaufen (so haben Pending-Tasks einen stabilen
-    /// `working_set_id`). Bei `true` werden alle Pending zuerst ausgegeben (mit ID),
-    /// danach alle Completed (ohne ID) — die App kann clientseitig sortieren.
+    /// Bei `include_completed = false` wird nur das Working Set durchlaufen — das enthält
+    /// ausschließlich Pending-Tasks. Recurring-Master und Completed bleiben in diesem
+    /// Modus unsichtbar; wer sie braucht, muss `include_completed = true` setzen.
+    /// Bei `true` werden Pending mit `working_set_id` zuerst ausgegeben, danach alle
+    /// übrigen sichtbaren Status (Completed, Recurring, sowie ggf. Pending ohne
+    /// Working-Set-Eintrag) — die App sortiert clientseitig.
     pub fn list_tasks(&self, include_completed: bool) -> Result<Vec<TaskInfo>, VmError> {
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         let infos = self.rt.block_on(async {
@@ -361,16 +374,20 @@ impl TaskStore {
 
             if include_completed {
                 let all = replica.all_tasks().await?;
-                for (uuid, task) in all.iter() {
-                    if task.get_status() == Status::Completed {
-                        out.push(build_task_info(task, *uuid, None));
-                    }
-                }
-                // Pending, die nicht im Working Set waren (sollte nicht vorkommen,
-                // aber theoretisch möglich), gerätsicherheitshalber ergänzen.
-                for (uuid, task) in all.iter() {
-                    if task.get_status() == Status::Pending && !seen_pending.contains(uuid) {
-                        out.push(build_task_info(task, *uuid, None));
+                let mut entries: Vec<_> = all.iter().collect();
+                entries.sort_by_key(|(uuid, _)| *uuid);  // deterministisch über App-Starts
+                for (uuid, task) in entries {
+                    match task.get_status() {
+                        Status::Completed => out.push(build_task_info(task, *uuid, None)),
+                        // Recurring-Master haben keinen Working-Set-Eintrag und sind
+                        // ausschließlich über diesen Pfad sichtbar (siehe Doc oben).
+                        Status::Recurring => out.push(build_task_info(task, *uuid, None)),
+                        // Pending ohne Working-Set-Eintrag (sollte nicht vorkommen,
+                        // aber theoretisch möglich) — sicherheitshalber ergänzen.
+                        Status::Pending if !seen_pending.contains(uuid) => {
+                            out.push(build_task_info(task, *uuid, None));
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -393,10 +410,7 @@ impl TaskStore {
     /// nicht direkt abbilden kann. Auf 64-bit-macOS (und 32-bit-Targets) ist der Cast
     /// verlustfrei aufwärts.
     pub fn num_local_operations(&self) -> Result<u64, VmError> {
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         let count = self.rt.block_on(async {
@@ -409,10 +423,7 @@ impl TaskStore {
     /// Markiert die Task mit `uuid` als erledigt (`Status::Completed`) und committet.
     pub fn mark_done(&self, uuid: String) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -434,10 +445,7 @@ impl TaskStore {
         new_description: String,
     ) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -456,10 +464,7 @@ impl TaskStore {
     /// Das Operations-Log bleibt erhalten — kein Purge.
     pub fn delete_task(&self, uuid: String) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -477,10 +482,7 @@ impl TaskStore {
     /// Hängt eine Annotation an die Task mit `uuid` an. Entry-Zeitstempel = `Utc::now()`.
     pub fn add_annotation(&self, uuid: String, annotation: String) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -506,10 +508,7 @@ impl TaskStore {
     pub fn remove_annotation(&self, uuid: String, entry: i64) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
         let ts = timestamp_from_secs(entry)?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -527,10 +526,7 @@ impl TaskStore {
     /// Setzt das `project`-Property. `None` oder leerer String entfernt es.
     pub fn set_project(&self, uuid: String, project: Option<String>) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -540,7 +536,7 @@ impl TaskStore {
                 .await?
                 .ok_or(VmError::NotFound { uuid: uuid.clone() })?;
             let value = project.filter(|s| !s.is_empty());
-            task.set_value("project", value, &mut ops)?;
+            task.set_value(PROP_PROJECT, value, &mut ops)?;
             replica.commit_operations(ops).await?;
             Ok::<_, VmError>(())
         })
@@ -553,10 +549,7 @@ impl TaskStore {
             Some(secs) => Some(timestamp_from_secs(secs)?),
             None => None,
         };
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -591,10 +584,7 @@ impl TaskStore {
             Some(secs) => Some(timestamp_from_secs(secs)?),
             None => None,
         };
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         let new_uuid: Option<Uuid> = self.rt.block_on(async {
@@ -614,7 +604,7 @@ impl TaskStore {
                 new_task.set_status(Status::Pending, &mut ops)?;
                 new_task.set_entry(Some(Utc::now()), &mut ops)?;
                 if let Some(p) = project.as_ref().filter(|s| !s.is_empty()) {
-                    new_task.set_value("project", Some(p.clone()), &mut ops)?;
+                    new_task.set_value(PROP_PROJECT, Some(p.clone()), &mut ops)?;
                 }
                 for tag_str in &tags {
                     let tag = Tag::from_str(tag_str)
@@ -625,10 +615,10 @@ impl TaskStore {
                     new_task.set_due(Some(ts), &mut ops)?;
                 }
                 if let Some(p) = priority.as_ref().filter(|s| !s.is_empty()) {
-                    new_task.set_value("priority", Some(p.clone()), &mut ops)?;
+                    new_task.set_value(PROP_PRIORITY, Some(p.clone()), &mut ops)?;
                 }
                 if let Some(r) = recur.as_ref().filter(|s| !s.is_empty()) {
-                    new_task.set_value("recur", Some(r.clone()), &mut ops)?;
+                    new_task.set_value(PROP_RECUR, Some(r.clone()), &mut ops)?;
                 }
                 Some(new_uuid)
             } else {
@@ -647,10 +637,7 @@ impl TaskStore {
     /// „geplant".
     pub fn set_scheduled(&self, uuid: String, scheduled: Option<i64>) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -659,8 +646,10 @@ impl TaskStore {
                 .get_task(task_uuid)
                 .await?
                 .ok_or(VmError::NotFound { uuid: uuid.clone() })?;
+            // taskchampion speichert `scheduled` als String (Unix-Sekunden, Dezimalzahl).
+            // `set_value` erwartet `Option<String>` — daher i64 → String-Konversion.
             let value = scheduled.map(|s| s.to_string());
-            task.set_value("scheduled", value, &mut ops)?;
+            task.set_value(PROP_SCHEDULED, value, &mut ops)?;
             replica.commit_operations(ops).await?;
             Ok::<_, VmError>(())
         })
@@ -671,10 +660,7 @@ impl TaskStore {
     /// generiert keine Children automatisch.
     pub fn set_recur(&self, uuid: String, recur: Option<String>) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -684,7 +670,7 @@ impl TaskStore {
                 .await?
                 .ok_or(VmError::NotFound { uuid: uuid.clone() })?;
             let value = recur.filter(|s| !s.is_empty());
-            task.set_value("recur", value, &mut ops)?;
+            task.set_value(PROP_RECUR, value, &mut ops)?;
             replica.commit_operations(ops).await?;
             Ok::<_, VmError>(())
         })
@@ -695,10 +681,7 @@ impl TaskStore {
     /// Strings, sortiert aber clientseitig nach diesem Wert.
     pub fn set_priority(&self, uuid: String, priority: Option<String>) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -708,7 +691,7 @@ impl TaskStore {
                 .await?
                 .ok_or(VmError::NotFound { uuid: uuid.clone() })?;
             let value = priority.filter(|s| !s.is_empty());
-            task.set_value("priority", value, &mut ops)?;
+            task.set_value(PROP_PRIORITY, value, &mut ops)?;
             replica.commit_operations(ops).await?;
             Ok::<_, VmError>(())
         })
@@ -719,10 +702,7 @@ impl TaskStore {
         let task_uuid = parse_uuid(&uuid)?;
         let tag_obj = Tag::from_str(&tag)
             .map_err(|e| VmError::Conversion { msg: format!("invalid tag {tag:?}: {e}") })?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -744,10 +724,7 @@ impl TaskStore {
         let task_uuid = parse_uuid(&uuid)?;
         let tag_obj = Tag::from_str(&tag)
             .map_err(|e| VmError::Conversion { msg: format!("invalid tag {tag:?}: {e}") })?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -772,10 +749,7 @@ impl TaskStore {
             Some(secs) => Some(timestamp_from_secs(secs)?),
             None => None,
         };
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -794,10 +768,7 @@ impl TaskStore {
     /// User einen versehentlich erledigten Task wiederherstellen will.
     pub fn reactivate(&self, uuid: String) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {
@@ -821,10 +792,7 @@ impl TaskStore {
         encryption_secret: String,
     ) -> Result<(), VmError> {
         let client_uuid = parse_uuid(&client_id)?;
-        let mut guard = self
-            .replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })?;
+        let mut guard = self.lock_replica()?;
         let replica: &mut AppReplica = &mut *guard;
 
         self.rt.block_on(async {

@@ -27,7 +27,7 @@ enum DueDateParser {
             return endOfDay(t, calendar: calendar)
         }
         if normalized.hasPrefix("+"), normalized.count >= 3 {
-            let unitChar = normalized.last!
+            guard let unitChar = normalized.last else { return nil }
             let numPart = String(normalized.dropFirst().dropLast())
             if let n = Int(numPart) {
                 let component: Calendar.Component?
@@ -50,6 +50,16 @@ enum DueDateParser {
             return endOfDay(d, calendar: calendar)
         }
         return nil
+    }
+
+    /// Gibt das Ende des übergebenen Tages (23:59:59 Ortszeit) zurück.
+    /// Zentrale Implementierung — TaskListView und QuickCaptureSheet nutzen diese
+    /// Funktion, damit die Berechnung nicht 3× dupliziert ist (C1).
+    static func endOfDay(for date: Date) -> Date {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        let start = cal.startOfDay(for: date)
+        return cal.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-1) ?? date
     }
 
     private static func endOfDay(_ date: Date, calendar: Calendar) -> Int64 {

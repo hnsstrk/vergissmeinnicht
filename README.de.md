@@ -17,6 +17,15 @@ SwiftUI-Frontend, Rust-Core via UniFFI, sandboxed, App-Store-tauglich.
 - **Sidebar-Perspektiven** — Eingang · Zu erledigen · Heute · Überfällig · Bald
   fällig · Wartend · Geplant · Alle · pro Projekt · pro Tag. Mit Counts und
   Drop-Targets.
+- **Volltextsuche mit Operatoren** (⌘F) — durchsucht Titel, Projekt, Tags und
+  Annotationen über den gesamten Bestand (pending, completed, recurring).
+  Unterstützt AND, Quoted-Phrases sowie die Operatoren `projekt:`, `tag:`,
+  `status:` (deutsche und englische Aliase). Bei aktiver Suche wird der
+  Sidebar-Filter ignoriert.
+- **Gespeicherte Suchen** (⇧⌘D) — Suchanfragen unter einem Namen sichern und
+  in der Sidebar zwischen System-Filtern und Projekten pinnen. Rechtsklick zum
+  Umbenennen oder Löschen. Die Sektion erscheint erst nach der ersten
+  gespeicherten Suche.
 - **Quick Capture** (⌘N) — fokussiertes Eingabe-Sheet mit Titel, Notizen, Projekt,
   Tags, Fälligkeit, Priorität, Wiederholung. Alternativ Token-Syntax (`+tag
   project:foo due:tomorrow`).

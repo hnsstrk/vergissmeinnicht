@@ -8,6 +8,10 @@ import VergissmeinnichtKit
 struct TaskRowView: View {
     let task: TaskInfo
 
+    /// Zeitfenster für "bald fällig" (orange). Muss mit `AppSettings.dueSoonDays`
+    /// (Default 7) synchron gehalten werden — D1.
+    private static let dueSoonWindow: TimeInterval = 7 * 24 * 60 * 60
+
     var body: some View {
         HStack(spacing: 8) {
             if let id = task.workingSetId {
@@ -124,7 +128,7 @@ struct TaskRowView: View {
     private func dueColor(_ unixSeconds: Int64) -> Color {
         let now = Date().timeIntervalSince1970
         if TimeInterval(unixSeconds) < now { return .red }
-        if TimeInterval(unixSeconds) < now + 7 * 24 * 60 * 60 { return .orange }
+        if TimeInterval(unixSeconds) < now + Self.dueSoonWindow { return .orange }
         return .secondary
     }
 }

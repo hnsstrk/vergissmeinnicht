@@ -2280,6 +2280,246 @@
           }
         }
       }
+    },
+    "Suche": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search"
+          }
+        }
+      }
+    },
+    "Bei aktiver Suche wird der Sidebar-Filter ignoriert. Durchsucht werden Titel, Projekt, Tags und Annotationen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When a search is active, the sidebar filter is ignored. The search covers title, project, tags, and annotations."
+          }
+        }
+      }
+    },
+    "Freier Text": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Free text"
+          }
+        }
+      }
+    },
+    "Mehrere Wörter (AND)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multiple words (AND)"
+          }
+        }
+      }
+    },
+    "Wert mit Leerzeichen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Value with spaces"
+          }
+        }
+      }
+    },
+    "Status": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status"
+          }
+        }
+      }
+    },
+    "Kombiniert": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Combined"
+          }
+        }
+      }
+    },
+    "kaffee": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "coffee"
+          }
+        }
+      }
+    },
+    "kaffee buch": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "coffee book"
+          }
+        }
+      }
+    },
+    "\"projekt name\"": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"project name\""
+          }
+        }
+      }
+    },
+    "projekt:arbeit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "project:work"
+          }
+        }
+      }
+    },
+    "tag:dringend": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tag:urgent"
+          }
+        }
+      }
+    },
+    "status:erledigt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "status:completed"
+          }
+        }
+      }
+    },
+    "projekt:arbeit status:offen meeting": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "project:work status:pending meeting"
+          }
+        }
+      }
+    },
+    "Ausstehend": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pending"
+          }
+        }
+      }
+    },
+    "Wiederkehrend": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recurring"
+          }
+        }
+      }
+    },
+    "Gespeicherte Suchen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved Searches"
+          }
+        }
+      }
+    },
+    "Suche sichern": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Search"
+          }
+        }
+      }
+    },
+    "Suche sichern (⇧⌘D)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Search (⇧⌘D)"
+          }
+        }
+      }
+    },
+    "Sichern": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
+          }
+        }
+      }
+    },
+    "Diese Suche existiert bereits als „%@“": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This search already exists as “%@”"
+          }
+        }
+      }
+    },
+    "Aktive Suchen lassen sich mit ⇧⌘D unter einem Namen sichern. Gespeicherte Suchen erscheinen in der Sidebar zwischen System-Filtern und Projekten. Rechtsklick: Umbenennen oder Löschen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save an active search under a name via ⇧⌘D. Saved searches appear in the sidebar between system filters and projects. Right-click to rename or delete."
+          }
+        }
+      }
+    },
+    "Umbenennen / Löschen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename / Delete"
+          }
+        }
+      }
+    },
+    "Rechtsklick": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right-click"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

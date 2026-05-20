@@ -33,3 +33,6 @@ build/
 .claude/settings.local.json
 .claude/projects/
 .claude/.credentials.json
+
+# Other local agent tooling state
+.antigravitycli/

@@ -17,6 +17,7 @@ enum AppSettingsKey {
     static let hideCompleted    = "hideCompleted"           // Bool, Default false
     static let autoSyncMode          = "autoSyncMode"            // String (AutoSyncMode.rawValue), Default "manual"
     static let sidebarColoredIcons   = "sidebarColoredIcons"    // Bool, Default true
+    static let savedSearches         = "savedSearches"          // JSON-String [SavedSearch], Default "[]"
 }
 
 enum AppLanguage: String, CaseIterable, Identifiable {

@@ -36,7 +36,14 @@ struct ShortcutHelpView: View {
 
     private struct Section {
         let title: LocalizedStringKey
+        let note: LocalizedStringKey?
         let entries: [Entry]
+
+        init(title: LocalizedStringKey, note: LocalizedStringKey? = nil, entries: [Entry]) {
+            self.title = title
+            self.note = note
+            self.entries = entries
+        }
     }
 
     private var sections: [Section] {
@@ -49,10 +56,32 @@ struct ShortcutHelpView: View {
             ]),
             Section(title: "Ansicht", entries: [
                 Entry(label: "Suchen…",                keys: "⌘F"),
+                Entry(label: "Suche sichern",          keys: "⇧⌘D"),
                 Entry(label: "Aktualisieren",          keys: "⌘R"),
                 Entry(label: "Synchronisieren",        keys: "⇧⌘S"),
                 Entry(label: "Erledigte ausblenden",   keys: "⇧⌘H"),
             ]),
+            Section(
+                title: "Suche",
+                note: "Bei aktiver Suche wird der Sidebar-Filter ignoriert. Durchsucht werden Titel, Projekt, Tags und Annotationen.",
+                entries: [
+                    Entry(label: "Freier Text",            keys: String(localized: "kaffee")),
+                    Entry(label: "Mehrere Wörter (AND)",   keys: String(localized: "kaffee buch")),
+                    Entry(label: "Wert mit Leerzeichen",   keys: String(localized: "\"projekt name\"")),
+                    Entry(label: "Projekt",                keys: String(localized: "projekt:arbeit")),
+                    Entry(label: "Tag",                    keys: String(localized: "tag:dringend")),
+                    Entry(label: "Status",                 keys: String(localized: "status:erledigt")),
+                    Entry(label: "Kombiniert",             keys: String(localized: "projekt:arbeit status:offen meeting")),
+                ]
+            ),
+            Section(
+                title: "Gespeicherte Suchen",
+                note: "Aktive Suchen lassen sich mit ⇧⌘D unter einem Namen sichern. Gespeicherte Suchen erscheinen in der Sidebar zwischen System-Filtern und Projekten. Rechtsklick: Umbenennen oder Löschen.",
+                entries: [
+                    Entry(label: "Suche sichern",       keys: "⇧⌘D"),
+                    Entry(label: "Umbenennen / Löschen", keys: "Rechtsklick"),
+                ]
+            ),
             Section(title: "Detail-Editor", entries: [
                 Entry(label: "Speichern",              keys: "⌘S"),
             ]),
@@ -96,6 +125,13 @@ struct ShortcutHelpView: View {
                             Text(section.title)
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
+                            if let note = section.note {
+                                Text(note)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.bottom, 2)
+                            }
                             ForEach(Array(section.entries.enumerated()), id: \.offset) { _, entry in
                                 HStack {
                                     Text(entry.label)
