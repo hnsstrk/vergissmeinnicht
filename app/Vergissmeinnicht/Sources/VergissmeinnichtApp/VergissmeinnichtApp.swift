@@ -18,6 +18,7 @@ struct VergissmeinnichtApp: App {
     @State private var container: AppContainer?
     @State private var initError: String?
     @State private var showShortcuts = false
+    @State private var showSearchHelp = false
     @AppStorage(AppSettingsKey.hideCompleted) private var hideCompleted: Bool = false
 
     init() {
@@ -42,6 +43,9 @@ struct VergissmeinnichtApp: App {
                     .sheet(isPresented: $showShortcuts) {
                         ShortcutHelpView()
                     }
+                    .sheet(isPresented: $showSearchHelp) {
+                        SearchHelpView()
+                    }
             } else {
                 InitErrorView(message: initError ?? "Unbekannter Fehler") {
                     do {
@@ -55,6 +59,10 @@ struct VergissmeinnichtApp: App {
         }
         .commands {
             CommandGroup(replacing: .help) {
+                Button("Suche-Hilfe") {
+                    showSearchHelp = true
+                }
+                Divider()
                 Button("Tastenkürzel") {
                     showShortcuts = true
                 }

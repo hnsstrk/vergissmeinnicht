@@ -61,7 +61,6 @@ struct ShortcutHelpView: View {
                 Entry(label: "Synchronisieren",        keys: "⇧⌘S"),
                 Entry(label: "Erledigte ausblenden",   keys: "⇧⌘H"),
             ]),
-            // Suchfunktion: wird als searchFunctionSectionView nach Index 1 injiziert.
             Section(title: "Detail-Editor", entries: [
                 Entry(label: "Speichern",              keys: "⌘S"),
             ]),
@@ -82,83 +81,6 @@ struct ShortcutHelpView: View {
         ]
     }
 
-    /// Dedizierte Suchfunktions-Sektion mit Prosa-Block und Operatoren-Tabelle (Grid).
-    /// Wird nach der „Ansicht"-Sektion (Index 1) in den ScrollView injiziert.
-    @ViewBuilder
-    private var searchFunctionSectionView: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Suchfunktion")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            // Prosa: Was die Suche tut + Quotes-Hinweis
-            Text("Bei aktiver Suche wird der Sidebar-Filter ignoriert. Die Suche umfasst Titel, Projekt, Tags und Annotationen über den gesamten Bestand (offene, erledigte, wiederkehrende Aufgaben). Mehrere Wörter sind UND-verknüpft. Werte mit Leerzeichen in Anführungszeichen setzen: projekt:\"Mein Projekt\".")
-                .font(.callout)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.bottom, 4)
-            // Operatoren-Tabelle
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
-                GridRow {
-                    Text("Operator")
-                        .font(.caption.bold())
-                        .foregroundStyle(.tertiary)
-                    Text("Funktion")
-                        .font(.caption.bold())
-                        .foregroundStyle(.tertiary)
-                    Text("Beispiel")
-                        .font(.caption.bold())
-                        .foregroundStyle(.tertiary)
-                }
-                GridRow {
-                    Text(verbatim: "projekt:  project:")
-                        .font(.system(.callout, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                    Text("Passt auf Projektname")
-                    Text(String(localized: "projekt:arbeit"))
-                        .font(.system(.callout, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                }
-                GridRow {
-                    Text(verbatim: "tag:")
-                        .font(.system(.callout, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                    Text("Passt auf Tag")
-                    Text(String(localized: "tag:dringend"))
-                        .font(.system(.callout, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                }
-                GridRow {
-                    Text(verbatim: "status:")
-                        .font(.system(.callout, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Filtert nach Status")
-                        Text(String(localized: "offen · erledigt · wiederkehrend · gelöscht"))
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    Text(String(localized: "status:erledigt"))
-                        .font(.system(.callout, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                }
-            }
-            // Gespeicherte-Suchen-Hinweis
-            Text("Gespeicherte Suchen: Aktive Suchen mit ⇧⌘D sichern. Erscheinen in der Sidebar zwischen System-Filtern und Projekten. Rechtsklick: Umbenennen oder Löschen.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 4)
-        }
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -177,7 +99,7 @@ struct ShortcutHelpView: View {
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    ForEach(Array(sections.enumerated()), id: \.offset) { i, section in
+                    ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
                         VStack(alignment: .leading, spacing: 6) {
                             Text(section.title)
                                 .font(.headline)
@@ -202,10 +124,6 @@ struct ShortcutHelpView: View {
                                 }
                             }
                         }
-                        // Suchfunktion-Sektion direkt nach „Ansicht" (Index 1) einfügen.
-                        if i == 1 {
-                            searchFunctionSectionView
-                        }
                     }
                 }
                 .padding(.vertical, 4)
@@ -217,6 +135,105 @@ struct ShortcutHelpView: View {
             }
         }
         .padding(20)
-        .frame(width: 440, height: 620)
+        .frame(width: 440, height: 540)
+    }
+}
+
+/// Dediziertes Hilfe-Sheet für die Suchfunktion. Erreichbar über das Hilfe-Menü
+/// (eigener Eintrag „Suche-Hilfe"). Karpathy 2: ein eigenes Sheet pro Hilfe-Thema —
+/// Tastenkürzel und Suche werden bewusst nicht vermischt.
+struct SearchHelpView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Suche-Hilfe")
+                    .font(.title2.bold())
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Bei aktiver Suche wird der Sidebar-Filter ignoriert. Die Suche umfasst Titel, Projekt, Tags und Annotationen über den gesamten Bestand (offene, erledigte, wiederkehrende Aufgaben). Mehrere Wörter sind UND-verknüpft. Werte mit Leerzeichen in Anführungszeichen setzen: projekt:\"Mein Projekt\".")
+                        .font(.callout)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text("Operatoren")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
+
+                    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                        GridRow {
+                            Text("Operator").font(.caption.bold()).foregroundStyle(.tertiary)
+                            Text("Funktion").font(.caption.bold()).foregroundStyle(.tertiary)
+                            Text("Beispiel").font(.caption.bold()).foregroundStyle(.tertiary)
+                        }
+                        GridRow {
+                            Text(verbatim: "projekt:  project:")
+                                .font(.system(.callout, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                            Text("Passt auf Projektname")
+                            exampleChip(String(localized: "projekt:arbeit"))
+                        }
+                        GridRow {
+                            Text(verbatim: "tag:")
+                                .font(.system(.callout, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                            Text("Passt auf Tag")
+                            exampleChip(String(localized: "tag:dringend"))
+                        }
+                        GridRow {
+                            Text(verbatim: "status:")
+                                .font(.system(.callout, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Filtert nach Status")
+                                Text(String(localized: "offen · erledigt · wiederkehrend · gelöscht"))
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            exampleChip(String(localized: "status:erledigt"))
+                        }
+                    }
+
+                    Text("Gespeicherte Suchen")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 8)
+
+                    Text("Gespeicherte Suchen: Aktive Suchen mit ⇧⌘D sichern. Erscheinen in der Sidebar zwischen System-Filtern und Projekten. Rechtsklick: Umbenennen oder Löschen.")
+                        .font(.callout)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, 4)
+            }
+            HStack {
+                Spacer()
+                Button("Schließen") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 480, height: 460)
+    }
+
+    @ViewBuilder
+    private func exampleChip(_ text: String) -> some View {
+        Text(text)
+            .font(.system(.callout, design: .monospaced))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
     }
 }

@@ -2620,6 +2620,26 @@
           }
         }
       }
+    },
+    "Suche-Hilfe": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search Help"
+          }
+        }
+      }
+    },
+    "Operatoren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Operators"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
