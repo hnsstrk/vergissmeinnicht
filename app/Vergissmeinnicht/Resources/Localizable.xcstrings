@@ -2520,6 +2520,106 @@
           }
         }
       }
+    },
+    "Suchfunktion": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search"
+          }
+        }
+      }
+    },
+    "Bei aktiver Suche wird der Sidebar-Filter ignoriert. Die Suche umfasst Titel, Projekt, Tags und Annotationen über den gesamten Bestand (offene, erledigte, wiederkehrende Aufgaben). Mehrere Wörter sind UND-verknüpft. Werte mit Leerzeichen in Anführungszeichen setzen: projekt:\"Mein Projekt\".": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When a search is active, the sidebar filter is ignored. The search covers title, project, tags, and annotations across the whole store (open, completed, and recurring tasks). Multiple words are AND-combined. Quote values with spaces: project:\"My Project\"."
+          }
+        }
+      }
+    },
+    "Operator": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Operator"
+          }
+        }
+      }
+    },
+    "Funktion": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purpose"
+          }
+        }
+      }
+    },
+    "Beispiel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Example"
+          }
+        }
+      }
+    },
+    "Passt auf Projektname": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Matches the project name"
+          }
+        }
+      }
+    },
+    "Passt auf Tag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Matches a tag"
+          }
+        }
+      }
+    },
+    "Filtert nach Status": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filters by status"
+          }
+        }
+      }
+    },
+    "offen · erledigt · wiederkehrend · gelöscht": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "pending · completed · recurring · deleted"
+          }
+        }
+      }
+    },
+    "Gespeicherte Suchen: Aktive Suchen mit ⇧⌘D sichern. Erscheinen in der Sidebar zwischen System-Filtern und Projekten. Rechtsklick: Umbenennen oder Löschen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved searches: save an active search with ⇧⌘D. They appear in the sidebar between system filters and projects. Right-click to rename or delete."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

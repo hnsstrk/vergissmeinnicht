@@ -188,9 +188,11 @@ struct RootView: View {
 
     // MARK: - Toolbar
 
+    /// Mail-Stil: Sort / Plus / Erledigt / Löschen / Sync zentral (principal),
+    /// Bookmark rechts (primaryAction) — nur bei aktiver Suche sichtbar.
     @ToolbarContentBuilder
     private func detailToolbar(vm: TaskListViewModel) -> some ToolbarContent {
-        ToolbarItem {
+        ToolbarItemGroup(placement: .principal) {
             Menu {
                 Picker(selection: Binding(get: { vm.sortOrder }, set: { vm.sortOrder = $0; defaultSortRaw = $0.rawValue })) {
                     ForEach(SortOrder.allCases) { order in
@@ -207,9 +209,34 @@ struct RootView: View {
             }
             .menuIndicator(.hidden)
             .help("Sortierung")
+
+            Button {
+                showQuickCapture = true
+            } label: {
+                Label("Neue Aufgabe", systemImage: "plus")
+            }
+            .help("Neue Aufgabe (Cmd+N)")
+
+            Button {
+                handleMarkDoneSelection()
+            } label: {
+                Label("Erledigt", systemImage: "checkmark.circle")
+            }
+            .disabled(vm.selectedUuids.isEmpty)
+            .help("Ausgewählte Aufgabe(n) als erledigt markieren (Cmd+D)")
+
+            Button {
+                requestDelete(uuids: vm.selectedUuids)
+            } label: {
+                Label("Löschen", systemImage: "trash")
+            }
+            .disabled(vm.selectedUuids.isEmpty)
+            .help("Ausgewählte Aufgabe(n) löschen (Cmd+⌫)")
+
+            SyncStatusView()
         }
         if !vm.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            ToolbarItem {
+            ToolbarItem(placement: .primaryAction) {
                 Button {
                     showSaveSearchPopover = true
                 } label: {
@@ -225,35 +252,6 @@ struct RootView: View {
                     )
                 }
             }
-        }
-        ToolbarItem {
-            Button {
-                showQuickCapture = true
-            } label: {
-                Label("Neue Aufgabe", systemImage: "plus")
-            }
-            .help("Neue Aufgabe (Cmd+N)")
-        }
-        ToolbarItem {
-            Button {
-                handleMarkDoneSelection()
-            } label: {
-                Label("Erledigt", systemImage: "checkmark.circle")
-            }
-            .disabled(vm.selectedUuids.isEmpty)
-            .help("Ausgewählte Aufgabe(n) als erledigt markieren (Cmd+D)")
-        }
-        ToolbarItem {
-            Button {
-                requestDelete(uuids: vm.selectedUuids)
-            } label: {
-                Label("Löschen", systemImage: "trash")
-            }
-            .disabled(vm.selectedUuids.isEmpty)
-            .help("Ausgewählte Aufgabe(n) löschen (Cmd+⌫)")
-        }
-        ToolbarItem {
-            SyncStatusView()
         }
     }
 

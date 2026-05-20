@@ -61,27 +61,7 @@ struct ShortcutHelpView: View {
                 Entry(label: "Synchronisieren",        keys: "⇧⌘S"),
                 Entry(label: "Erledigte ausblenden",   keys: "⇧⌘H"),
             ]),
-            Section(
-                title: "Suche",
-                note: "Bei aktiver Suche wird der Sidebar-Filter ignoriert. Durchsucht werden Titel, Projekt, Tags und Annotationen.",
-                entries: [
-                    Entry(label: "Freier Text",            keys: String(localized: "kaffee")),
-                    Entry(label: "Mehrere Wörter (AND)",   keys: String(localized: "kaffee buch")),
-                    Entry(label: "Wert mit Leerzeichen",   keys: String(localized: "\"projekt name\"")),
-                    Entry(label: "Projekt",                keys: String(localized: "projekt:arbeit")),
-                    Entry(label: "Tag",                    keys: String(localized: "tag:dringend")),
-                    Entry(label: "Status",                 keys: String(localized: "status:erledigt")),
-                    Entry(label: "Kombiniert",             keys: String(localized: "projekt:arbeit status:offen meeting")),
-                ]
-            ),
-            Section(
-                title: "Gespeicherte Suchen",
-                note: "Aktive Suchen lassen sich mit ⇧⌘D unter einem Namen sichern. Gespeicherte Suchen erscheinen in der Sidebar zwischen System-Filtern und Projekten. Rechtsklick: Umbenennen oder Löschen.",
-                entries: [
-                    Entry(label: "Suche sichern",       keys: "⇧⌘D"),
-                    Entry(label: "Umbenennen / Löschen", keys: "Rechtsklick"),
-                ]
-            ),
+            // Suchfunktion: wird als searchFunctionSectionView nach Index 1 injiziert.
             Section(title: "Detail-Editor", entries: [
                 Entry(label: "Speichern",              keys: "⌘S"),
             ]),
@@ -102,6 +82,83 @@ struct ShortcutHelpView: View {
         ]
     }
 
+    /// Dedizierte Suchfunktions-Sektion mit Prosa-Block und Operatoren-Tabelle (Grid).
+    /// Wird nach der „Ansicht"-Sektion (Index 1) in den ScrollView injiziert.
+    @ViewBuilder
+    private var searchFunctionSectionView: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Suchfunktion")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+            // Prosa: Was die Suche tut + Quotes-Hinweis
+            Text("Bei aktiver Suche wird der Sidebar-Filter ignoriert. Die Suche umfasst Titel, Projekt, Tags und Annotationen über den gesamten Bestand (offene, erledigte, wiederkehrende Aufgaben). Mehrere Wörter sind UND-verknüpft. Werte mit Leerzeichen in Anführungszeichen setzen: projekt:\"Mein Projekt\".")
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 4)
+            // Operatoren-Tabelle
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
+                GridRow {
+                    Text("Operator")
+                        .font(.caption.bold())
+                        .foregroundStyle(.tertiary)
+                    Text("Funktion")
+                        .font(.caption.bold())
+                        .foregroundStyle(.tertiary)
+                    Text("Beispiel")
+                        .font(.caption.bold())
+                        .foregroundStyle(.tertiary)
+                }
+                GridRow {
+                    Text(verbatim: "projekt:  project:")
+                        .font(.system(.callout, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    Text("Passt auf Projektname")
+                    Text(String(localized: "projekt:arbeit"))
+                        .font(.system(.callout, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                }
+                GridRow {
+                    Text(verbatim: "tag:")
+                        .font(.system(.callout, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    Text("Passt auf Tag")
+                    Text(String(localized: "tag:dringend"))
+                        .font(.system(.callout, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                }
+                GridRow {
+                    Text(verbatim: "status:")
+                        .font(.system(.callout, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Filtert nach Status")
+                        Text(String(localized: "offen · erledigt · wiederkehrend · gelöscht"))
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    Text(String(localized: "status:erledigt"))
+                        .font(.system(.callout, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                }
+            }
+            // Gespeicherte-Suchen-Hinweis
+            Text("Gespeicherte Suchen: Aktive Suchen mit ⇧⌘D sichern. Erscheinen in der Sidebar zwischen System-Filtern und Projekten. Rechtsklick: Umbenennen oder Löschen.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 4)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -120,7 +177,7 @@ struct ShortcutHelpView: View {
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
+                    ForEach(Array(sections.enumerated()), id: \.offset) { i, section in
                         VStack(alignment: .leading, spacing: 6) {
                             Text(section.title)
                                 .font(.headline)
@@ -145,6 +202,10 @@ struct ShortcutHelpView: View {
                                 }
                             }
                         }
+                        // Suchfunktion-Sektion direkt nach „Ansicht" (Index 1) einfügen.
+                        if i == 1 {
+                            searchFunctionSectionView
+                        }
                     }
                 }
                 .padding(.vertical, 4)
@@ -156,6 +217,6 @@ struct ShortcutHelpView: View {
             }
         }
         .padding(20)
-        .frame(width: 440, height: 540)
+        .frame(width: 440, height: 620)
     }
 }
