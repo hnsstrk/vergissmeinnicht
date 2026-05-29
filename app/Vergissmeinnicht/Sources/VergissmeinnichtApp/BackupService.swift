@@ -114,12 +114,26 @@ struct BackupService: Sendable {
         let dest = replicaURL.appendingPathComponent("taskchampion.sqlite3")
         let wal  = replicaURL.appendingPathComponent("taskchampion.sqlite3-wal")
         let shm  = replicaURL.appendingPathComponent("taskchampion.sqlite3-shm")
+
+        // Datenintegrität: zuerst die neue DB neben die alte kopieren. Erst wenn das
+        // gelingt, werden die Live-Dateien (inkl. WAL/SHM) ersetzt. Schlägt das Kopieren
+        // fehl, bleibt der bestehende Stand unangetastet — ein gescheiterter Restore
+        // darf nie die vorhandene Replica vernichten.
+        let staged = replicaURL.appendingPathComponent("taskchampion.sqlite3.restore-tmp")
+        try? fileManager.removeItem(at: staged)
+        try fileManager.copyItem(at: backup, to: staged)
+
         for url in [dest, wal, shm] {
             if fileManager.fileExists(atPath: url.path) {
                 try fileManager.removeItem(at: url)
             }
         }
-        try fileManager.copyItem(at: backup, to: dest)
+        do {
+            try fileManager.moveItem(at: staged, to: dest)
+        } catch {
+            try? fileManager.removeItem(at: staged)
+            throw error
+        }
     }
 
     /// Behält die letzten `maxRetained`, löscht ältere.

@@ -48,17 +48,33 @@ final class AppContainer {
         do {
             _ = try self.store.listTasks(includeCompleted: false)
         } catch {
+            #if DEBUG
             print("⚠️ Vergissmeinnicht: Sanity-Check listTasks() failed: \(error)")
+            #endif
         }
     }
 
+    /// Monoton steigender Token, der überlappende `refresh()`-Läufe ordnet. Nur das
+    /// zuletzt gestartete `refresh()` darf `tasks` publizieren — sonst könnte ein
+    /// langsamerer, früher gestarteter Lauf einen neueren Stand überschreiben
+    /// (last-completer-wins statt last-issued-wins).
+    private var refreshGeneration = 0
+    /// Gleicher Schutz wie `refreshGeneration`, aber für den `localChanges`-Counter:
+    /// `refreshLocalChanges()` läuft ebenfalls über einen detached Read und kann
+    /// überlappen — nur der zuletzt gestartete Lauf darf publizieren.
+    private var localChangesGeneration = 0
+
     /// Lädt die volle Task-Liste (Pending + Completed) aus dem Store.
     func refresh() async {
+        refreshGeneration += 1
+        let token = refreshGeneration
         let store = self.store
         do {
             let all = try await Task.detached(priority: .userInitiated) {
                 try store.listTasks(includeCompleted: true)
             }.value
+            // Nur publizieren, wenn inzwischen kein neuerer Refresh gestartet wurde.
+            guard token == refreshGeneration else { return }
             self.tasks = all
             self.lastError = nil
         } catch {
@@ -253,16 +269,26 @@ final class AppContainer {
         }
     }
 
-    /// Benennt ein Projekt global um — alle Pending-Tasks mit `project == oldName`
-    /// bekommen `newName`. Leerer newName entspricht "löschen".
+    /// Benennt ein Projekt global um — alle geladenen Tasks (Pending + Completed) mit
+    /// `project == oldName` bekommen `newName`. Leerer newName entspricht "löschen".
     @discardableResult
     func renameProject(from oldName: String, to newName: String) async -> Int {
         let target = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         let candidates = self.tasks.filter { $0.project == oldName }
         var count = 0
-        for task in candidates {
-            let ok = await setProject(uuid: task.uuid, project: target.isEmpty ? nil : target)
-            if ok { count += 1 }
+        // Als Batch: ein einziger Refresh am Ende statt N (Karpathy 2). `setProject`
+        // unterdrückt dank `withBatch` seine per-Op-Refreshes.
+        await withBatch {
+            for task in candidates {
+                let ok = await setProject(uuid: task.uuid, project: target.isEmpty ? nil : target)
+                if ok { count += 1 }
+            }
+        }
+        // Teilfehler sichtbar machen: schlugen einzelne Tasks fehl, hinterließe das einen
+        // halb-umbenannten Stand. NACH `withBatch` setzen, sonst räumt dessen
+        // abschließender Refresh `lastError` wieder ab.
+        if count < candidates.count {
+            self.lastError = String(localized: "Projekt nur teilweise umbenannt (\(count) von \(candidates.count)).")
         }
         return count
     }
@@ -273,19 +299,29 @@ final class AppContainer {
         return await renameProject(from: name, to: "")
     }
 
-    /// Benennt einen Tag global um — alle Pending-Tasks mit `oldName` bekommen `newName`
-    /// hinzugefügt und verlieren `oldName`. Leerer newName entspricht "nur entfernen".
+    /// Benennt einen Tag global um — alle geladenen Tasks (Pending + Completed) mit
+    /// `oldName` bekommen `newName` hinzugefügt und verlieren `oldName` (sofern das
+    /// Entfernen gelingt). Leerer newName entspricht "nur entfernen".
     @discardableResult
     func renameTag(from oldName: String, to newName: String) async -> Int {
         let target = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         let candidates = self.tasks.filter { $0.tags.contains(oldName) }
         var count = 0
-        for task in candidates {
-            if !target.isEmpty {
-                _ = await addTag(uuid: task.uuid, tag: target)
+        // Als Batch: ein Refresh am Ende statt zwei pro Task (Karpathy 2).
+        await withBatch {
+            for task in candidates {
+                // Datenintegrität: den alten Tag nur entfernen, wenn der neue zuvor
+                // erfolgreich gesetzt wurde — sonst bliebe der Task ohne beide Tags zurück.
+                if !target.isEmpty {
+                    guard await addTag(uuid: task.uuid, tag: target) else { continue }
+                }
+                let ok = await removeTag(uuid: task.uuid, tag: oldName)
+                if ok { count += 1 }
             }
-            let ok = await removeTag(uuid: task.uuid, tag: oldName)
-            if ok { count += 1 }
+        }
+        // NACH `withBatch` setzen (siehe `renameProject`).
+        if count < candidates.count {
+            self.lastError = String(localized: "Tag nur teilweise umbenannt (\(count) von \(candidates.count)).")
         }
         return count
     }
@@ -325,7 +361,9 @@ final class AppContainer {
                     description: task.description
                 )
             }.value
-            await refresh()
+            if !isBatching {
+                await refresh()
+            }
             return true
         } catch {
             self.lastError = userMessage(for: error)
@@ -353,6 +391,30 @@ final class AppContainer {
         }
     }
 
+    /// Verschachtelungs-Tiefe laufender Batches. Solange `> 0`, überspringen einzelne
+    /// Mutationen ihren per-Op-`refresh()` (und den Immediate-Sync) — der äußerste
+    /// `withBatch`-Aufruf refresht genau einmal am Ende. Ein Zähler statt eines Bool,
+    /// damit überlappende/verschachtelte `withBatch`-Aufrufe die Unterdrückung nicht
+    /// vorzeitig aufheben. Verhindert N Re-Renders und N FFI-`listTasks` bei
+    /// Mehrfach-Selektionen.
+    private var batchDepth = 0
+    private var isBatching: Bool { batchDepth > 0 }
+
+    /// Führt mehrere Mutationen als Batch aus: per-Op-Refresh wird unterdrückt, danach
+    /// folgt ein einziger Refresh (plus Immediate-Sync, falls aktiv). Vom RootView für
+    /// Aktionen über eine Mehrfach-Selektion genutzt. Reentrant: erst wenn der äußerste
+    /// Batch endet (`batchDepth == 0`), wird refresht.
+    func withBatch(_ body: () async -> Void) async {
+        batchDepth += 1
+        await body()
+        batchDepth -= 1
+        guard batchDepth == 0 else { return }
+        await refresh()
+        if currentSyncMode == .immediate {
+            Task { await syncIfConfigured() }
+        }
+    }
+
     /// Führt eine FFI-Mutation off-MainActor aus und refresht anschließend.
     /// Rückgabe: `true` falls Erfolg.
     private func mutate(_ operation: @Sendable @escaping (TaskStore) throws -> Void) async -> Bool {
@@ -365,6 +427,7 @@ final class AppContainer {
             self.lastError = userMessage(for: error)
             return false
         }
+        guard !isBatching else { return true }
         await refresh()
         if currentSyncMode == .immediate {
             Task { await syncIfConfigured() }
@@ -387,6 +450,7 @@ final class AppContainer {
             self.lastError = userMessage(for: error)
             return nil
         }
+        guard !isBatching else { return result }
         await refresh()
         if currentSyncMode == .immediate {
             Task { await syncIfConfigured() }
@@ -433,14 +497,10 @@ final class AppContainer {
 
         let store = self.store
         do {
-            let beforeCount = self.tasks.count
             try await Task.detached(priority: .userInitiated) {
                 try store.sync(serverUrl: serverUrl, clientId: clientId, encryptionSecret: encryptionSecret)
             }.value
             await refresh()
-            let afterCount = self.tasks.count
-            let delta = afterCount - beforeCount
-            print("📡 Sync OK — Tasks vorher: \(beforeCount), nachher: \(afterCount), Δ: \(delta)")
             lastSyncDate = Date()
             lastError = nil
         } catch {
@@ -466,6 +526,8 @@ final class AppContainer {
     /// Liest die Anzahl der noch nicht synchronisierten lokalen Operationen vom Store.
     /// Non-blocking: Fehler werden stumm als 0 behandelt.
     func refreshLocalChanges() async {
+        localChangesGeneration += 1
+        let token = localChangesGeneration
         let store = self.store
         let count: UInt64
         do {
@@ -475,6 +537,8 @@ final class AppContainer {
         } catch {
             count = 0
         }
+        // Nur publizieren, wenn kein neuerer Lauf zwischenzeitlich gestartet wurde.
+        guard token == localChangesGeneration else { return }
         self.localChanges = count
     }
 
@@ -499,7 +563,7 @@ final class AppContainer {
                 guard !Task.isCancelled else { break }
                 await self?.syncIfConfigured()
                 scheduledNext = Date().addingTimeInterval(interval)
-                await MainActor.run { self?.nextSyncDate = scheduledNext }
+                self?.nextSyncDate = scheduledNext
             }
         }
     }

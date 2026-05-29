@@ -195,10 +195,15 @@ impl TaskStore {
     /// Runtime (Feature `rt`, kein `rt-multi-thread`) ist dafür Voraussetzung. Das
     /// bewusste Halten des Guards über `block_on` ist intentional — kein anderer Thread
     /// kann die Replica konkurrierend verwenden.
+    ///
+    /// Bei einem poisoned Mutex (eine `block_on`-Operation paniced, während der Guard
+    /// gehalten wurde) wird der innere Guard via `into_inner()` geborgen, statt jeden
+    /// weiteren FFI-Call bis zum App-Neustart abzuweisen. Zulässig, weil der Zugriff
+    /// streng über diesen einen Mutex auf einer Single-Thread-Runtime serialisiert ist:
+    /// es gibt keinen konkurrierenden Leser, der inkonsistenten In-Memory-State sieht,
+    /// und die SQLite-Daten auf Platte sind transaktional/durabel.
     fn lock_replica(&self) -> Result<MutexGuard<'_, AppReplica>, VmError> {
-        self.replica
-            .lock()
-            .map_err(|e| VmError::Internal { msg: format!("mutex poisoned: {e}") })
+        Ok(self.replica.lock().unwrap_or_else(|e| e.into_inner()))
     }
 }
 

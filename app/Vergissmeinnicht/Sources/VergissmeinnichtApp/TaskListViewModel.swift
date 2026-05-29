@@ -48,7 +48,10 @@ enum SidebarFilter: Hashable {
             let cal = Calendar.current
             if let due = task.due {
                 let dueDate = Date(timeIntervalSince1970: TimeInterval(due))
-                if dueDate <= cal.startOfDay(for: now).addingTimeInterval(24 * 60 * 60) {
+                // Strikt vor Mitternacht des Folgetags: heute fällige (Ende des Tages =
+                // 23:59:59) und überfällige Tasks zählen, ein exakt auf 00:00 morgen
+                // fallender `due` gehört dagegen zu „morgen", nicht „heute".
+                if dueDate < cal.startOfDay(for: now).addingTimeInterval(24 * 60 * 60) {
                     return true
                 }
             }

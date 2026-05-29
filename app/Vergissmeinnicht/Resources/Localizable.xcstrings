@@ -1161,12 +1161,32 @@
         }
       }
     },
+    "Projekt nur teilweise umbenannt (%lld von %lld).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project only partially renamed (%lld of %lld)."
+          }
+        }
+      }
+    },
     "Tag umbenennen": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Rename tag"
+          }
+        }
+      }
+    },
+    "Tag nur teilweise umbenannt (%lld von %lld).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag only partially renamed (%lld of %lld)."
           }
         }
       }

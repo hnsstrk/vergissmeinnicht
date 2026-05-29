@@ -310,7 +310,11 @@ struct DetailView: View {
         let newDesc = description.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !newDesc.isEmpty else { return }
         let newDue: Int64? = hasDue ? Int64(dueDate.timeIntervalSince1970) : nil
-        _ = await container.updateMetadata(
+        // Alle Teil-Writes verfolgen: `loadedFromUuid` darf nur dann zurückgesetzt
+        // werden, wenn jede Mutation erfolgreich war. Sonst würde der nächste Render
+        // die noch nicht persistierten Editor-Felder still aus der Quelle überschreiben
+        // und der Nutzer verlöre seine Eingabe ohne sichtbaren Hinweis.
+        var allSucceeded = await container.updateMetadata(
             uuid: task.uuid,
             description: newDesc,
             project: projectValue,
@@ -320,17 +324,21 @@ struct DetailView: View {
         // Priority + Recur laufen separat (nicht Teil der Atomar-Methode).
         let newPriority: String? = priority.isEmpty ? nil : priority
         if newPriority != task.priority {
-            _ = await container.setPriority(uuid: task.uuid, priority: newPriority)
+            allSucceeded = await container.setPriority(uuid: task.uuid, priority: newPriority) && allSucceeded
         }
         let newRecur: String? = recur.isEmpty ? nil : recur
         if newRecur != task.recur {
-            _ = await container.setRecur(uuid: task.uuid, recur: newRecur)
+            allSucceeded = await container.setRecur(uuid: task.uuid, recur: newRecur) && allSucceeded
         }
         let newScheduled: Int64? = hasScheduled ? Int64(scheduledDate.timeIntervalSince1970) : nil
         if newScheduled != task.scheduled {
-            _ = await container.setScheduled(uuid: task.uuid, scheduled: newScheduled)
+            allSucceeded = await container.setScheduled(uuid: task.uuid, scheduled: newScheduled) && allSucceeded
         }
-        loadedFromUuid = nil // beim nächsten Render frisch aus der Quelle laden
+        // Nur bei vollständigem Erfolg neu aus der Quelle laden; bei Teilfehler bleiben
+        // die Editor-Felder erhalten, der Fehler erscheint im Banner (RootView).
+        if allSucceeded {
+            loadedFromUuid = nil
+        }
     }
 
     private var projectValue: String? {

@@ -311,8 +311,10 @@ struct RootView: View {
     private func handleMarkDoneSelection() {
         let uuids = viewModel.selectedUuids
         Task {
-            for uuid in uuids {
-                _ = await container.markDoneWithRecurrence(uuid: uuid)
+            await container.withBatch {
+                for uuid in uuids {
+                    _ = await container.markDoneWithRecurrence(uuid: uuid)
+                }
             }
         }
     }
@@ -326,8 +328,10 @@ struct RootView: View {
         let uuids = pendingDelete
         pendingDelete.removeAll()
         Task {
-            for uuid in uuids {
-                _ = await container.deleteTask(uuid: uuid)
+            await container.withBatch {
+                for uuid in uuids {
+                    _ = await container.deleteTask(uuid: uuid)
+                }
             }
         }
     }
@@ -338,32 +342,40 @@ struct RootView: View {
 
     private func handleAssignProject(_ uuids: Set<String>, _ project: String?) {
         Task {
-            for uuid in uuids {
-                _ = await container.setProject(uuid: uuid, project: project)
+            await container.withBatch {
+                for uuid in uuids {
+                    _ = await container.setProject(uuid: uuid, project: project)
+                }
             }
         }
     }
 
     private func handleAddTag(_ uuids: Set<String>, _ tag: String) {
         Task {
-            for uuid in uuids {
-                _ = await container.addTag(uuid: uuid, tag: tag)
+            await container.withBatch {
+                for uuid in uuids {
+                    _ = await container.addTag(uuid: uuid, tag: tag)
+                }
             }
         }
     }
 
     private func handleSetPriority(_ uuids: Set<String>, _ priority: String?) {
         Task {
-            for uuid in uuids {
-                _ = await container.setPriority(uuid: uuid, priority: priority)
+            await container.withBatch {
+                for uuid in uuids {
+                    _ = await container.setPriority(uuid: uuid, priority: priority)
+                }
             }
         }
     }
 
     private func handleSetDue(_ uuids: Set<String>, _ due: Int64?) {
         Task {
-            for uuid in uuids {
-                _ = await container.setDue(uuid: uuid, due: due)
+            await container.withBatch {
+                for uuid in uuids {
+                    _ = await container.setDue(uuid: uuid, due: due)
+                }
             }
         }
     }
