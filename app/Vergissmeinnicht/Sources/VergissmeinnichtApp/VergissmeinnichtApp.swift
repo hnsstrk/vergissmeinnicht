@@ -47,7 +47,7 @@ struct VergissmeinnichtApp: App {
                         SearchHelpView()
                     }
             } else {
-                InitErrorView(message: initError ?? "Unbekannter Fehler") {
+                InitErrorView(message: initError ?? String(localized: "Unbekannter Fehler")) {
                     do {
                         container = try AppContainer()
                         initError = nil

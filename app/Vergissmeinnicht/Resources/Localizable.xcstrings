@@ -2660,6 +2660,36 @@
           }
         }
       }
+    },
+    "Replica-Datei nicht gefunden: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replica file not found: %@"
+          }
+        }
+      }
+    },
+    "SQLite VACUUM INTO fehlgeschlagen (Code %lld): %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SQLite VACUUM INTO failed (code %lld): %@"
+          }
+        }
+      }
+    },
+    "Unbekannter Fehler": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown error"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

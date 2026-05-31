@@ -38,7 +38,7 @@ struct QuickCaptureSheet: View {
         title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static let priorityOptions: [(String, String)] = [
+    private static let priorityOptions: [(String, LocalizedStringKey)] = [
         ("",  "—"),
         ("H", "Hoch"),
         ("M", "Mittel"),

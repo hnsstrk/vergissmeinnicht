@@ -161,9 +161,9 @@ enum BackupError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .sourceMissing(let path):
-            return "Replica-Datei nicht gefunden: \(path)"
+            return String(localized: "Replica-Datei nicht gefunden: \(path)")
         case .sqliteFailed(let code, let msg):
-            return "SQLite VACUUM INTO fehlgeschlagen (Code \(code)): \(msg)"
+            return String(localized: "SQLite VACUUM INTO fehlgeschlagen (Code \(code)): \(msg)")
         }
     }
 }
