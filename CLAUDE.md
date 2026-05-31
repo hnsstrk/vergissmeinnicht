@@ -43,6 +43,14 @@ bash scripts/install-local.sh
 - **App source strings: German keys.** New user-facing strings use `String(localized:)` / `LocalizedStringKey` with the German text as the key; English is the catalog translation. See the Localization section — this is intentionally separate from the repo-documentation language.
 - **User communication, vault notes, and journal entries: German** (per the global `~/.claude/CLAUDE.md`). Unchanged.
 
+### Issue Tracking & Backlog
+
+The **GitHub Issues** of this repo (`hnsstrk/vergissmeinnicht`) are the single source of truth for the backlog. Every bug, feature request, task, or audit finding is filed as a GitHub issue — **in English** — with a label (`bug` / `enhancement` / `documentation`). Create them with `gh issue create`.
+
+- Do **not** keep a parallel backlog in the vault or in markdown files. The vault holds architecture/wave documentation only.
+- Audit findings (e.g. multi-agent reviews) are filed as individual issues — one per finding — after verification against current code; skip items the code already satisfies.
+- Close issues when the work lands and reference the issue number in the commit/PR.
+
 ### xcodeproj — new Swift files
 New `.swift` files in the app target **must** be registered four times in `app/Vergissmeinnicht/Vergissmeinnicht.xcodeproj/project.pbxproj`: `PBXBuildFile`, `PBXFileReference`, `PBXGroup`, `PBXSourcesBuildPhase`. Same for `Assets.xcassets` & `Localizable.xcstrings` — see the v0.1.1 icon hotfix in the journal as a cautionary tale.
 
@@ -94,7 +102,8 @@ $VAULT_PATH/Projekte/vergissmeinnicht/
 ```
 
 - **[[Vergissmeinnicht Projektuebersicht]]** — architecture state, wave history, status. Update on architecture changes, new waves, completed roadmap items.
-- **[[Vergissmeinnicht Backlog 2026-05-14]]** — tier-1 to tier-4 backlog with findings from the audits. Record completed items in the "Erledigt seit Backlog-Anlage" section, do not remove them from the tier tables (audit trail).
+
+(The backlog is tracked in GitHub Issues, not in the vault — see *Issue Tracking & Backlog* above.)
 
 ### 2. Daily journal log
 
@@ -102,7 +111,7 @@ Append an entry under `## Claude Code Protokoll` in today's daily — format and
 - Changed files with concrete paths
 - FFI changes named explicitly (taskchampion method + Swift call name)
 - Build status (cargo / swift test / xcodebuild)
-- Wiki link to `[[Vergissmeinnicht Projektuebersicht]]` and/or `[[Vergissmeinnicht Backlog 2026-05-14]]`
+- Wiki link to `[[Vergissmeinnicht Projektuebersicht]]`; reference any GitHub issues touched by number (e.g. `#12`)
 
 ## Subagent Recipe
 
