@@ -1211,7 +1211,8 @@ public struct TaskInfo {
     public var entry: Int64?
     /**
      * Working-Set-ID (Taskwarrior-typische numerische ID, 1-N). Nur für Pending-Tasks
-     * definiert; für Completed/Deleted ist `None`.
+     * definiert; für Completed/Deleted ist `None`. Kein stabiler Identifier (das ist
+     * die UUID); Rationale zu u32 und Lifecycle: siehe docs/architecture.md.
      */
     public var workingSetId: UInt32?
     /**
@@ -1278,7 +1279,8 @@ public struct TaskInfo {
          */entry: Int64?, 
         /**
          * Working-Set-ID (Taskwarrior-typische numerische ID, 1-N). Nur für Pending-Tasks
-         * definiert; für Completed/Deleted ist `None`.
+         * definiert; für Completed/Deleted ist `None`. Kein stabiler Identifier (das ist
+         * die UUID); Rationale zu u32 und Lifecycle: siehe docs/architecture.md.
          */workingSetId: UInt32?, 
         /**
          * Priority-Property als Rohwert (typisch `H` / `M` / `L`); nicht validiert.
