@@ -106,7 +106,10 @@ enum SidebarFilter: Hashable {
             // abgeleitet aus dem Pending-Status und `!isBlocked`.
             return task.status == .pending && !task.isBlocked
         case .project(let name):
-            return task.project == name
+            // Taskwarrior-Präfix-Semantik: `project:Work` matcht `Work` UND alle
+            // `Work.*`-Subprojekte. Die `+ "."`-Grenze ist erforderlich, damit
+            // `Work` NICHT `Workshop` matcht (#10).
+            return Self.projectMatches(task.project, selected: name)
         case .tag(let name):
             return task.tags.contains(name)
         case .savedSearch:
@@ -114,6 +117,16 @@ enum SidebarFilter: Hashable {
             // ohne aktive Query an, zeigen wir bewusst alles statt nichts.
             return true
         }
+    }
+
+    /// Taskwarrior-Präfix-Match für Projekte: einziger Wahrheitspunkt für
+    /// Sidebar-Badge UND Hauptliste (#10). Ein Task gehört zum ausgewählten
+    /// Projekt `selected`, wenn er exakt darauf liegt oder auf einem Subprojekt
+    /// `selected.…`. Die `+ "."`-Grenze verhindert, dass `Work` auch `Workshop`
+    /// matcht.
+    static func projectMatches(_ taskProject: String?, selected: String) -> Bool {
+        guard let p = taskProject else { return false }
+        return p == selected || p.hasPrefix(selected + ".")
     }
 
     static func isWaiting(_ task: TaskInfo, now: Date) -> Bool {

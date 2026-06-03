@@ -109,6 +109,40 @@ final class TaskListViewModelTests: XCTestCase {
         XCTAssertFalse(matches(.tag("work"), task(tags: ["home"])))
     }
 
+    // MARK: - Projekt-Präfix-Filter (#10, Taskwarrior dotted hierarchy)
+
+    func testProjectExactLeafMatch() {
+        // Exaktes Blatt: `Work.ClientA` matcht genau dieses Projekt.
+        XCTAssertTrue(matches(.project("Work.ClientA"), task(project: "Work.ClientA")))
+        XCTAssertFalse(matches(.project("Work.ClientA"), task(project: "Work.ClientB")))
+    }
+
+    func testProjectParentIncludesSubprojects() {
+        // Auswahl `Work` matcht `Work` selbst UND alle `Work.*`-Subprojekte.
+        XCTAssertTrue(matches(.project("Work"), task(project: "Work")))
+        XCTAssertTrue(matches(.project("Work"), task(project: "Work.ClientA")))
+        XCTAssertTrue(matches(.project("Work"), task(project: "Work.ClientA.Phase1")))
+        XCTAssertFalse(matches(.project("Work"), task(project: "Personal")))
+    }
+
+    func testProjectPrefixBoundaryDoesNotMatchSibling() {
+        // Die `+ "."`-Grenze ist erforderlich: `Work` darf NICHT `Workshop` matchen.
+        XCTAssertFalse(matches(.project("Work"), task(project: "Workshop")))
+        XCTAssertFalse(matches(.project("Work"), task(project: "Workshop.Tools")))
+    }
+
+    func testProjectNilNeverMatches() {
+        XCTAssertFalse(matches(.project("Work"), task(project: nil)))
+    }
+
+    func testProjectMatchesPredicateDirect() {
+        // Geteilter Wahrheitspunkt für Sidebar-Badge UND Hauptliste.
+        XCTAssertTrue(SidebarFilter.projectMatches("Work.ClientA", selected: "Work"))
+        XCTAssertTrue(SidebarFilter.projectMatches("Work", selected: "Work"))
+        XCTAssertFalse(SidebarFilter.projectMatches("Workshop", selected: "Work"))
+        XCTAssertFalse(SidebarFilter.projectMatches(nil, selected: "Work"))
+    }
+
     // MARK: - .today inkl. scheduled-Branch (#1)
 
     func testTodayMatchesOverdueAndDueToday() {

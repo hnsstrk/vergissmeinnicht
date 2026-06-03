@@ -121,6 +121,16 @@
         }
       }
     },
+    "Aus: Symbole erscheinen einfarbig wie Projekt- und Tag-Einträge. Bei deaktivierter Hierarchie erscheinen Projekte als flache Liste mit vollständigen Punkt-Namen (z. B. \"Arbeit.KundeA\").": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off: icons appear monochrome like project and tag entries. With the hierarchy disabled, projects appear as a flat list with full dotted names (e.g. \"Arbeit.KundeA\")."
+          }
+        }
+      }
+    },
     "Ausgewählte Aufgabe(n) als erledigt markieren (Cmd+D)": {
       "localizations": {
         "en": {
@@ -447,6 +457,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nothing ready"
+          }
+        }
+      }
+    },
+    "Projekte hierarchisch anzeigen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show projects as a hierarchy"
           }
         }
       }
@@ -2457,16 +2477,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "✓ Backup: %@"
-          }
-        }
-      }
-    },
-    "Aus: Symbole erscheinen einfarbig wie Projekt- und Tag-Einträge.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Off: icons appear monochrome like project and tag entries."
           }
         }
       }

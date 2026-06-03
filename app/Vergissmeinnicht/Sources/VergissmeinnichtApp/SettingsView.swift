@@ -16,6 +16,7 @@ struct SettingsView: View {
     @AppStorage(AppSettingsKey.notifications)      private var notificationsEnabled: Bool = false
     @AppStorage(AppSettingsKey.autoSyncMode)       private var autoSyncMode: String = AutoSyncMode.manual.rawValue
     @AppStorage(AppSettingsKey.sidebarColoredIcons) private var sidebarColoredIcons: Bool = true
+    @AppStorage(AppSettingsKey.sidebarProjectHierarchy) private var sidebarProjectHierarchy: Bool = true
 
     var body: some View {
         TabView {
@@ -66,10 +67,11 @@ struct SettingsView: View {
 
             Section {
                 Toggle("Farbige Symbole in der Seitenleiste", isOn: $sidebarColoredIcons)
+                Toggle("Projekte hierarchisch anzeigen", isOn: $sidebarProjectHierarchy)
             } header: {
                 Text("Darstellung").font(.headline)
             } footer: {
-                Text("Aus: Symbole erscheinen einfarbig wie Projekt- und Tag-Einträge.")
+                Text("Aus: Symbole erscheinen einfarbig wie Projekt- und Tag-Einträge. Bei deaktivierter Hierarchie erscheinen Projekte als flache Liste mit vollständigen Punkt-Namen (z. B. \"Arbeit.KundeA\").")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

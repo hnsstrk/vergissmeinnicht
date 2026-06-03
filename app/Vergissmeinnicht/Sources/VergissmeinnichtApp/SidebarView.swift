@@ -31,6 +31,8 @@ struct SidebarView: View {
     @AppStorage(AppSettingsKey.tagsExpanded)        private var tagsExpanded:     Bool = true
     @AppStorage(AppSettingsKey.sidebarColoredIcons) private var coloredIcons:    Bool = true
     @AppStorage(AppSettingsKey.savedSearches)       private var savedSearchesRaw: String = "[]"
+    @AppStorage(AppSettingsKey.sidebarProjectHierarchy)  private var projectHierarchy: Bool = true
+    @AppStorage(AppSettingsKey.sidebarCollapsedProjects) private var collapsedProjectsRaw: String = "[]"
 
     @State private var renamingSavedSearch: SavedSearch? = nil
 
@@ -43,6 +45,36 @@ struct SidebarView: View {
 
     private var sortedSavedSearches: [SavedSearch] {
         savedSearches.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    // Eingeklappte Projekt-Pfade als JSON-String in @AppStorage — gleiches Muster wie
+    // savedSearches (referenzsemantischer Setter über @AppStorage). Ein Pfad ist
+    // standardmäßig AUSGEKLAPPT (Abwesenheit = offen), nur explizit eingeklappte
+    // Pfade landen im Set. Über einen String statt mehrerer Bools, weil die Projekt-
+    // Pfade dynamisch sind (Karpathy 2).
+    private var collapsedProjects: Set<String> {
+        get {
+            guard let data = collapsedProjectsRaw.data(using: .utf8),
+                  let arr = try? JSONDecoder().decode([String].self, from: data)
+            else { return [] }
+            return Set(arr)
+        }
+        nonmutating set {
+            collapsedProjectsRaw = (try? String(
+                data: JSONEncoder().encode(Array(newValue).sorted()), encoding: .utf8
+            )) ?? "[]"
+        }
+    }
+
+    private func collapsedBinding(_ path: String) -> Binding<Bool> {
+        Binding(
+            get: { collapsedProjects.contains(path) },
+            set: { isCollapsed in
+                var set = collapsedProjects
+                if isCollapsed { set.insert(path) } else { set.remove(path) }
+                collapsedProjects = set
+            }
+        )
     }
 
     var body: some View {
@@ -74,8 +106,14 @@ struct SidebarView: View {
 
             if !projects.isEmpty {
                 Section(isExpanded: $projectsExpanded) {
-                    ForEach(projects, id: \.self) { project in
-                        projectRow(project)
+                    if projectHierarchy {
+                        ForEach(visibleProjectRows, id: \.path) { row in
+                            projectTreeRow(row)
+                        }
+                    } else {
+                        ForEach(projects, id: \.self) { project in
+                            projectRow(project)
+                        }
                     }
                 } header: {
                     Text("Projekte")
@@ -159,7 +197,7 @@ struct SidebarView: View {
     @ViewBuilder
     private func projectRow(_ project: String) -> some View {
         DropTargetRow(
-            badge: tasks.filter { $0.status == .pending && $0.project == project }.count,
+            badge: projectBadge(project),
             filter: .project(project),
             onDrop: { uuids in
                 for uuid in expandedDropUUIDs(uuids) { onDropProject(uuid, project) }
@@ -173,6 +211,17 @@ struct SidebarView: View {
                 onClearProject(project)
             }
         }
+    }
+
+    /// Badge-Count für eine Projekt-Zeile. Single Source of Truth mit der Hauptliste:
+    /// Präfix-Match über `SidebarFilter.projectMatches`, sodass eine Eltern-Zeile
+    /// Aufgaben des Projekts UND seiner Subprojekte zählt (#10). Bleibt wie bisher
+    /// auf `pending` begrenzt — `matches()` gatet `.project` bewusst NICHT auf Status,
+    /// aber die Badge zeigt seit jeher nur offene Aufgaben (wie die Tag-Badge).
+    private func projectBadge(_ path: String) -> Int {
+        tasks.filter {
+            $0.status == .pending && SidebarFilter.projectMatches($0.project, selected: path)
+        }.count
     }
 
     @ViewBuilder
@@ -216,6 +265,102 @@ struct SidebarView: View {
                     }
                 }
             }
+    }
+
+    // MARK: - Projekt-Hierarchie (#10)
+
+    /// Eine Zeile im gerenderten Projekt-Baum. `path` ist der volle Punkt-Pfad
+    /// (z. B. `Arbeit.KundeA`) und dient als Filter-Wert UND Collapse-Key; `segment`
+    /// ist nur das letzte Pfad-Element (Anzeige); `depth` steuert die Einrückung;
+    /// `hasChildren` zeigt das Chevron. Der Baum ist ein reines Rendering der flachen,
+    /// dotted Projekt-Namen — kein neues Datenmodell (Taskwarrior-treu).
+    private struct ProjectTreeRow {
+        let path: String
+        let segment: String
+        let depth: Int
+        let hasChildren: Bool
+    }
+
+    /// Baut die flache, vorsortierte Liste sichtbarer Baum-Zeilen (Pre-Order).
+    /// Synthetische Eltern (Pfade ohne eigenes `project:`-Task, aber mit Subprojekten)
+    /// werden eingefügt und sind selektierbar — ihre Auswahl matcht per Präfix alle
+    /// Nachfahren. Eingeklappte Knoten verbergen ihre Nachfahren in der Anzeige.
+    private var visibleProjectRows: [ProjectTreeRow] {
+        // 1. Alle Pfade sammeln: echte Projekte + alle Zwischen-Eltern.
+        var allPaths = Set<String>()
+        var childrenOf = [String: Set<String>]()   // Pfad → direkte Kind-Pfade
+        for project in projects {
+            let segments = project.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+            var prefix = ""
+            for (i, seg) in segments.enumerated() {
+                prefix = i == 0 ? seg : prefix + "." + seg
+                allPaths.insert(prefix)
+                if i > 0 {
+                    let parent = segments[0..<i].joined(separator: ".")
+                    childrenOf[parent, default: []].insert(prefix)
+                }
+            }
+        }
+
+        // 2. Wurzeln = Pfade ohne "." (Top-Level), alphabetisch.
+        let roots = allPaths
+            .filter { !$0.contains(".") }
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+
+        // 3. Pre-Order-Traversierung; eingeklappte Knoten brechen den Abstieg ab.
+        var result: [ProjectTreeRow] = []
+        let collapsed = collapsedProjects
+        func visit(_ path: String, depth: Int) {
+            let kids = (childrenOf[path] ?? [])
+                .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            let segment = path.split(separator: ".", omittingEmptySubsequences: false).map(String.init).last ?? path
+            result.append(ProjectTreeRow(path: path, segment: segment, depth: depth, hasChildren: !kids.isEmpty))
+            guard !collapsed.contains(path) else { return }
+            for kid in kids { visit(kid, depth: depth + 1) }
+        }
+        for root in roots { visit(root, depth: 0) }
+        return result
+    }
+
+    /// Eine Baum-Zeile: einrückendes Spacer + optionales Chevron (klappt nur ein/aus,
+    /// ohne die Zeilen-Selektion zu stören) + selektierbares Drop-Target mit Ordner-
+    /// Symbol. Eltern-Zeilen sind ebenso selektierbar wie Blätter (Präfix-Filter).
+    @ViewBuilder
+    private func projectTreeRow(_ row: ProjectTreeRow) -> some View {
+        DropTargetRow(
+            badge: projectBadge(row.path),
+            filter: .project(row.path),
+            onDrop: { uuids in
+                for uuid in expandedDropUUIDs(uuids) { onDropProject(uuid, row.path) }
+            }
+        ) {
+            HStack(spacing: 4) {
+                if row.depth > 0 {
+                    Spacer().frame(width: CGFloat(row.depth) * 14)
+                }
+                if row.hasChildren {
+                    let collapsed = collapsedBinding(row.path)
+                    Button {
+                        collapsed.wrappedValue.toggle()
+                    } label: {
+                        Image(systemName: collapsed.wrappedValue ? "chevron.right" : "chevron.down")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 12)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Spacer().frame(width: 12)
+                }
+                Label(row.segment, systemImage: "folder")
+            }
+        }
+        .contextMenu {
+            Button("Umbenennen …") { onRenameProject(row.path) }
+            Button("Aus allen Tasks entfernen", role: .destructive) {
+                onClearProject(row.path)
+            }
+        }
     }
 
     /// Erweitert die per Drag&Drop angelieferten UUIDs um die `dragSelection`, falls
