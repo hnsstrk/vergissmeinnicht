@@ -50,3 +50,21 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         COMBINE_HIDPI_IMAGES: YES
         ENABLE_PREVIEWS: YES
+  # App-Test-Target (#6/#7/#8). Die committete .xcodeproj ist die maßgebliche
+  # Quelle (CI baut direkt aus ihr, xcodegen wird nicht ausgeführt); dieser
+  # Eintrag hält die YAML konsistent, falls jemand regeneriert.
+  VergissmeinnichtTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Tests
+    dependencies:
+      - target: Vergissmeinnicht
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.hnsstrk.vergissmeinnichtTests
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Vergissmeinnicht.app/Contents/MacOS/Vergissmeinnicht"
+        BUNDLE_LOADER: "$(TEST_HOST)"

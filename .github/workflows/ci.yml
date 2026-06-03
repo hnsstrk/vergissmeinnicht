@@ -70,6 +70,17 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      - name: App tests (VergissmeinnichtTests)
+        run: |
+          xcodebuild \
+            -project app/Vergissmeinnicht/Vergissmeinnicht.xcodeproj \
+            -scheme Vergissmeinnicht \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            -derivedDataPath build-test/ \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+
       - name: Zip app bundle
         run: |
           cd build/Build/Products/Debug

@@ -36,8 +36,14 @@ final class AppContainer {
     /// Task-Referenz für den laufenden Auto-Sync-Timer. Wird bei Neukonfiguration gecancelt.
     private var autoSyncTask: Task<Void, Never>?
 
-    init() throws {
-        let url = try Self.replicaURL()
+    /// - Parameter replicaURL: nur für Tests — überschreibt den sandboxed
+    ///   Container-Pfad durch ein temporäres Verzeichnis, damit Integrationstests
+    ///   gegen eine isolierte Replica laufen (#8). Produktiv bleibt der Default,
+    ///   alle bestehenden `AppContainer()`-Aufrufe sind unverändert. Bewusst
+    ///   `internal` (nicht `public`): `@testable import` erreicht es, kein
+    ///   Verbreitern der API (Karpathy 3).
+    init(replicaURL: URL? = nil) throws {
+        let url = try replicaURL ?? Self.replicaURL()
         self.store = try TaskStore(dbPath: url.path)
         self.backupService = try BackupService(replicaURL: url, backupsURL: nil)
 

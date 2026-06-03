@@ -38,6 +38,10 @@
 		789AB1239A4B5CDEEF123456 /* BackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89AB1239A4B5CDEEF1234567 /* BackupService.swift */; };
 		9AB1239A4B5CDEEF12345678 /* BackupRestoreSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1239A4B5CDEEF123456789 /* BackupRestoreSheet.swift */; };
 		F3E4D5C6B7A8091234FEDCBA /* SavedSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F5D6C7B8A9012345EDCBA0 /* SavedSearch.swift */; };
+		7E5701A0000000000000000A /* SmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5701B0000000000000000A /* SmokeTests.swift */; };
+		7E5701A1000000000000000B /* ParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5701B1000000000000000B /* ParserTests.swift */; };
+		7E5701A2000000000000000C /* TaskListViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5701B2000000000000000C /* TaskListViewModelTests.swift */; };
+		7E5701A3000000000000000D /* AppContainerIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5701B3000000000000000D /* AppContainerIntegrationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -73,7 +77,22 @@
 		89AB1239A4B5CDEEF1234567 /* BackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupService.swift; sourceTree = "<group>"; };
 		AB1239A4B5CDEEF123456789 /* BackupRestoreSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupRestoreSheet.swift; sourceTree = "<group>"; };
 		E4F5D6C7B8A9012345EDCBA0 /* SavedSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedSearch.swift; sourceTree = "<group>"; };
+		7E5701C0000000000000000A /* VergissmeinnichtTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VergissmeinnichtTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7E5701B0000000000000000A /* SmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeTests.swift; sourceTree = "<group>"; };
+		7E5701B1000000000000000B /* ParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParserTests.swift; sourceTree = "<group>"; };
+		7E5701B2000000000000000C /* TaskListViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListViewModelTests.swift; sourceTree = "<group>"; };
+		7E5701B3000000000000000D /* AppContainerIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainerIntegrationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXContainerItemProxy section */
+		7E5701D0000000000000000A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0D75E54D216CB3BD30E69BCF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E304FD178C0DD08F86FA05FC;
+			remoteInfo = Vergissmeinnicht;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		96D9EECEC98D5C53A52F73F9 /* Frameworks */ = {
@@ -91,6 +110,7 @@
 			isa = PBXGroup;
 			children = (
 				F21430128BD345CCB83026DE /* Vergissmeinnicht.app */,
+				7E5701C0000000000000000A /* VergissmeinnichtTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -116,10 +136,30 @@
 			children = (
 				0A366649E38C220DB45BFB37 /* Packages */,
 				31A7D6091F9EB78DE94FB5C9 /* Sources */,
+				7E5701E0000000000000000A /* Tests */,
 				18293A4B5CDE0123456789AB /* Localizable.xcstrings */,
 				A55E7512345678901234FEED /* Assets.xcassets */,
 				038770FB1B4BB2B448F7C84C /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		7E5701E0000000000000000A /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				7E5701E1000000000000000A /* VergissmeinnichtTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		7E5701E1000000000000000A /* VergissmeinnichtTests */ = {
+			isa = PBXGroup;
+			children = (
+				7E5701B3000000000000000D /* AppContainerIntegrationTests.swift */,
+				7E5701B1000000000000000B /* ParserTests.swift */,
+				7E5701B0000000000000000A /* SmokeTests.swift */,
+				7E5701B2000000000000000C /* TaskListViewModelTests.swift */,
+			);
+			path = VergissmeinnichtTests;
 			sourceTree = "<group>";
 		};
 		9F5A838CC259798D4EC435DF /* VergissmeinnichtApp */ = {
@@ -180,6 +220,24 @@
 			productReference = F21430128BD345CCB83026DE /* Vergissmeinnicht.app */;
 			productType = "com.apple.product-type.application";
 		};
+		7E5701F0000000000000000A /* VergissmeinnichtTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7E570200000000000000000A /* Build configuration list for PBXNativeTarget "VergissmeinnichtTests" */;
+			buildPhases = (
+				7E5701F1000000000000000A /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7E5701F2000000000000000A /* PBXTargetDependency */,
+			);
+			name = VergissmeinnichtTests;
+			packageProductDependencies = (
+			);
+			productName = VergissmeinnichtTests;
+			productReference = 7E5701C0000000000000000A /* VergissmeinnichtTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -192,6 +250,10 @@
 					E304FD178C0DD08F86FA05FC = {
 						DevelopmentTeam = "";
 						ProvisioningStyle = Manual;
+					};
+					7E5701F0000000000000000A = {
+						ProvisioningStyle = Manual;
+						TestTargetID = E304FD178C0DD08F86FA05FC;
 					};
 				};
 			};
@@ -214,6 +276,7 @@
 			projectRoot = "";
 			targets = (
 				E304FD178C0DD08F86FA05FC /* Vergissmeinnicht */,
+				7E5701F0000000000000000A /* VergissmeinnichtTests */,
 			);
 		};
 /* End PBXProject section */
@@ -254,7 +317,26 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7E5701F1000000000000000A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7E5701A0000000000000000A /* SmokeTests.swift in Sources */,
+				7E5701A1000000000000000B /* ParserTests.swift in Sources */,
+				7E5701A2000000000000000C /* TaskListViewModelTests.swift in Sources */,
+				7E5701A3000000000000000D /* AppContainerIntegrationTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7E5701F2000000000000000A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E304FD178C0DD08F86FA05FC /* Vergissmeinnicht */;
+			targetProxy = 7E5701D0000000000000000A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXResourcesBuildPhase section */
 		29384B5CDE012345ABCDEF12 /* Resources */ = {
@@ -446,6 +528,46 @@
 			};
 			name = Debug;
 		};
+		7E5702010000000000000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = de.hnsstrk.vergissmeinnichtTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Vergissmeinnicht.app/Contents/MacOS/Vergissmeinnicht";
+			};
+			name = Debug;
+		};
+		7E5702020000000000000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = de.hnsstrk.vergissmeinnichtTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Vergissmeinnicht.app/Contents/MacOS/Vergissmeinnicht";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -463,6 +585,15 @@
 			buildConfigurations = (
 				15C70C0164422F8DEA73DA14 /* Debug */,
 				7BB1F9A1715FF5F5C50E1800 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7E570200000000000000000A /* Build configuration list for PBXNativeTarget "VergissmeinnichtTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7E5702010000000000000000 /* Debug */,
+				7E5702020000000000000000 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

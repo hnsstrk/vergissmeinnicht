@@ -91,8 +91,34 @@ build` (or ⌘B in Xcode) is enough.
 | `WriteOperationsTests` | `swift test` | mark_done, modify, delete, add_annotation |
 | `SyncTests` | `swift test` | sync error mapping with invalid URL |
 | `MetadataTests` | `swift test` | `add_task_full`, per-field setters, `update_task_metadata`, atomic recurring follow-up, reactivate, annotation roundtrips |
+| `DependencyTests` | `swift test` | `add_dependency` / `remove_dependency`, `is_blocked` / `is_blocking` derivation |
 
-Expect **18 Swift tests** to pass after a clean build.
+Expect **20 Swift package (FFI-layer) tests** to pass after a clean build.
+
+### App-target tests
+
+The app module **has a test target** (`VergissmeinnichtTests`, registered directly
+in `Vergissmeinnicht.xcodeproj/project.pbxproj`). It builds against the host app via
+`@testable import Vergissmeinnicht` and links `VergissmeinnichtKit` for `TaskInfo`
+fixtures and a temp-dir `TaskStore`.
+
+```bash
+xcodebuild \
+  -project app/Vergissmeinnicht/Vergissmeinnicht.xcodeproj \
+  -scheme Vergissmeinnicht \
+  -destination 'platform=macOS' \
+  -derivedDataPath build/ \
+  CODE_SIGNING_ALLOWED=NO \
+  test
+```
+
+| Suite | What it covers |
+|---|---|
+| `ParserTests` | `QuickCaptureParser`, `RecurParser`, `DueDateParser` (pure functions) |
+| `TaskListViewModelTests` | `SidebarFilter.matches` matrix (incl. `.today` scheduled branch, `.blocked` / `.blocking` / `.unblocked`), sort stability + tiebreakers, umlaut-aware search with operators / quoted phrases / AND logic |
+| `AppContainerIntegrationTests` | `markDoneWithRecurrence` (interval, DST, month boundary), `renameProject` idempotency / partial failure, `repairLegacyTasks` idempotency / selective repair, against an isolated temp replica via the test-only `AppContainer(replicaURL:)` |
+
+Expect **75 app-target tests** (incl. a one-line `SmokeTests` link check) to pass.
 
 ## Architecture overview
 
