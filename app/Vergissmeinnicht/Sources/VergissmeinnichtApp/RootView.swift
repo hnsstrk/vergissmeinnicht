@@ -32,10 +32,20 @@ enum RenameTarget: Identifiable {
     }
 }
 
+/// Inhalts-Modus des Hauptbereichs: die gewohnte Liste oder der Monats-Kalender
+/// (#11). Eigener Modus statt Sidebar-Filter — die zentrale `SidebarFilter`-Logik
+/// bleibt unberührt (Karpathy 3).
+enum ContentMode: Equatable {
+    case list
+    /// Optionaler Fokus-Tag bestimmt den initial gezeigten Monat.
+    case calendar(Date?)
+}
+
 struct RootView: View {
     @Environment(AppContainer.self) private var container
     @Environment(\.openWindow) private var openWindow
     @State private var viewModel = TaskListViewModel()
+    @State private var contentMode: ContentMode = .list
     @State private var showQuickCapture = false
     @State private var pendingDelete: Set<String> = []
     @State private var renameTarget: RenameTarget?
@@ -54,6 +64,7 @@ struct RootView: View {
     @AppStorage(AppSettingsKey.hideCompleted) private var hideCompleted: Bool = false
     @AppStorage(AppSettingsKey.autoSyncMode)    private var autoSyncModeRaw: String = AutoSyncMode.manual.rawValue
     @AppStorage(AppSettingsKey.savedSearches)  private var savedSearchesRaw: String = "[]"
+    @AppStorage(AppSettingsKey.showForecastStrip) private var showForecastStrip: Bool = true
 
     var body: some View {
         @Bindable var vm = viewModel
@@ -80,36 +91,47 @@ struct RootView: View {
             )
             .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
         } detail: {
-            TaskListView(
-                tasks: visible,
-                activeFilter: vm.activeFilter,
-                projects: projects,
-                tags: tags,
-                selectedUuids: $vm.selectedUuids,
-                dragSelection: $dragSelection,
-                onOpenDetail: openDetailWindow,
-                onMarkDone: handleMarkDone,
-                onRequestDelete: requestDelete,
-                onSnooze: handleSnooze,
-                onAssignProject: handleAssignProject,
-                onAddTag: handleAddTag,
-                onSetPriority: handleSetPriority,
-                onSetDue: handleSetDue
-            )
-            .safeAreaInset(edge: .bottom) { syncFooter }
-            .navigationTitle(filterTitle)
-            .searchable(text: $vm.searchQuery, prompt: Text("Suchen…"))
-            .toolbar {
-                RootViewToolbar(
-                    vm: vm,
-                    showSaveSearchPopover: $showSaveSearchPopover,
-                    savedSearchesRaw: $savedSearchesRaw,
-                    defaultSortRaw: $defaultSortRaw,
-                    sortAscending: $sortAscending,
-                    onNewTask: { showQuickCapture = true },
-                    onMarkDoneSelection: { handleMarkDoneSelection() },
-                    onRequestDelete: { requestDelete(uuids: $0) }
+            switch contentMode {
+            case .calendar(let focus):
+                CalendarView(
+                    tasks: container.tasks,
+                    focusDate: focus,
+                    onOpenDetail: openDetailWindow
                 )
+                .navigationTitle(Text("Kalender"))
+            case .list:
+                TaskListView(
+                    tasks: visible,
+                    activeFilter: vm.activeFilter,
+                    projects: projects,
+                    tags: tags,
+                    selectedUuids: $vm.selectedUuids,
+                    dragSelection: $dragSelection,
+                    onOpenDetail: openDetailWindow,
+                    onMarkDone: handleMarkDone,
+                    onRequestDelete: requestDelete,
+                    onSnooze: handleSnooze,
+                    onAssignProject: handleAssignProject,
+                    onAddTag: handleAddTag,
+                    onSetPriority: handleSetPriority,
+                    onSetDue: handleSetDue
+                )
+                .safeAreaInset(edge: .top, spacing: 0) { forecastStrip }
+                .safeAreaInset(edge: .bottom) { syncFooter }
+                .navigationTitle(filterTitle)
+                .searchable(text: $vm.searchQuery, prompt: Text("Suchen…"))
+                .toolbar {
+                    RootViewToolbar(
+                        vm: vm,
+                        showSaveSearchPopover: $showSaveSearchPopover,
+                        savedSearchesRaw: $savedSearchesRaw,
+                        defaultSortRaw: $defaultSortRaw,
+                        sortAscending: $sortAscending,
+                        onNewTask: { showQuickCapture = true },
+                        onMarkDoneSelection: { handleMarkDoneSelection() },
+                        onRequestDelete: { requestDelete(uuids: $0) }
+                    )
+                }
             }
         }
         .frame(minWidth: 720, minHeight: 420)
@@ -152,8 +174,18 @@ struct RootView: View {
                     openDetailWindow(uuid)
                 }
             case .showFilter(let filter):
+                contentMode = .list
                 viewModel.activeFilter = filter
+            case .showCalendar(let focus):
+                contentMode = .calendar(focus)
             }
+        }
+        .onChange(of: viewModel.activeFilter) { _, _ in
+            // Sidebar-Auswahl führt immer zurück in den Listen-Modus (analog zu
+            // den Berichten). Hinweis: Re-Klick auf dieselbe bereits aktive Zeile
+            // ändert den Wert nicht und feuert daher nicht — der Kalender ist über
+            // jede andere Zeile bzw. erneuten Menü-Aufruf verlassbar (Simplicity).
+            if case .calendar = contentMode { contentMode = .list }
         }
         .onChange(of: dueSoonDays) { _, newValue in
             viewModel.dueSoonDays = newValue
@@ -195,6 +227,19 @@ struct RootView: View {
                     try? await Task.sleep(nanoseconds: 6_000_000_000)
                     container.clearError()
                 }
+            }
+        }
+    }
+
+    // MARK: - Wochen-Streifen
+
+    /// Wochen-Streifen über der Liste (#11). Nur im Listen-Modus und nur wenn der
+    /// Settings-Toggle aktiv ist — im Kalender-Modus ist der Streifen redundant.
+    @ViewBuilder
+    private var forecastStrip: some View {
+        if showForecastStrip {
+            ForecastStripView(tasks: container.tasks) { day in
+                contentMode = .calendar(day)
             }
         }
     }

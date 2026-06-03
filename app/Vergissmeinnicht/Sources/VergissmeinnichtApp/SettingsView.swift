@@ -17,6 +17,7 @@ struct SettingsView: View {
     @AppStorage(AppSettingsKey.autoSyncMode)       private var autoSyncMode: String = AutoSyncMode.manual.rawValue
     @AppStorage(AppSettingsKey.sidebarColoredIcons) private var sidebarColoredIcons: Bool = true
     @AppStorage(AppSettingsKey.sidebarProjectHierarchy) private var sidebarProjectHierarchy: Bool = true
+    @AppStorage(AppSettingsKey.showForecastStrip) private var showForecastStrip: Bool = true
 
     var body: some View {
         TabView {
@@ -68,6 +69,7 @@ struct SettingsView: View {
             Section {
                 Toggle("Farbige Symbole in der Seitenleiste", isOn: $sidebarColoredIcons)
                 Toggle("Projekte hierarchisch anzeigen", isOn: $sidebarProjectHierarchy)
+                Toggle("Wochen-Streifen über der Aufgabenliste anzeigen", isOn: $showForecastStrip)
             } header: {
                 Text("Darstellung").font(.headline)
             } footer: {

@@ -20,6 +20,7 @@ enum AppSettingsKey {
     static let savedSearches         = "savedSearches"          // JSON-String [SavedSearch], Default "[]"
     static let sidebarProjectHierarchy = "sidebarProjectHierarchy"   // Bool, Default true (hierarchische Projektdarstellung)
     static let sidebarCollapsedProjects = "sidebarCollapsedProjects" // JSON-String [String] eingeklappter Projekt-Pfade, Default "[]"
+    static let showForecastStrip       = "showForecastStrip"        // Bool, Default true (Wochen-Streifen über der Liste)
 }
 
 enum AppLanguage: String, CaseIterable, Identifiable {

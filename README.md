@@ -26,6 +26,12 @@ front-end, Rust core via UniFFI, sandboxed, App-Store-friendly.
 - **Saved searches** (⇧⌘D) — name a search and pin it to the sidebar between
   system filters and projects. Right-click to rename or delete. The section
   only appears once you save the first one.
+- **Month calendar** (⇧⌘K, *View ▸ Calendar*) — GUI counterpart of Taskwarrior's
+  `task calendar`. Month grid rendering only native fields: `due` as a chip on its
+  day, a `scheduled`→`due` span as a multi-day bar, recurring tasks repeated per
+  occurrence. Capped chips with a "+N" overflow; click a day for an agenda popover,
+  click a task to open its detail. A slim **week forecast strip** above the task
+  list shows per-day task counts and jumps into the calendar; toggle it in Settings.
 - **Quick Capture** (⌘N) — focused capture sheet with title, notes, project, tags,
   due, priority, recurrence. Or terminal-style tokens (`+tag project:foo
   due:tomorrow`).

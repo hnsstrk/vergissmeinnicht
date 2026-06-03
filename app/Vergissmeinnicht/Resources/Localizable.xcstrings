@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "de",
   "strings": {
+    "%lld Aufgaben": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld tasks"
+          }
+        }
+      }
+    },
     "Abbrechen": {
       "localizations": {
         "en": {
@@ -361,6 +371,16 @@
         }
       }
     },
+    "Kalender": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calendar"
+          }
+        }
+      }
+    },
     "Keine Aufgabe blockiert eine andere.": {
       "localizations": {
         "en": {
@@ -417,6 +437,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No tasks ready to act on."
+          }
+        }
+      }
+    },
+    "Nächster Monat": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next month"
           }
         }
       }
@@ -821,6 +851,16 @@
         }
       }
     },
+    "Vorheriger Monat": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous month"
+          }
+        }
+      }
+    },
     "Wähle einen Task aus der Liste.": {
       "localizations": {
         "en": {
@@ -837,6 +877,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Maintenance"
+          }
+        }
+      }
+    },
+    "Wochen-Streifen über der Aufgabenliste anzeigen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show week strip above the task list"
           }
         }
       }

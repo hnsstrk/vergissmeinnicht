@@ -10,6 +10,9 @@ enum AppCommand {
     /// Wechselt die Hauptliste auf einen der nativen Abhängigkeits-Reports
     /// (Taskwarrior `+BLOCKED`/`+BLOCKING`/`+UNBLOCKED`).
     case showFilter(SidebarFilter)
+    /// Wechselt den Inhaltsbereich in den Monats-Kalender-Modus (eigener
+    /// View-Modus, kein Sidebar-Filter). Optionaler Fokus-Tag bestimmt den Monat.
+    case showCalendar(Date?)
 }
 
 extension Notification.Name {
@@ -90,6 +93,14 @@ struct VergissmeinnichtApp: App {
                 .disabled(container == nil)
             }
             CommandMenu("Ansicht") {
+                // Monats-Kalender als eigener Inhalts-Modus (#11). Brückt über den
+                // bestehenden AppCommand/NotificationCenter-Pfad wie die "Berichte".
+                Button("Kalender") {
+                    NotificationCenter.default.post(name: .vmCommand, object: AppCommand.showCalendar(nil))
+                }
+                .keyboardShortcut("k", modifiers: [.shift, .command])
+                .disabled(container == nil)
+                Divider()
                 Toggle("Erledigte Aufgaben ausblenden", isOn: $hideCompleted)
                     .keyboardShortcut("h", modifiers: [.shift, .command])
             }
