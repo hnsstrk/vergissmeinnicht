@@ -188,7 +188,7 @@ struct ForecastAgendaView: View {
     // MARK: - Daten / Datums-Helfer
 
     private var buckets: [Date: [CalendarBucketing.AgendaItem]] {
-        let (start, end) = CalendarBucketing.window(for: range, today: Date(), calendar: calendar)
+        let (start, end) = CalendarBucketing.agendaWindow(for: range, today: Date(), calendar: calendar)
         return CalendarBucketing.agendaBuckets(tasks: tasks, from: start, to: end, calendar: calendar)
     }
 

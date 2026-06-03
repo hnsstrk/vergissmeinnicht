@@ -208,18 +208,18 @@ final class CalendarBucketingTests: XCTestCase {
         let cal = utcCalendar()
         let today = midday(2026, 6, 15)
         let start = dayStart(2026, 6, 15)
-        XCTAssertEqual(CalendarBucketing.window(for: .days3, today: today, calendar: cal).start, start)
-        XCTAssertEqual(CalendarBucketing.window(for: .days3, today: today, calendar: cal).end, dayStart(2026, 6, 18))
-        XCTAssertEqual(CalendarBucketing.window(for: .weeks1, today: today, calendar: cal).end, dayStart(2026, 6, 22))
+        XCTAssertEqual(CalendarBucketing.agendaWindow(for: .days3, today: today, calendar: cal).start, start)
+        XCTAssertEqual(CalendarBucketing.agendaWindow(for: .days3, today: today, calendar: cal).end, dayStart(2026, 6, 18))
+        XCTAssertEqual(CalendarBucketing.agendaWindow(for: .weeks1, today: today, calendar: cal).end, dayStart(2026, 6, 22))
     }
 
     func testWindowWeeks2to4ISOAligned() {
         // Montag 15.6.2026 = Start der ISO-Woche → weeks2/3/4 enden Montag + 14/21/28.
         let cal = utcCalendar()
         let today = midday(2026, 6, 15)
-        XCTAssertEqual(CalendarBucketing.window(for: .weeks2, today: today, calendar: cal).end, dayStart(2026, 6, 29))
-        XCTAssertEqual(CalendarBucketing.window(for: .weeks3, today: today, calendar: cal).end, dayStart(2026, 7, 6))
-        XCTAssertEqual(CalendarBucketing.window(for: .weeks4, today: today, calendar: cal).end, dayStart(2026, 7, 13))
+        XCTAssertEqual(CalendarBucketing.agendaWindow(for: .weeks2, today: today, calendar: cal).end, dayStart(2026, 6, 29))
+        XCTAssertEqual(CalendarBucketing.agendaWindow(for: .weeks3, today: today, calendar: cal).end, dayStart(2026, 7, 6))
+        XCTAssertEqual(CalendarBucketing.agendaWindow(for: .weeks4, today: today, calendar: cal).end, dayStart(2026, 7, 13))
     }
 
     func testWindowWeeks1RollingVersusWeeks2ISOOnNonMonday() {
@@ -228,18 +228,90 @@ final class CalendarBucketingTests: XCTestCase {
         // dass die beiden Semantiken verschieden sind.
         let cal = utcCalendar()
         let today = midday(2026, 6, 18)
-        XCTAssertEqual(CalendarBucketing.window(for: .weeks1, today: today, calendar: cal).start, dayStart(2026, 6, 18))
-        XCTAssertEqual(CalendarBucketing.window(for: .weeks1, today: today, calendar: cal).end, dayStart(2026, 6, 25))
+        XCTAssertEqual(CalendarBucketing.agendaWindow(for: .weeks1, today: today, calendar: cal).start, dayStart(2026, 6, 18))
+        XCTAssertEqual(CalendarBucketing.agendaWindow(for: .weeks1, today: today, calendar: cal).end, dayStart(2026, 6, 25))
         // weeks2: start bleibt heute (18.), Ende ISO-ausgerichtet (29.6.).
-        XCTAssertEqual(CalendarBucketing.window(for: .weeks2, today: today, calendar: cal).start, dayStart(2026, 6, 18))
-        XCTAssertEqual(CalendarBucketing.window(for: .weeks2, today: today, calendar: cal).end, dayStart(2026, 6, 29))
+        XCTAssertEqual(CalendarBucketing.agendaWindow(for: .weeks2, today: today, calendar: cal).start, dayStart(2026, 6, 18))
+        XCTAssertEqual(CalendarBucketing.agendaWindow(for: .weeks2, today: today, calendar: cal).end, dayStart(2026, 6, 29))
+    }
+
+    // MARK: - Kompakt-Gitter-Fenster (KW-ausgerichtet, volle Wochen)
+
+    /// Zählt die Tage eines `[start, end)`-Fensters.
+    private func dayCount(_ window: (start: Date, end: Date), _ cal: Calendar) -> Int {
+        var count = 0
+        var cursor = window.start
+        while cursor < window.end {
+            count += 1
+            cursor = cal.date(byAdding: .day, value: 1, to: cursor)!
+        }
+        return count
+    }
+
+    func testCompactGridWindowStartsOnIsoMondayFromMonday() {
+        // Montag 15.6.2026 ist bereits Wochenanfang → weeks1–4 starten am 15.6.,
+        // umfassen exakt 7/14/21/28 Tage.
+        let cal = utcCalendar()
+        let today = midday(2026, 6, 15)
+        let monday = dayStart(2026, 6, 15)
+        for (range, n) in [(ForecastRange.weeks1, 1), (.weeks2, 2), (.weeks3, 3), (.weeks4, 4)] {
+            let w = CalendarBucketing.compactGridWindow(for: range, today: today, calendar: cal)
+            XCTAssertEqual(w.start, monday, "\(range.rawValue): Start = Montag")
+            XCTAssertEqual(dayCount(w, cal), 7 * n, "\(range.rawValue): \(7 * n) Tage")
+        }
+    }
+
+    func testCompactGridWindowPadsBackToMondayOnNonMonday() {
+        // Donnerstag 18.6.2026: das Fenster beginnt trotzdem am Montag 15.6. (zurück-
+        // gepolstert für die Spalten-Ausrichtung), nicht heute. Beweist die volle
+        // erste Zeile.
+        let cal = utcCalendar()
+        let today = midday(2026, 6, 18)
+        let monday = dayStart(2026, 6, 15)
+        let w1 = CalendarBucketing.compactGridWindow(for: .weeks1, today: today, calendar: cal)
+        XCTAssertEqual(w1.start, monday)
+        XCTAssertEqual(w1.end, dayStart(2026, 6, 22))   // Mo + 7
+        XCTAssertEqual(dayCount(w1, cal), 7)
+        let w2 = CalendarBucketing.compactGridWindow(for: .weeks2, today: today, calendar: cal)
+        XCTAssertEqual(w2.start, monday)
+        XCTAssertEqual(dayCount(w2, cal), 14)
+    }
+
+    func testCompactGridWindowDays3StaysRolling() {
+        // days3 bleibt rollend ab heute (kein KW-Raster), auch an einem Nicht-Montag.
+        let cal = utcCalendar()
+        let today = midday(2026, 6, 18)
+        let w = CalendarBucketing.compactGridWindow(for: .days3, today: today, calendar: cal)
+        XCTAssertEqual(w.start, dayStart(2026, 6, 18))
+        XCTAssertEqual(w.end, dayStart(2026, 6, 21))
+        XCTAssertEqual(dayCount(w, cal), 3)
+    }
+
+    func testCompactGridWindowGroupsAreAllFullWeeks() {
+        // weekGroups über das Kompakt-Gitter-Fenster (Nicht-Montag, weeks3) → jede
+        // Gruppe exakt 7 Tage (Spalten richten sich aus — der Kern der Korrektur).
+        let cal = utcCalendar()
+        let (start, end) = CalendarBucketing.compactGridWindow(for: .weeks3, today: midday(2026, 6, 18), calendar: cal)
+        let groups = CalendarBucketing.weekGroups(from: start, to: end, calendar: cal)
+        XCTAssertEqual(groups.count, 3)
+        XCTAssertTrue(groups.allSatisfy { $0.days.count == 7 }, "Alle Gruppen müssen volle 7-Tage-Wochen sein")
+        XCTAssertEqual(groups.first?.days.first, dayStart(2026, 6, 15)) // erste Zeile beginnt Montag
+        XCTAssertEqual(groups.map(\.week), [25, 26, 27])
+    }
+
+    func testAgendaWindowStaysAtTodayUnchanged() {
+        // Gegenstück: Das Agenda-Fenster beginnt weiterhin heute (Nicht-Montag), wird
+        // NICHT auf Montag zurückgepolstert — die Agenda bleibt vorwärtsgerichtet.
+        let cal = utcCalendar()
+        let today = midday(2026, 6, 18)
+        XCTAssertEqual(CalendarBucketing.agendaWindow(for: .weeks2, today: today, calendar: cal).start, dayStart(2026, 6, 18))
     }
 
     func testWeekGroupsSplitsByISOWeek() {
         // Fenster Do 18.6. bis exkl. 29.6. (= weeks2 ab Do): Gruppe KW25 (18.–21.),
         // Gruppe KW26 (22.–28.). Start ist NICHT Wochenanfang → erste Gruppe kürzer.
         let cal = utcCalendar()
-        let (start, end) = CalendarBucketing.window(for: .weeks2, today: midday(2026, 6, 18), calendar: cal)
+        let (start, end) = CalendarBucketing.agendaWindow(for: .weeks2, today: midday(2026, 6, 18), calendar: cal)
         let groups = CalendarBucketing.weekGroups(from: start, to: end, calendar: cal)
         XCTAssertEqual(groups.count, 2)
         XCTAssertEqual(groups[0].week, 25)
@@ -253,7 +325,7 @@ final class CalendarBucketingTests: XCTestCase {
     func testWeekGroupsWeeks4HasFourGroupsFromMonday() {
         // Ab Montag 15.6. deckt weeks4 die KW25–28 vollständig ab (4 × 7 Tage).
         let cal = utcCalendar()
-        let (start, end) = CalendarBucketing.window(for: .weeks4, today: midday(2026, 6, 15), calendar: cal)
+        let (start, end) = CalendarBucketing.agendaWindow(for: .weeks4, today: midday(2026, 6, 15), calendar: cal)
         let groups = CalendarBucketing.weekGroups(from: start, to: end, calendar: cal)
         XCTAssertEqual(groups.map(\.week), [25, 26, 27, 28])
         XCTAssertTrue(groups.allSatisfy { $0.days.count == 7 })
@@ -300,7 +372,7 @@ final class CalendarBucketingTests: XCTestCase {
         // due exakt am end-Tag → außerhalb (Fenster ist [start, end)).
         let t = task(due: unix(2026, 6, 22))
         let cal = utcCalendar()
-        let (start, end) = CalendarBucketing.window(for: .weeks1, today: midday(2026, 6, 15), calendar: cal)
+        let (start, end) = CalendarBucketing.agendaWindow(for: .weeks1, today: midday(2026, 6, 15), calendar: cal)
         let buckets = CalendarBucketing.agendaBuckets(tasks: [t], from: start, to: end, calendar: cal)
         XCTAssertTrue(buckets.isEmpty)
     }

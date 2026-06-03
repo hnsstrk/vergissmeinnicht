@@ -173,8 +173,10 @@ enum CalendarBucketing {
         isoCalendar(timeZone: timeZone).component(.yearForWeekOfYear, from: date)
     }
 
-    /// Fenster `[start, end)` für eine `ForecastRange`. Start = Tagesanfang von
-    /// `today`.
+    /// Agenda-Fenster `[start, end)` für eine `ForecastRange`. Start = Tagesanfang
+    /// von `today` (vorwärtsgerichtet — die Agenda listet nur Tage MIT Aufgaben,
+    /// zeigt also keine vergangenen Tage; deshalb braucht sie keine
+    /// Wochen-Ausrichtung). Gegenstück: `compactGridWindow` für den Kompakt-Streifen.
     ///
     /// - `days3` → rollende 3 Tage (`start + 3`).
     /// - `weeks1` → rollende 7 Tage (`start + 7`, entspricht dem alten `days7`,
@@ -182,7 +184,7 @@ enum CalendarBucketing {
     /// - `weeks2/3/4` → bis zum Ende der N-ten ISO-Woche: Montag dieser Woche
     ///   + `7·N` Tage (exklusiv). `start` bleibt Tagesanfang heute; nur `end` ist
     ///   ISO-Wochen-ausgerichtet.
-    static func window(
+    static func agendaWindow(
         for range: ForecastRange,
         today: Date,
         calendar: Calendar
@@ -203,6 +205,48 @@ enum CalendarBucketing {
             let weekStart = iso.date(byAdding: .day, value: -leading, to: start) ?? start
             let end = iso.date(byAdding: .day, value: 7 * n, to: weekStart) ?? start
             return (start, end)
+        }
+    }
+
+    /// Kompakt-Gitter-Fenster `[start, end)` für den Wochen-Streifen. Im Gegensatz
+    /// zur Agenda zeigt der Streifen ein KW-ausgerichtetes RASTER: jede Zeile eine
+    /// volle ISO-Woche (Mo–So), Spalten untereinander bündig. Deshalb kann `start`
+    /// VOR heute liegen (Montag der aktuellen Woche) — die vergangenen Tage der
+    /// laufenden Woche werden für die Spalten-Ausrichtung gezeigt (View dimmt sie).
+    ///
+    /// - `days3` → rollende 3 Tage ab heute (KEIN Raster — das ist das explizite
+    ///   kurze Fenster, einzeilig und bewusst unausgerichtet).
+    /// - `weeks1/2/3/4` → Montag der aktuellen ISO-Woche + `7·N` Tage (exklusiv);
+    ///   `weeks1` → N=1 (volle laufende Woche), `weeks4` → N=4 (28 Tage = 4 volle
+    ///   Wochen, Mini-Monats-Raster).
+    static func compactGridWindow(
+        for range: ForecastRange,
+        today: Date,
+        calendar: Calendar
+    ) -> (start: Date, end: Date) {
+        let start = calendar.startOfDay(for: today)
+        switch range {
+        case .days3:
+            let end = calendar.date(byAdding: .day, value: 3, to: start) ?? start
+            return (start, end)
+        case .weeks1, .weeks2, .weeks3, .weeks4:
+            // weeks1 hat weekCount == nil (steuert die einzeilige Darstellung),
+            // ist im Gitter aber N=1. Daher hier explizit ableiten, nicht über
+            // weekCount (Simplicity-Falle: nil ≠ 1).
+            let n: Int
+            switch range {
+            case .weeks1: n = 1
+            case .weeks2: n = 2
+            case .weeks3: n = 3
+            case .weeks4: n = 4
+            case .days3:  n = 1 // unerreichbar (oben behandelt)
+            }
+            let iso = isoCalendar(timeZone: calendar.timeZone)
+            let weekday = iso.component(.weekday, from: start) // 1=So…2=Mo
+            let leading = (weekday - iso.firstWeekday + 7) % 7
+            let weekStart = iso.date(byAdding: .day, value: -leading, to: start) ?? start
+            let end = iso.date(byAdding: .day, value: 7 * n, to: weekStart) ?? weekStart
+            return (weekStart, end)
         }
     }
 
