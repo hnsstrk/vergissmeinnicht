@@ -65,6 +65,29 @@ jobs:
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
+      - name: Compose release notes from CHANGELOG.md
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          VERSION="${TAG#v}"
+          awk -v ver="$VERSION" '
+            /^## \[/ { if (p) exit; if (index($0, "## [" ver "]")==1) { p=1; next } }
+            p { print }
+          ' CHANGELOG.md | grep -v -E '^\[[^]]+\]: https?://' > notes_changelog.md || true
+          cp .github/release-footer.md notes_footer.md
+          sed -i '' "s/__TAG__/$TAG/g" notes_footer.md
+          {
+            echo "## Vergissmeinnicht $TAG"
+            echo ""
+            if [ -s notes_changelog.md ]; then
+              cat notes_changelog.md
+            else
+              echo "_No CHANGELOG.md section for $VERSION — see the commit history for changes in this release._"
+            fi
+            cat notes_footer.md
+          } > RELEASE_NOTES.md
+          echo "---- RELEASE_NOTES.md ----"
+          cat RELEASE_NOTES.md
+
       - name: Zip app bundle
         run: |
           cd build/Build/Products/Release
@@ -85,30 +108,4 @@ jobs:
           files: |
             Vergissmeinnicht-*-arm64.zip
             Vergissmeinnicht-*-arm64.zip.sha256
-          body: |
-            ## Vergissmeinnicht ${{ steps.tag.outputs.tag }}
-
-            Unsigned **arm64-only** build for Apple Silicon. Requires macOS 14 (Sonoma) or later.
-
-            ### Install
-
-            ```sh
-            # 1. Download Vergissmeinnicht-${{ steps.tag.outputs.tag }}-arm64.zip and unzip
-            unzip Vergissmeinnicht-${{ steps.tag.outputs.tag }}-arm64.zip
-
-            # 2. Drag Vergissmeinnicht.app to /Applications
-
-            # 3. Remove the quarantine flag (build is not notarized)
-            xattr -dr com.apple.quarantine /Applications/Vergissmeinnicht.app
-
-            # 4. Open
-            open /Applications/Vergissmeinnicht.app
-            ```
-
-            Without step 3 Gatekeeper will block the app with "Apple could not verify ...".
-            The build is not signed by an Apple Developer ID, so this is expected. The
-            checksum file (`.sha256`) lets you verify the download.
-
-            ### From source
-
-            See [`docs/building.md`](https://github.com/hnsstrk/vergissmeinnicht/blob/main/docs/building.md).
+          body_path: RELEASE_NOTES.md
