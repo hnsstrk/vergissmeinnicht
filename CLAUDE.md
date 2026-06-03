@@ -14,6 +14,15 @@ Native macOS client for Taskwarrior 3.x. Three layers:
 
 Full architecture, build toolchain, and failure modes: [`docs/building.md`](docs/building.md).
 
+## Product Design Principle: Taskwarrior-faithful GUI
+
+Vergissmeinnicht is a **GUI for Taskwarrior**, not a reimplementation. Taskwarrior itself is CLI-only; the value we add is presentation and ergonomics.
+
+- **Allowed:** GUI-specific elements the CLI does not have — visual perspectives, the sidebar, inline editors, drag-and-drop, hierarchy rendering, and additional access channels (AppIntents, hotkeys).
+- **Not allowed:** anything that **contradicts** Taskwarrior's concepts/data model, or that would feel **foreign or wrong** to a Taskwarrior user. Do not invent a parallel concept when a native Taskwarrior mechanism already expresses the need.
+- **Prefer surfacing native mechanisms** (`scheduled`, `depends`, dotted project hierarchy, urgency, tags, annotations) over inventing fields/UDAs. Decisions already taken under this principle: no invented "today flag" → `scheduled` (#1); no `parent_uuid` subtasks → `depends` + projects (#3); no `sort_order`/manual reorder → urgency (#4); no separate `area` field → dotted project hierarchy (#10).
+- **Decision test** for any new feature: (1) Does it map cleanly onto Taskwarrior data? (2) Does the written result still read correctly in the Taskwarrior CLI? (3) Would it confuse or mislead someone who knows Taskwarrior? If 1+2 are yes and 3 is no, it fits. A new *rendering* of native data (e.g. a collapsible tree over dotted project names) is fine; a new *concept* the CLI cannot represent is not.
+
 ## Build Pipeline
 
 **After an FFI change** (mandatory — otherwise Swift runs against stale bindings):
