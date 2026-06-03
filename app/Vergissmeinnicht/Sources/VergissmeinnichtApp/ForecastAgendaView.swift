@@ -43,7 +43,7 @@ struct ForecastAgendaView: View {
 
     @ViewBuilder
     private func daySection(_ day: Date) -> some View {
-        let items = sortedItems(buckets[calendar.startOfDay(for: day)] ?? [])
+        let items = CalendarBucketing.sortedAgendaItems(buckets[calendar.startOfDay(for: day)] ?? [])
         let (shown, overflow) = CalendarBucketing.capped(items, cap: maxPerDay.cap)
         VStack(alignment: .leading, spacing: 4) {
             dayHeader(day, count: items.count)
@@ -182,24 +182,6 @@ struct ForecastAgendaView: View {
     /// in der Agenda nicht gezeigt — Things-Verhalten, hält die Liste kompakt).
     private var days: [Date] {
         buckets.keys.sorted()
-    }
-
-    private func sortedItems(_ items: [CalendarBucketing.AgendaItem]) -> [CalendarBucketing.AgendaItem] {
-        items.sorted { a, b in
-            sortKey(a) < sortKey(b)
-        }
-    }
-
-    /// Sortierschlüssel: geplante (mit Uhrzeit) zuerst nach Zeit, dann fällige nach
-    /// Titel. Deterministisch, damit die Reihenfolge stabil bleibt.
-    private func sortKey(_ item: CalendarBucketing.AgendaItem) -> String {
-        switch item.reason {
-        case .scheduled(let time):
-            let d = Date(timeIntervalSince1970: TimeInterval(time))
-            return "0_" + d.formatted(.dateTime.hour().minute()) + item.task.description
-        case .due:
-            return "1_" + item.task.description
-        }
     }
 
     /// Relativ-Label: „Heute"/„Morgen", sonst voller locale-Wochentag.

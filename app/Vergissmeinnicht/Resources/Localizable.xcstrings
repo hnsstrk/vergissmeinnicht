@@ -3061,6 +3061,36 @@
         }
       }
     },
+    "Anzeigen auf": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show on"
+          }
+        }
+      }
+    },
+    "Projekte, Tags & gespeicherte Suchen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projects, tags & saved searches"
+          }
+        }
+      }
+    },
+    "Legt fest, in welchen Seitenleisten-Perspektiven die Vorschau erscheint. \"Projekte, Tags & gespeicherte Suchen\" schaltet alle dynamischen Perspektiven gemeinsam. In den Abhängigkeits-Berichten und im Kalender wird die Vorschau nie gezeigt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Determines in which sidebar perspectives the forecast appears. \"Projects, tags & saved searches\" toggles all dynamic perspectives together. The forecast is never shown in the dependency reports or the calendar."
+          }
+        }
+      }
+    },
     "Zeitraum": {
       "localizations": {
         "en": {

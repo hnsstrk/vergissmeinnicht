@@ -21,11 +21,14 @@ struct SettingsView: View {
     @AppStorage(AppSettingsKey.forecastRange)             private var forecastRange: String = ForecastRange.days7.rawValue
     @AppStorage(AppSettingsKey.forecastMaxPerDay)         private var forecastMaxPerDay: String = ForecastMaxPerDay.five.rawValue
     @AppStorage(AppSettingsKey.forecastShowCalendarWeeks) private var forecastShowCalendarWeeks: Bool = true
+    @AppStorage(AppSettingsKey.forecastPerspectives)      private var forecastPerspectivesRaw: String = ForecastPerspective.defaultEnabledRaw
 
     var body: some View {
         TabView {
             generalTab
                 .tabItem { Label("Allgemein", systemImage: "gearshape") }
+            forecastTab
+                .tabItem { Label("Vorschau", systemImage: "calendar.day.timeline.left") }
             syncTab
                 .tabItem { Label("Sync-Server", systemImage: "icloud") }
             maintenanceTab
@@ -82,36 +85,6 @@ struct SettingsView: View {
             }
 
             Section {
-                Picker("Anzeige", selection: $forecastDisplayMode) {
-                    ForEach(ForecastDisplayMode.allCases) { mode in
-                        Text(mode.label).tag(mode.rawValue)
-                    }
-                }
-                if forecastDisplayMode != ForecastDisplayMode.off.rawValue {
-                    Picker("Zeitraum", selection: $forecastRange) {
-                        ForEach(ForecastRange.allCases) { r in
-                            Text(r.label).tag(r.rawValue)
-                        }
-                    }
-                    if forecastDisplayMode == ForecastDisplayMode.agenda.rawValue {
-                        Picker("Aufgaben pro Tag", selection: $forecastMaxPerDay) {
-                            ForEach(ForecastMaxPerDay.allCases) { m in
-                                Text(m.label).tag(m.rawValue)
-                            }
-                        }
-                    }
-                    Toggle("Kalenderwochen anzeigen", isOn: $forecastShowCalendarWeeks)
-                }
-            } header: {
-                Text("Vorschau").font(.headline)
-            } footer: {
-                Text("Über der Aufgabenliste: \"Agenda\" gruppiert nach Tag mit Projekt-Untertitel, \"Wochen-Streifen\" zeigt eine kompakte Tagesleiste. Aufgaben mit Plantermin (scheduled) erscheinen als \"geplant\". Kalenderwochen folgen der ISO-Norm (Montag-erste Woche).")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Section {
                 Toggle("Bei überfälligen Aufgaben benachrichtigen", isOn: $notificationsEnabled)
                     .onChange(of: notificationsEnabled) { _, newValue in
                         if newValue {
@@ -156,6 +129,70 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private var forecastTab: some View {
+        Form {
+            Section {
+                Picker("Anzeige", selection: $forecastDisplayMode) {
+                    ForEach(ForecastDisplayMode.allCases) { mode in
+                        Text(mode.label).tag(mode.rawValue)
+                    }
+                }
+                if forecastDisplayMode != ForecastDisplayMode.off.rawValue {
+                    Picker("Zeitraum", selection: $forecastRange) {
+                        ForEach(ForecastRange.allCases) { r in
+                            Text(r.label).tag(r.rawValue)
+                        }
+                    }
+                    if forecastDisplayMode == ForecastDisplayMode.agenda.rawValue {
+                        Picker("Aufgaben pro Tag", selection: $forecastMaxPerDay) {
+                            ForEach(ForecastMaxPerDay.allCases) { m in
+                                Text(m.label).tag(m.rawValue)
+                            }
+                        }
+                    }
+                    Toggle("Kalenderwochen anzeigen", isOn: $forecastShowCalendarWeeks)
+                }
+            } header: {
+                Text("Darstellung").font(.headline)
+            } footer: {
+                Text("Über der Aufgabenliste: \"Agenda\" gruppiert nach Tag mit Projekt-Untertitel, \"Wochen-Streifen\" zeigt eine kompakte Tagesleiste. Aufgaben mit Plantermin (scheduled) erscheinen als \"geplant\". Kalenderwochen folgen der ISO-Norm (Montag-erste Woche).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if forecastDisplayMode != ForecastDisplayMode.off.rawValue {
+                Section {
+                    ForEach(ForecastPerspective.allCases) { perspective in
+                        Toggle(perspective.label, isOn: perspectiveBinding(perspective))
+                    }
+                } header: {
+                    Text("Anzeigen auf").font(.headline)
+                } footer: {
+                    Text("Legt fest, in welchen Seitenleisten-Perspektiven die Vorschau erscheint. \"Projekte, Tags & gespeicherte Suchen\" schaltet alle dynamischen Perspektiven gemeinsam. In den Abhängigkeits-Berichten und im Kalender wird die Vorschau nie gezeigt.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    /// Binding für einen einzelnen Perspektiven-Schalter, gespiegelt auf die
+    /// JSON-kodierte Menge in `@AppStorage`. Eine leere Menge bleibt erhalten —
+    /// „alle aus" wird respektiert und nicht auf die Defaults zurückgesetzt.
+    private func perspectiveBinding(_ perspective: ForecastPerspective) -> Binding<Bool> {
+        Binding(
+            get: { ForecastPerspective.decode(from: forecastPerspectivesRaw).contains(perspective) },
+            set: { isOn in
+                var set = ForecastPerspective.decode(from: forecastPerspectivesRaw)
+                if isOn { set.insert(perspective) } else { set.remove(perspective) }
+                forecastPerspectivesRaw = ForecastPerspective.encode(set)
+            }
+        )
     }
 
     private var syncTab: some View {

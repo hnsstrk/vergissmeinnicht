@@ -24,6 +24,7 @@ enum AppSettingsKey {
     static let forecastRange             = "forecastRange"            // String (ForecastRange.rawValue), Default "days7"
     static let forecastMaxPerDay         = "forecastMaxPerDay"        // String (ForecastMaxPerDay.rawValue), Default "five"
     static let forecastShowCalendarWeeks = "forecastShowCalendarWeeks" // Bool, Default true (KW-Anzeige in der Vorschau)
+    static let forecastPerspectives      = "forecastPerspectives"      // JSON-String [ForecastPerspective.rawValue] aktivierter Perspektiven, Default = ForecastPerspective.defaultEnabledRaw
 }
 
 /// Darstellungsmodus der Vorschau über der Aufgabenliste (Follow-up zu #11):
@@ -79,6 +80,96 @@ enum ForecastMaxPerDay: String, CaseIterable, Identifiable {
         case .five:  return 5
         case .all:   return nil
         }
+    }
+}
+
+/// Sidebar-Perspektiven, auf denen die Vorschau erscheinen darf (Follow-up #11).
+///
+/// Die acht System-Zeilen erhalten je einen Schalter; die dynamischen Perspektiven
+/// (Projekte, Tags, gespeicherte Suchen) teilen sich den Sammel-Schalter `dynamic`.
+/// Abhängigkeits-Berichte (`blocked`/`blocking`/`unblocked`) sind bewusst NICHT
+/// abgebildet — `init?(for:)` liefert dort `nil`, sodass die Vorschau dort nie zeigt.
+enum ForecastPerspective: String, CaseIterable, Identifiable {
+    case today, todo, dueSoon, upcoming, inbox, overdue, waiting, all
+    /// Sammel-Schalter für Projekte / Tags / gespeicherte Suchen.
+    case dynamic
+
+    var id: String { rawValue }
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .today:    return "Heute"
+        case .todo:     return "Zu erledigen"
+        case .dueSoon:  return "Bald fällig"
+        case .upcoming: return "Geplant"
+        case .inbox:    return "Eingang"
+        case .overdue:  return "Überfällig"
+        case .waiting:  return "Wartend"
+        case .all:      return "Alle"
+        case .dynamic:  return "Projekte, Tags & gespeicherte Suchen"
+        }
+    }
+
+    /// Klassifiziert einen aktiven `SidebarFilter` in eine Vorschau-Perspektive.
+    /// Geschlossener Switch über alle 14 Fälle: der Compiler erzwingt die Zuordnung
+    /// neuer Filter. `nil` für die drei Abhängigkeits-Berichte → Vorschau aus.
+    init?(for filter: SidebarFilter) {
+        switch filter {
+        case .today:                          self = .today
+        case .todo:                           self = .todo
+        case .dueSoon:                        self = .dueSoon
+        case .upcoming:                       self = .upcoming
+        case .inbox:                          self = .inbox
+        case .overdue:                        self = .overdue
+        case .waiting:                        self = .waiting
+        case .all:                            self = .all
+        case .project, .tag, .savedSearch:    self = .dynamic
+        case .blocked, .blocking, .unblocked: return nil
+        }
+    }
+
+    /// Standardmäßig aktivierte Perspektiven (mit dem User bestätigt): die vier
+    /// nächst-relevanten Listen. Alles andere — inkl. dynamischer Perspektiven — aus.
+    static let defaultEnabled: Set<ForecastPerspective> = [.today, .todo, .dueSoon, .upcoming]
+
+    /// JSON-Serialisierung der Default-Menge für den `@AppStorage`-Default.
+    /// Wichtig: der Default greift nur bei abwesendem Schlüssel — eine leere Menge
+    /// (User hat alles deaktiviert) wird separat persistiert und respektiert.
+    static var defaultEnabledRaw: String {
+        encode(defaultEnabled)
+    }
+
+    /// Reine Sichtbarkeitslogik: zeigt die Vorschau für (Modus + aktiver Filter +
+    /// aktivierte Menge)? Kalender-Modus ist bereits strukturell ausgeschlossen
+    /// (die Vorschau hängt nur im Listen-Zweig), daher hier kein Parameter nötig.
+    static func shouldShow(
+        mode: ForecastDisplayMode,
+        activeFilter: SidebarFilter,
+        enabled: Set<ForecastPerspective>
+    ) -> Bool {
+        guard mode != .off else { return false }
+        guard let perspective = ForecastPerspective(for: activeFilter) else { return false }
+        return enabled.contains(perspective)
+    }
+
+    // MARK: - Persistenz (JSON-Liste der rawValues, wie SavedSearch)
+
+    /// Dekodiert die aktivierte Menge aus einem `@AppStorage`-String. Bei Fehler
+    /// fällt sie auf die Default-Menge zurück (kein stilles „alles aus").
+    static func decode(from raw: String) -> Set<ForecastPerspective> {
+        guard let data = raw.data(using: .utf8),
+              let values = try? JSONDecoder().decode([String].self, from: data)
+        else { return defaultEnabled }
+        return Set(values.compactMap { ForecastPerspective(rawValue: $0) })
+    }
+
+    /// Kodiert die Menge zu einem JSON-String (stabile Reihenfolge via `allCases`).
+    static func encode(_ set: Set<ForecastPerspective>) -> String {
+        let ordered = allCases.filter { set.contains($0) }.map(\.rawValue)
+        guard let data = try? JSONEncoder().encode(ordered),
+              let string = String(data: data, encoding: .utf8)
+        else { return "[]" }
+        return string
     }
 }
 

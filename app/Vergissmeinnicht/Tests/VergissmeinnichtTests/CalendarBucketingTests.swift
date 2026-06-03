@@ -308,4 +308,141 @@ final class CalendarBucketingTests: XCTestCase {
         XCTAssertEqual(shown.count, 7)
         XCTAssertEqual(overflow, 0)
     }
+
+    // MARK: - Agenda-Sortierung (Follow-up #11: Zeit statt locale-String)
+
+    /// Unix-Sekunden für ein Datum mit Stunde (UTC).
+    private func unixAt(_ year: Int, _ month: Int, _ day: Int, hour: Int) -> Int64 {
+        let cal = utcCalendar()
+        let comps = DateComponents(year: year, month: month, day: day, hour: hour)
+        return Int64(cal.date(from: comps)!.timeIntervalSince1970)
+    }
+
+    /// Regressionstest gegen die alte String-Sortierung: zwei geplante Items um
+    /// 09:00 und 13:00. `.formatted(.hour().minute())` ergäbe in 12h-Locales
+    /// „1:00 PM" < „9:00 AM" → 13:00 fälschlich zuerst. Über den rohen Zeitstempel
+    /// muss 09:00 zuerst kommen.
+    func testAgendaSortScheduledByActualTimeNotFormattedString() {
+        let nine = CalendarBucketing.AgendaItem(
+            task: task(uuid: "a", description: "Morgens"),
+            reason: .scheduled(time: unixAt(2026, 6, 15, hour: 9))
+        )
+        let thirteen = CalendarBucketing.AgendaItem(
+            task: task(uuid: "b", description: "Nachmittags"),
+            reason: .scheduled(time: unixAt(2026, 6, 15, hour: 13))
+        )
+        // Bewusst in „falscher" Reihenfolge übergeben.
+        let sorted = CalendarBucketing.sortedAgendaItems([thirteen, nine])
+        XCTAssertEqual(sorted.map(\.task.uuid), ["a", "b"], "09:00 muss vor 13:00 stehen")
+    }
+
+    func testAgendaSortScheduledBeforeDue() {
+        let due = CalendarBucketing.AgendaItem(
+            task: task(uuid: "d", description: "Aaa"), reason: .due
+        )
+        let scheduled = CalendarBucketing.AgendaItem(
+            task: task(uuid: "s", description: "Zzz"),
+            reason: .scheduled(time: unixAt(2026, 6, 15, hour: 23))
+        )
+        // Geplant (Gruppe 0) vor fällig (Gruppe 1), unabhängig von Titel/Uhrzeit.
+        let sorted = CalendarBucketing.sortedAgendaItems([due, scheduled])
+        XCTAssertEqual(sorted.map(\.task.uuid), ["s", "d"])
+    }
+
+    func testAgendaSortDueByDescription() {
+        let zebra = CalendarBucketing.AgendaItem(task: task(uuid: "z", description: "Zebra"), reason: .due)
+        let apfel = CalendarBucketing.AgendaItem(task: task(uuid: "a", description: "Apfel"), reason: .due)
+        let sorted = CalendarBucketing.sortedAgendaItems([zebra, apfel])
+        XCTAssertEqual(sorted.map(\.task.uuid), ["a", "z"])
+    }
+
+    // MARK: - Vorschau-Perspektiven: Mapping + Sichtbarkeits-Gate (Follow-up #11)
+    //
+    // Reine Logik (`ForecastPerspective`) — daher hier im schlichten XCTestCase
+    // statt im @MainActor-ViewModel-Test.
+
+    func testPerspectiveMappingSystemRows() {
+        XCTAssertEqual(ForecastPerspective(for: .today), .today)
+        XCTAssertEqual(ForecastPerspective(for: .todo), .todo)
+        XCTAssertEqual(ForecastPerspective(for: .dueSoon), .dueSoon)
+        XCTAssertEqual(ForecastPerspective(for: .upcoming), .upcoming)
+        XCTAssertEqual(ForecastPerspective(for: .inbox), .inbox)
+        XCTAssertEqual(ForecastPerspective(for: .overdue), .overdue)
+        XCTAssertEqual(ForecastPerspective(for: .waiting), .waiting)
+        XCTAssertEqual(ForecastPerspective(for: .all), .all)
+    }
+
+    func testPerspectiveMappingDynamicRows() {
+        XCTAssertEqual(ForecastPerspective(for: .project("Arbeit")), .dynamic)
+        XCTAssertEqual(ForecastPerspective(for: .tag("urgent")), .dynamic)
+        XCTAssertEqual(ForecastPerspective(for: .savedSearch(UUID())), .dynamic)
+    }
+
+    func testPerspectiveMappingDependencyReportsHaveNoPerspective() {
+        XCTAssertNil(ForecastPerspective(for: .blocked))
+        XCTAssertNil(ForecastPerspective(for: .blocking))
+        XCTAssertNil(ForecastPerspective(for: .unblocked))
+    }
+
+    func testShouldShowOffModeNeverShows() {
+        XCTAssertFalse(ForecastPerspective.shouldShow(
+            mode: .off, activeFilter: .today, enabled: [.today]
+        ))
+    }
+
+    func testShouldShowEnabledPerspective() {
+        XCTAssertTrue(ForecastPerspective.shouldShow(
+            mode: .agenda, activeFilter: .today, enabled: [.today, .todo]
+        ))
+    }
+
+    func testShouldShowDisabledPerspective() {
+        XCTAssertFalse(ForecastPerspective.shouldShow(
+            mode: .agenda, activeFilter: .overdue, enabled: ForecastPerspective.defaultEnabled
+        ))
+    }
+
+    func testShouldShowDependencyReportNeverShowsEvenIfDynamicEnabled() {
+        // Abhängigkeits-Bericht hat keine Perspektive → nie sichtbar, auch wenn
+        // alle Schalter an sind.
+        XCTAssertFalse(ForecastPerspective.shouldShow(
+            mode: .agenda, activeFilter: .blocked, enabled: Set(ForecastPerspective.allCases)
+        ))
+    }
+
+    func testShouldShowDynamicCatchAll() {
+        XCTAssertTrue(ForecastPerspective.shouldShow(
+            mode: .compact, activeFilter: .project("Arbeit"), enabled: [.dynamic]
+        ))
+        XCTAssertFalse(ForecastPerspective.shouldShow(
+            mode: .compact, activeFilter: .tag("urgent"), enabled: [.today]
+        ))
+    }
+
+    func testDefaultEnabledMatchesConfirmedSet() {
+        XCTAssertEqual(
+            ForecastPerspective.defaultEnabled,
+            [.today, .todo, .dueSoon, .upcoming]
+        )
+    }
+
+    func testEmptySetPersistsDistinctFromDefault() {
+        // Round-trip einer leeren Menge → bleibt leer (nicht auf Defaults zurück).
+        let raw = ForecastPerspective.encode([])
+        XCTAssertEqual(ForecastPerspective.decode(from: raw), [])
+        // Default-Roh-String dekodiert dagegen zur Default-Menge.
+        XCTAssertEqual(
+            ForecastPerspective.decode(from: ForecastPerspective.defaultEnabledRaw),
+            ForecastPerspective.defaultEnabled
+        )
+    }
+
+    func testDecodeCorruptFallsBackToDefault() {
+        XCTAssertEqual(ForecastPerspective.decode(from: "nonsense{"), ForecastPerspective.defaultEnabled)
+    }
+
+    func testEncodeDecodeRoundTrip() {
+        let set: Set<ForecastPerspective> = [.today, .overdue, .dynamic]
+        XCTAssertEqual(ForecastPerspective.decode(from: ForecastPerspective.encode(set)), set)
+    }
 }

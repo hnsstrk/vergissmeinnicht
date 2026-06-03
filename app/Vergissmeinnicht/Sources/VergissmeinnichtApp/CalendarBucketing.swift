@@ -130,6 +130,35 @@ enum CalendarBucketing {
         return (Array(items.prefix(cap)), items.count - cap)
     }
 
+    /// Sortiert die Agenda-Items eines Tages: geplante (Gruppe 0) vor fälligen
+    /// (Gruppe 1), innerhalb der geplanten nach tatsächlichem Zeitstempel, sonst
+    /// nach Titel. Sortiert über den rohen `Int64`-Zeitstempel statt über einen
+    /// locale-formatierten Uhrzeit-String — sonst kann „1:00 PM" < „9:00 AM"
+    /// fälschlich 13:00 vor 09:00 einsortieren (Follow-up #11). Pure Funktion
+    /// (unit-getestet).
+    static func sortedAgendaItems(_ items: [AgendaItem]) -> [AgendaItem] {
+        items.sorted { agendaSortPrecedes($0, $1) }
+    }
+
+    /// Vergleichs-Prädikat für `sortedAgendaItems` — separat, damit der Test es
+    /// direkt aufrufen kann.
+    static func agendaSortPrecedes(_ a: AgendaItem, _ b: AgendaItem) -> Bool {
+        let (ga, ta) = agendaSortKey(a)
+        let (gb, tb) = agendaSortKey(b)
+        if ga != gb { return ga < gb }
+        if ta != tb { return ta < tb }
+        return a.task.description.localizedCaseInsensitiveCompare(b.task.description) == .orderedAscending
+    }
+
+    /// (Gruppe, Zeit): geplante = Gruppe 0 mit ihrem Zeitstempel, fällige = Gruppe 1
+    /// (Zeit irrelevant, daher 0 — nur der Titel ordnet sie).
+    private static func agendaSortKey(_ item: AgendaItem) -> (Int, Int64) {
+        switch item.reason {
+        case .scheduled(let time): return (0, time)
+        case .due:                 return (1, 0)
+        }
+    }
+
     /// ISO-8601-Kalenderwoche (deutsche KW-Konvention: Montag-erster Tag, Woche 1 =
     /// erste Woche mit ≥4 Tagen). Bewusst ein eigener, explizit konfigurierter
     /// Kalender — nicht der locale-abhängige `Calendar(identifier:.iso8601)` allein,
