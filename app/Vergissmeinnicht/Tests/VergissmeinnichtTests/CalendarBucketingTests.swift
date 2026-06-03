@@ -203,24 +203,60 @@ final class CalendarBucketingTests: XCTestCase {
 
     // MARK: - Fenster (ForecastRange)
 
-    func testWindowFixedDayRanges() {
+    func testWindowDays3AndWeeks1AreRolling() {
+        // Montag 15.6.2026: days3 = +3, weeks1 = +7 (rollend, nicht ISO-ausgerichtet).
         let cal = utcCalendar()
         let today = midday(2026, 6, 15)
         let start = dayStart(2026, 6, 15)
         XCTAssertEqual(CalendarBucketing.window(for: .days3, today: today, calendar: cal).start, start)
         XCTAssertEqual(CalendarBucketing.window(for: .days3, today: today, calendar: cal).end, dayStart(2026, 6, 18))
-        XCTAssertEqual(CalendarBucketing.window(for: .days7, today: today, calendar: cal).end, dayStart(2026, 6, 22))
-        XCTAssertEqual(CalendarBucketing.window(for: .days14, today: today, calendar: cal).end, dayStart(2026, 6, 29))
+        XCTAssertEqual(CalendarBucketing.window(for: .weeks1, today: today, calendar: cal).end, dayStart(2026, 6, 22))
     }
 
-    func testWindowThisAndNextWeek() {
-        // 15.6.2026 ist ein Montag → diese ISO-Woche beginnt am 15., Ende der
-        // nächsten Woche ist exklusiv der 29.6. (Montag + 14 Tage).
+    func testWindowWeeks2to4ISOAligned() {
+        // Montag 15.6.2026 = Start der ISO-Woche → weeks2/3/4 enden Montag + 14/21/28.
         let cal = utcCalendar()
         let today = midday(2026, 6, 15)
-        let w = CalendarBucketing.window(for: .thisAndNextWeek, today: today, calendar: cal)
-        XCTAssertEqual(w.start, dayStart(2026, 6, 15))
-        XCTAssertEqual(w.end, dayStart(2026, 6, 29))
+        XCTAssertEqual(CalendarBucketing.window(for: .weeks2, today: today, calendar: cal).end, dayStart(2026, 6, 29))
+        XCTAssertEqual(CalendarBucketing.window(for: .weeks3, today: today, calendar: cal).end, dayStart(2026, 7, 6))
+        XCTAssertEqual(CalendarBucketing.window(for: .weeks4, today: today, calendar: cal).end, dayStart(2026, 7, 13))
+    }
+
+    func testWindowWeeks1RollingVersusWeeks2ISOOnNonMonday() {
+        // Donnerstag 18.6.2026: weeks1 ist rollend (Do + 7 = 25.6.), weeks2 ist
+        // ISO-ausgerichtet (Montag der Woche, 15.6., + 14 = 29.6.). Das beweist,
+        // dass die beiden Semantiken verschieden sind.
+        let cal = utcCalendar()
+        let today = midday(2026, 6, 18)
+        XCTAssertEqual(CalendarBucketing.window(for: .weeks1, today: today, calendar: cal).start, dayStart(2026, 6, 18))
+        XCTAssertEqual(CalendarBucketing.window(for: .weeks1, today: today, calendar: cal).end, dayStart(2026, 6, 25))
+        // weeks2: start bleibt heute (18.), Ende ISO-ausgerichtet (29.6.).
+        XCTAssertEqual(CalendarBucketing.window(for: .weeks2, today: today, calendar: cal).start, dayStart(2026, 6, 18))
+        XCTAssertEqual(CalendarBucketing.window(for: .weeks2, today: today, calendar: cal).end, dayStart(2026, 6, 29))
+    }
+
+    func testWeekGroupsSplitsByISOWeek() {
+        // Fenster Do 18.6. bis exkl. 29.6. (= weeks2 ab Do): Gruppe KW25 (18.–21.),
+        // Gruppe KW26 (22.–28.). Start ist NICHT Wochenanfang → erste Gruppe kürzer.
+        let cal = utcCalendar()
+        let (start, end) = CalendarBucketing.window(for: .weeks2, today: midday(2026, 6, 18), calendar: cal)
+        let groups = CalendarBucketing.weekGroups(from: start, to: end, calendar: cal)
+        XCTAssertEqual(groups.count, 2)
+        XCTAssertEqual(groups[0].week, 25)
+        XCTAssertEqual(groups[0].days, [dayStart(2026, 6, 18), dayStart(2026, 6, 19), dayStart(2026, 6, 20), dayStart(2026, 6, 21)])
+        XCTAssertEqual(groups[1].week, 26)
+        XCTAssertEqual(groups[1].days.first, dayStart(2026, 6, 22))
+        XCTAssertEqual(groups[1].days.last, dayStart(2026, 6, 28))
+        XCTAssertEqual(groups[1].days.count, 7)
+    }
+
+    func testWeekGroupsWeeks4HasFourGroupsFromMonday() {
+        // Ab Montag 15.6. deckt weeks4 die KW25–28 vollständig ab (4 × 7 Tage).
+        let cal = utcCalendar()
+        let (start, end) = CalendarBucketing.window(for: .weeks4, today: midday(2026, 6, 15), calendar: cal)
+        let groups = CalendarBucketing.weekGroups(from: start, to: end, calendar: cal)
+        XCTAssertEqual(groups.map(\.week), [25, 26, 27, 28])
+        XCTAssertTrue(groups.allSatisfy { $0.days.count == 7 })
     }
 
     // MARK: - Agenda-Buckets: scheduled vs. due
@@ -264,7 +300,7 @@ final class CalendarBucketingTests: XCTestCase {
         // due exakt am end-Tag → außerhalb (Fenster ist [start, end)).
         let t = task(due: unix(2026, 6, 22))
         let cal = utcCalendar()
-        let (start, end) = CalendarBucketing.window(for: .days7, today: midday(2026, 6, 15), calendar: cal)
+        let (start, end) = CalendarBucketing.window(for: .weeks1, today: midday(2026, 6, 15), calendar: cal)
         let buckets = CalendarBucketing.agendaBuckets(tasks: [t], from: start, to: end, calendar: cal)
         XCTAssertTrue(buckets.isEmpty)
     }
@@ -384,65 +420,80 @@ final class CalendarBucketingTests: XCTestCase {
         XCTAssertNil(ForecastPerspective(for: .unblocked))
     }
 
-    func testShouldShowOffModeNeverShows() {
-        XCTAssertFalse(ForecastPerspective.shouldShow(
-            mode: .off, activeFilter: .today, enabled: [.today]
-        ))
+    // MARK: - ForecastConfig: Defaults, Auflösung, Round-trip (Follow-up #11)
+
+    func testConfigDefaultsForRelevantPerspectives() {
+        // today/todo/dueSoon/upcoming → Agenda, 1 Woche, 5 pro Tag, KW an.
+        for p in [ForecastPerspective.today, .todo, .dueSoon, .upcoming] {
+            let c = ForecastConfig.default(for: p)
+            XCTAssertEqual(c.display, .agenda, "\(p.rawValue): Agenda erwartet")
+            XCTAssertEqual(c.range, .weeks1)
+            XCTAssertEqual(c.maxPerDay, .five)
+            XCTAssertTrue(c.showCalendarWeeks)
+        }
     }
 
-    func testShouldShowEnabledPerspective() {
-        XCTAssertTrue(ForecastPerspective.shouldShow(
-            mode: .agenda, activeFilter: .today, enabled: [.today, .todo]
-        ))
+    func testConfigDefaultsForOffPerspectives() {
+        // inbox/overdue/waiting/all/dynamic → aus.
+        for p in [ForecastPerspective.inbox, .overdue, .waiting, .all, .dynamic] {
+            XCTAssertEqual(ForecastConfig.default(for: p).display, .off, "\(p.rawValue): aus erwartet")
+        }
     }
 
-    func testShouldShowDisabledPerspective() {
-        XCTAssertFalse(ForecastPerspective.shouldShow(
-            mode: .agenda, activeFilter: .overdue, enabled: ForecastPerspective.defaultEnabled
-        ))
+    func testConfigResolveFallsBackToDefaultWhenAbsent() {
+        // Leeres Dictionary → jede Perspektive bekommt ihren Default.
+        XCTAssertEqual(ForecastConfig.resolve(.today, from: "{}"), ForecastConfig.default(for: .today))
+        XCTAssertEqual(ForecastConfig.resolve(.inbox, from: "{}"), ForecastConfig.default(for: .inbox))
     }
 
-    func testShouldShowDependencyReportNeverShowsEvenIfDynamicEnabled() {
-        // Abhängigkeits-Bericht hat keine Perspektive → nie sichtbar, auch wenn
-        // alle Schalter an sind.
-        XCTAssertFalse(ForecastPerspective.shouldShow(
-            mode: .agenda, activeFilter: .blocked, enabled: Set(ForecastPerspective.allCases)
-        ))
+    func testConfigResolveCorruptFallsBackToDefault() {
+        XCTAssertEqual(ForecastConfig.resolve(.today, from: "nonsense{"), ForecastConfig.default(for: .today))
     }
 
-    func testShouldShowDynamicCatchAll() {
-        XCTAssertTrue(ForecastPerspective.shouldShow(
-            mode: .compact, activeFilter: .project("Arbeit"), enabled: [.dynamic]
-        ))
-        XCTAssertFalse(ForecastPerspective.shouldShow(
-            mode: .compact, activeFilter: .tag("urgent"), enabled: [.today]
-        ))
+    func testConfigResolveStoredOverridesDefault() {
+        // Gespeicherter Eintrag für inbox (Default = aus) → übersteuert auf Kompakt.
+        let stored = ForecastConfig(display: .compact, range: .weeks3, maxPerDay: .three, showCalendarWeeks: false)
+        let raw = ForecastConfig.update(.inbox, to: stored, in: "{}")
+        XCTAssertEqual(ForecastConfig.resolve(.inbox, from: raw), stored)
+        // Andere Perspektiven bleiben auf Default.
+        XCTAssertEqual(ForecastConfig.resolve(.today, from: raw), ForecastConfig.default(for: .today))
     }
 
-    func testDefaultEnabledMatchesConfirmedSet() {
-        XCTAssertEqual(
-            ForecastPerspective.defaultEnabled,
-            [.today, .todo, .dueSoon, .upcoming]
-        )
+    func testConfigUpdatePreservesOtherEntries() {
+        var raw = "{}"
+        let a = ForecastConfig(display: .agenda, range: .weeks2, maxPerDay: .all, showCalendarWeeks: true)
+        let b = ForecastConfig(display: .compact, range: .days3, maxPerDay: .five, showCalendarWeeks: false)
+        raw = ForecastConfig.update(.today, to: a, in: raw)
+        raw = ForecastConfig.update(.overdue, to: b, in: raw)
+        XCTAssertEqual(ForecastConfig.resolve(.today, from: raw), a)
+        XCTAssertEqual(ForecastConfig.resolve(.overdue, from: raw), b)
     }
 
-    func testEmptySetPersistsDistinctFromDefault() {
-        // Round-trip einer leeren Menge → bleibt leer (nicht auf Defaults zurück).
-        let raw = ForecastPerspective.encode([])
-        XCTAssertEqual(ForecastPerspective.decode(from: raw), [])
-        // Default-Roh-String dekodiert dagegen zur Default-Menge.
-        XCTAssertEqual(
-            ForecastPerspective.decode(from: ForecastPerspective.defaultEnabledRaw),
-            ForecastPerspective.defaultEnabled
-        )
+    func testConfigEncodeDecodeRoundTrip() {
+        let config = ForecastConfig(display: .compact, range: .weeks4, maxPerDay: .three, showCalendarWeeks: false)
+        let raw = ForecastConfig.update(.dynamic, to: config, in: "{}")
+        let map = ForecastConfig.decodeAll(from: raw)
+        XCTAssertEqual(map[ForecastPerspective.dynamic.rawValue], config)
     }
 
-    func testDecodeCorruptFallsBackToDefault() {
-        XCTAssertEqual(ForecastPerspective.decode(from: "nonsense{"), ForecastPerspective.defaultEnabled)
+    func testConfigOffMeansHiddenViaResolve() {
+        // display == .off ist die Sichtbarkeitssteuerung: Default-aus-Perspektiven
+        // lösen zu .off auf (= Vorschau verborgen).
+        XCTAssertEqual(ForecastConfig.resolve(.overdue, from: "{}").display, .off)
+        // Explizit auf .off gesetzt bleibt .off.
+        let off = ForecastConfig(display: .off, range: .weeks1, maxPerDay: .five, showCalendarWeeks: true)
+        let raw = ForecastConfig.update(.today, to: off, in: "{}")
+        XCTAssertEqual(ForecastConfig.resolve(.today, from: raw).display, .off)
     }
 
-    func testEncodeDecodeRoundTrip() {
-        let set: Set<ForecastPerspective> = [.today, .overdue, .dynamic]
-        XCTAssertEqual(ForecastPerspective.decode(from: ForecastPerspective.encode(set)), set)
+    // MARK: - ForecastRange.weekCount (Single-Week- vs. Mehrwochen-Kompakt)
+
+    func testRangeWeekCountTriggersStacking() {
+        // days3/weeks1 → einzeilig (nil); weeks2/3/4 → gestapelt (2/3/4).
+        XCTAssertNil(ForecastRange.days3.weekCount)
+        XCTAssertNil(ForecastRange.weeks1.weekCount)
+        XCTAssertEqual(ForecastRange.weeks2.weekCount, 2)
+        XCTAssertEqual(ForecastRange.weeks3.weekCount, 3)
+        XCTAssertEqual(ForecastRange.weeks4.weekCount, 4)
     }
 }

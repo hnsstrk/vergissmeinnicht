@@ -174,8 +174,14 @@ enum CalendarBucketing {
     }
 
     /// Fenster `[start, end)` für eine `ForecastRange`. Start = Tagesanfang von
-    /// `today`. Feste Tagesfenster zählen `n` Tage; `thisAndNextWeek` reicht bis
-    /// zum Ende der *nächsten* ISO-Woche (Montag-erste Woche).
+    /// `today`.
+    ///
+    /// - `days3` → rollende 3 Tage (`start + 3`).
+    /// - `weeks1` → rollende 7 Tage (`start + 7`, entspricht dem alten `days7`,
+    ///   NICHT ISO-ausgerichtet — straddelt ggf. zwei KW).
+    /// - `weeks2/3/4` → bis zum Ende der N-ten ISO-Woche: Montag dieser Woche
+    ///   + `7·N` Tage (exklusiv). `start` bleibt Tagesanfang heute; nur `end` ist
+    ///   ISO-Wochen-ausgerichtet.
     static func window(
         for range: ForecastRange,
         today: Date,
@@ -183,19 +189,52 @@ enum CalendarBucketing {
     ) -> (start: Date, end: Date) {
         let start = calendar.startOfDay(for: today)
         switch range {
-        case .days3, .days7, .days14:
-            let days: Int = range == .days3 ? 3 : (range == .days7 ? 7 : 14)
-            let end = calendar.date(byAdding: .day, value: days, to: start) ?? start
+        case .days3:
+            let end = calendar.date(byAdding: .day, value: 3, to: start) ?? start
             return (start, end)
-        case .thisAndNextWeek:
-            // Ende der nächsten ISO-Woche: Montag dieser Woche + 14 Tage (exklusiv).
+        case .weeks1:
+            let end = calendar.date(byAdding: .day, value: 7, to: start) ?? start
+            return (start, end)
+        case .weeks2, .weeks3, .weeks4:
+            let n = range.weekCount ?? 2
             let iso = isoCalendar(timeZone: calendar.timeZone)
             let weekday = iso.component(.weekday, from: start) // 1=So…2=Mo
             let leading = (weekday - iso.firstWeekday + 7) % 7
             let weekStart = iso.date(byAdding: .day, value: -leading, to: start) ?? start
-            let end = iso.date(byAdding: .day, value: 14, to: weekStart) ?? start
+            let end = iso.date(byAdding: .day, value: 7 * n, to: weekStart) ?? start
             return (start, end)
         }
+    }
+
+    /// Teilt das Fenster `[windowStart, windowEnd)` in ISO-Wochen-Gruppen für die
+    /// mehrwöchige Kompakt-Stapelung: pro Gruppe die KW-Nummer (Montag-erste Woche)
+    /// und die Tage dieser Woche, die ins Fenster fallen. Reihenfolge chronologisch.
+    /// Reine Logik (unit-getestet) — der View stapelt nur die zurückgegebenen Gruppen.
+    static func weekGroups(
+        from windowStart: Date,
+        to windowEnd: Date,
+        calendar: Calendar
+    ) -> [(week: Int, days: [Date])] {
+        let tz = calendar.timeZone
+        var groups: [(week: Int, days: [Date])] = []
+        var cursor = calendar.startOfDay(for: windowStart)
+        var guardCount = 0
+        while cursor < windowEnd && guardCount < maxRecurIterations {
+            let week = isoWeek(of: cursor, timeZone: tz)
+            let year = isoYearForWeek(of: cursor, timeZone: tz)
+            var days: [Date] = []
+            while cursor < windowEnd
+                && isoWeek(of: cursor, timeZone: tz) == week
+                && isoYearForWeek(of: cursor, timeZone: tz) == year
+                && guardCount < maxRecurIterations {
+                days.append(cursor)
+                guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+                cursor = next
+                guardCount += 1
+            }
+            groups.append((week: week, days: days))
+        }
+        return groups
     }
 
     /// Explizit konfigurierter ISO-Kalender: Montag-erster, ≥4 Tage in Woche 1.

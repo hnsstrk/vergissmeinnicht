@@ -64,11 +64,7 @@ struct RootView: View {
     @AppStorage(AppSettingsKey.hideCompleted) private var hideCompleted: Bool = false
     @AppStorage(AppSettingsKey.autoSyncMode)    private var autoSyncModeRaw: String = AutoSyncMode.manual.rawValue
     @AppStorage(AppSettingsKey.savedSearches)  private var savedSearchesRaw: String = "[]"
-    @AppStorage(AppSettingsKey.forecastDisplayMode)       private var forecastDisplayModeRaw: String = ForecastDisplayMode.agenda.rawValue
-    @AppStorage(AppSettingsKey.forecastRange)             private var forecastRangeRaw: String = ForecastRange.days7.rawValue
-    @AppStorage(AppSettingsKey.forecastMaxPerDay)         private var forecastMaxPerDayRaw: String = ForecastMaxPerDay.five.rawValue
-    @AppStorage(AppSettingsKey.forecastShowCalendarWeeks) private var forecastShowCalendarWeeks: Bool = true
-    @AppStorage(AppSettingsKey.forecastPerspectives)      private var forecastPerspectivesRaw: String = ForecastPerspective.defaultEnabledRaw
+    @AppStorage(AppSettingsKey.forecastConfigs) private var forecastConfigsRaw: String = "{}"
 
     var body: some View {
         @Bindable var vm = viewModel
@@ -237,48 +233,45 @@ struct RootView: View {
 
     // MARK: - Vorschau (Follow-up #11)
 
-    /// Vorschau über der Liste: aus / schlanker Wochen-Streifen / tagesgruppierte
-    /// Agenda — gesteuert über die „Vorschau"-Einstellungen. Nur im Listen-Modus
-    /// (im Kalender-Modus redundant) und nur auf den in den Einstellungen
-    /// freigegebenen Perspektiven (`forecastPerspectives`). Der `Divider` setzt eine
-    /// klare Grenze zur Liste, damit die Vorschau nicht in die Aufgaben übergeht.
+    /// Vorschau über der Liste: aus / kompakter Wochen-Streifen / tagesgruppierte
+    /// Agenda — gesteuert über die PRO-PERSPEKTIVE-Konfiguration (`forecastConfigs`).
+    /// Die Konfiguration der AKTIVEN Perspektive (`ForecastPerspective.init(for:)`)
+    /// bestimmt Darstellung, Zeitraum, Kappung und KW; `display == .off` (oder eine
+    /// Perspektive ohne Mapping, z. B. Abhängigkeits-Berichte) blendet die Vorschau
+    /// aus — dann auch kein Trenner. Nur im Listen-Modus (im Kalender redundant).
+    /// Der `Divider` setzt eine klare Grenze zur Liste.
     @ViewBuilder
     private var forecastStrip: some View {
-        let mode = ForecastDisplayMode(rawValue: forecastDisplayModeRaw) ?? .agenda
-        let range = ForecastRange(rawValue: forecastRangeRaw) ?? .days7
-        let enabled = ForecastPerspective.decode(from: forecastPerspectivesRaw)
-        let show = ForecastPerspective.shouldShow(
-            mode: mode,
-            activeFilter: viewModel.activeFilter,
-            enabled: enabled
-        )
-        if show {
-            VStack(spacing: 0) {
-                switch mode {
-                case .off:
-                    EmptyView()
-                case .compact:
-                    ForecastStripView(
-                        tasks: container.tasks,
-                        range: range,
-                        showCalendarWeeks: forecastShowCalendarWeeks
-                    ) { day in
-                        contentMode = .calendar(day)
+        if let perspective = ForecastPerspective(for: viewModel.activeFilter) {
+            let config = ForecastConfig.resolve(perspective, from: forecastConfigsRaw)
+            if config.display != .off {
+                VStack(spacing: 0) {
+                    switch config.display {
+                    case .off:
+                        EmptyView()
+                    case .compact:
+                        ForecastStripView(
+                            tasks: container.tasks,
+                            range: config.range,
+                            showCalendarWeeks: config.showCalendarWeeks
+                        ) { day in
+                            contentMode = .calendar(day)
+                        }
+                    case .agenda:
+                        ForecastAgendaView(
+                            tasks: container.tasks,
+                            range: config.range,
+                            maxPerDay: config.maxPerDay,
+                            showCalendarWeeks: config.showCalendarWeeks,
+                            onOpenDetail: openDetailWindow
+                        )
                     }
-                case .agenda:
-                    ForecastAgendaView(
-                        tasks: container.tasks,
-                        range: range,
-                        maxPerDay: ForecastMaxPerDay(rawValue: forecastMaxPerDayRaw) ?? .five,
-                        showCalendarWeeks: forecastShowCalendarWeeks,
-                        onOpenDetail: openDetailWindow
-                    )
+                    Divider()
                 }
-                Divider()
+                // Subtiler Schatten an der Unterkante: hebt die Vorschau als eigene
+                // Schicht von der Liste ab, statt nahtlos überzugehen.
+                .shadow(color: .black.opacity(0.12), radius: 3, x: 0, y: 1)
             }
-            // Subtiler Schatten an der Unterkante: hebt die Vorschau als eigene
-            // Schicht von der Liste ab, statt nahtlos überzugehen.
-            .shadow(color: .black.opacity(0.12), radius: 3, x: 0, y: 1)
         }
     }
 

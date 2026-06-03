@@ -2991,6 +2991,76 @@
         }
       }
     },
+    "Kompakt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compact"
+          }
+        }
+      }
+    },
+    "1 Woche": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 week"
+          }
+        }
+      }
+    },
+    "2 Wochen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 weeks"
+          }
+        }
+      }
+    },
+    "3 Wochen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 weeks"
+          }
+        }
+      }
+    },
+    "4 Wochen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4 weeks"
+          }
+        }
+      }
+    },
+    "Pro Perspektive": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Per perspective"
+          }
+        }
+      }
+    },
+    "Jede Seitenleisten-Perspektive hat eine eigene Vorschau. \"Agenda\" gruppiert nach Tag mit Projekt-Untertitel, \"Kompakt\" zeigt einen Wochen-Streifen (bei mehreren Wochen je Woche eine Zeile). \"Aus\" blendet die Vorschau in dieser Perspektive aus. Aufgaben mit Plantermin (scheduled) erscheinen als \"geplant\". Kalenderwochen folgen der ISO-Norm (Montag-erste Woche). \"Projekte, Tags & gespeicherte Suchen\" gilt für alle dynamischen Perspektiven gemeinsam; in den Abhängigkeits-Berichten und im Kalender wird die Vorschau nie gezeigt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each sidebar perspective has its own forecast. \"Agenda\" groups by day with a project subtitle, \"Compact\" shows a week strip (one row per week when spanning several weeks). \"Off\" hides the forecast in that perspective. Tasks with a scheduled date appear as \"scheduled\". Calendar weeks follow the ISO standard (Monday-first week). \"Projects, tags & saved searches\" applies to all dynamic perspectives together; the forecast is never shown in the dependency reports or in the calendar."
+          }
+        }
+      }
+    },
     "Nächste 3 Tage": {
       "localizations": {
         "en": {

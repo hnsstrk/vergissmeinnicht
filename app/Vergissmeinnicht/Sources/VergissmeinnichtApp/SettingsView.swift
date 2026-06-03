@@ -17,11 +17,7 @@ struct SettingsView: View {
     @AppStorage(AppSettingsKey.autoSyncMode)       private var autoSyncMode: String = AutoSyncMode.manual.rawValue
     @AppStorage(AppSettingsKey.sidebarColoredIcons) private var sidebarColoredIcons: Bool = true
     @AppStorage(AppSettingsKey.sidebarProjectHierarchy) private var sidebarProjectHierarchy: Bool = true
-    @AppStorage(AppSettingsKey.forecastDisplayMode)       private var forecastDisplayMode: String = ForecastDisplayMode.agenda.rawValue
-    @AppStorage(AppSettingsKey.forecastRange)             private var forecastRange: String = ForecastRange.days7.rawValue
-    @AppStorage(AppSettingsKey.forecastMaxPerDay)         private var forecastMaxPerDay: String = ForecastMaxPerDay.five.rawValue
-    @AppStorage(AppSettingsKey.forecastShowCalendarWeeks) private var forecastShowCalendarWeeks: Bool = true
-    @AppStorage(AppSettingsKey.forecastPerspectives)      private var forecastPerspectivesRaw: String = ForecastPerspective.defaultEnabledRaw
+    @AppStorage(AppSettingsKey.forecastConfigs) private var forecastConfigsRaw: String = "{}"
 
     var body: some View {
         TabView {
@@ -134,64 +130,58 @@ struct SettingsView: View {
     private var forecastTab: some View {
         Form {
             Section {
-                Picker("Anzeige", selection: $forecastDisplayMode) {
-                    ForEach(ForecastDisplayMode.allCases) { mode in
-                        Text(mode.label).tag(mode.rawValue)
-                    }
-                }
-                if forecastDisplayMode != ForecastDisplayMode.off.rawValue {
-                    Picker("Zeitraum", selection: $forecastRange) {
-                        ForEach(ForecastRange.allCases) { r in
-                            Text(r.label).tag(r.rawValue)
-                        }
-                    }
-                    if forecastDisplayMode == ForecastDisplayMode.agenda.rawValue {
-                        Picker("Aufgaben pro Tag", selection: $forecastMaxPerDay) {
-                            ForEach(ForecastMaxPerDay.allCases) { m in
-                                Text(m.label).tag(m.rawValue)
-                            }
-                        }
-                    }
-                    Toggle("Kalenderwochen anzeigen", isOn: $forecastShowCalendarWeeks)
+                ForEach(ForecastPerspective.allCases) { perspective in
+                    perspectiveRow(perspective)
                 }
             } header: {
-                Text("Darstellung").font(.headline)
+                Text("Pro Perspektive").font(.headline)
             } footer: {
-                Text("Über der Aufgabenliste: \"Agenda\" gruppiert nach Tag mit Projekt-Untertitel, \"Wochen-Streifen\" zeigt eine kompakte Tagesleiste. Aufgaben mit Plantermin (scheduled) erscheinen als \"geplant\". Kalenderwochen folgen der ISO-Norm (Montag-erste Woche).")
+                Text("Jede Seitenleisten-Perspektive hat eine eigene Vorschau. \"Agenda\" gruppiert nach Tag mit Projekt-Untertitel, \"Kompakt\" zeigt einen Wochen-Streifen (bei mehreren Wochen je Woche eine Zeile). \"Aus\" blendet die Vorschau in dieser Perspektive aus. Aufgaben mit Plantermin (scheduled) erscheinen als \"geplant\". Kalenderwochen folgen der ISO-Norm (Montag-erste Woche). \"Projekte, Tags & gespeicherte Suchen\" gilt für alle dynamischen Perspektiven gemeinsam; in den Abhängigkeits-Berichten und im Kalender wird die Vorschau nie gezeigt.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-            }
-
-            if forecastDisplayMode != ForecastDisplayMode.off.rawValue {
-                Section {
-                    ForEach(ForecastPerspective.allCases) { perspective in
-                        Toggle(perspective.label, isOn: perspectiveBinding(perspective))
-                    }
-                } header: {
-                    Text("Anzeigen auf").font(.headline)
-                } footer: {
-                    Text("Legt fest, in welchen Seitenleisten-Perspektiven die Vorschau erscheint. \"Projekte, Tags & gespeicherte Suchen\" schaltet alle dynamischen Perspektiven gemeinsam. In den Abhängigkeits-Berichten und im Kalender wird die Vorschau nie gezeigt.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
             }
         }
         .formStyle(.grouped)
     }
 
-    /// Binding für einen einzelnen Perspektiven-Schalter, gespiegelt auf die
-    /// JSON-kodierte Menge in `@AppStorage`. Eine leere Menge bleibt erhalten —
-    /// „alle aus" wird respektiert und nicht auf die Defaults zurückgesetzt.
-    private func perspectiveBinding(_ perspective: ForecastPerspective) -> Binding<Bool> {
-        Binding(
-            get: { ForecastPerspective.decode(from: forecastPerspectivesRaw).contains(perspective) },
-            set: { isOn in
-                var set = ForecastPerspective.decode(from: forecastPerspectivesRaw)
-                if isOn { set.insert(perspective) } else { set.remove(perspective) }
-                forecastPerspectivesRaw = ForecastPerspective.encode(set)
+    /// Eine Perspektiven-Zeile: Darstellung-Picker; bei „nicht Aus" zusätzlich
+    /// Zeitraum, Aufgaben pro Tag (nur Agenda) und Kalenderwochen — eingerückt.
+    @ViewBuilder
+    private func perspectiveRow(_ perspective: ForecastPerspective) -> some View {
+        let config = configBinding(perspective)
+        Picker(perspective.label, selection: config.display) {
+            ForEach(ForecastDisplayMode.allCases) { mode in
+                Text(mode.label).tag(mode)
             }
+        }
+        if config.wrappedValue.display != .off {
+            Group {
+                Picker("Zeitraum", selection: config.range) {
+                    ForEach(ForecastRange.allCases) { r in
+                        Text(r.label).tag(r)
+                    }
+                }
+                if config.wrappedValue.display == .agenda {
+                    Picker("Aufgaben pro Tag", selection: config.maxPerDay) {
+                        ForEach(ForecastMaxPerDay.allCases) { m in
+                            Text(m.label).tag(m)
+                        }
+                    }
+                }
+                Toggle("Kalenderwochen anzeigen", isOn: config.showCalendarWeeks)
+            }
+            .padding(.leading, 16)
+        }
+    }
+
+    /// Binding für die `ForecastConfig` einer Perspektive, gespiegelt auf das
+    /// JSON-Dictionary in `@AppStorage`. Lesen fällt bei fehlendem Eintrag auf den
+    /// perspektiven-spezifischen Default; Schreiben aktualisiert nur diesen Eintrag.
+    private func configBinding(_ perspective: ForecastPerspective) -> Binding<ForecastConfig> {
+        Binding(
+            get: { ForecastConfig.resolve(perspective, from: forecastConfigsRaw) },
+            set: { forecastConfigsRaw = ForecastConfig.update(perspective, to: $0, in: forecastConfigsRaw) }
         )
     }
 

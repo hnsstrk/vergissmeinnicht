@@ -11,8 +11,10 @@ import VergissmeinnichtKit
 /// separat unit-getestet). Rendert nur native Felder (`due`/`scheduled`/`project`/
 /// `recur`) — kein macOS-Kalender (Product-Prinzip „Taskwarrior-treu").
 ///
-/// Höhe gedeckelt + interne `ScrollView`, damit die Agenda die Liste nicht
-/// verdrängt, wenn sie im `safeAreaInset(edge:.top)` sitzt.
+/// Höhe dynamisch: bei wenigen Einträgen passt sich die Agenda ihrer intrinsischen
+/// Inhaltshöhe an (kein großer Leerraum bis zur Liste); erst wenn der Inhalt die
+/// Obergrenze (`maxHeight`) übersteigt, scrollt er intern. Der Inhalt sitzt im
+/// `safeAreaInset(edge:.top)` über der Liste.
 struct ForecastAgendaView: View {
     let tasks: [TaskInfo]
     let range: ForecastRange
@@ -21,8 +23,11 @@ struct ForecastAgendaView: View {
     let onOpenDetail: (String) -> Void
 
     private let calendar = Calendar.current
-    /// Obergrenze der Agenda-Höhe; darüber scrollt der Inhalt intern.
-    private static let maxHeight: CGFloat = 280
+    /// Obergrenze der Agenda-Höhe; darüber scrollt der Inhalt intern. Darunter
+    /// bestimmt die gemessene Inhaltshöhe die tatsächliche Höhe (dynamisch).
+    private static let maxHeight: CGFloat = 320
+    /// Gemessene intrinsische Inhaltshöhe (via Hintergrund-GeometryReader).
+    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
         ScrollView {
@@ -34,8 +39,17 @@ struct ForecastAgendaView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: ForecastContentHeightKey.self, value: proxy.size.height)
+                }
+            )
         }
-        .frame(maxHeight: Self.maxHeight)
+        // Dynamisch: bei kurzem Inhalt exakt die Inhaltshöhe, sonst gedeckelt mit
+        // internem Scroll. `contentHeight == 0` (vor erster Messung) → Deckel als
+        // sichere Obergrenze, damit nichts kurz die ganze Höhe greift.
+        .frame(height: contentHeight > 0 ? min(contentHeight, Self.maxHeight) : Self.maxHeight)
+        .onPreferenceChange(ForecastContentHeightKey.self) { contentHeight = $0 }
         .background(.bar)
     }
 
@@ -199,5 +213,14 @@ struct ForecastAgendaView: View {
         let symbols = fmt.standaloneWeekdaySymbols ?? fmt.weekdaySymbols ?? []
         let idx = calendar.component(.weekday, from: day) - 1
         return symbols.indices.contains(idx) ? symbols[idx] : ""
+    }
+}
+
+/// Trägt die gemessene intrinsische Inhaltshöhe der Agenda nach oben, damit die
+/// Höhe dynamisch (Inhalt vs. Deckel) gesetzt werden kann (Follow-up #11).
+private struct ForecastContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }

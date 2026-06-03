@@ -20,16 +20,13 @@ enum AppSettingsKey {
     static let savedSearches         = "savedSearches"          // JSON-String [SavedSearch], Default "[]"
     static let sidebarProjectHierarchy = "sidebarProjectHierarchy"   // Bool, Default true (hierarchische Projektdarstellung)
     static let sidebarCollapsedProjects = "sidebarCollapsedProjects" // JSON-String [String] eingeklappter Projekt-Pfade, Default "[]"
-    static let forecastDisplayMode       = "forecastDisplayMode"      // String (ForecastDisplayMode.rawValue), Default "agenda"
-    static let forecastRange             = "forecastRange"            // String (ForecastRange.rawValue), Default "days7"
-    static let forecastMaxPerDay         = "forecastMaxPerDay"        // String (ForecastMaxPerDay.rawValue), Default "five"
-    static let forecastShowCalendarWeeks = "forecastShowCalendarWeeks" // Bool, Default true (KW-Anzeige in der Vorschau)
-    static let forecastPerspectives      = "forecastPerspectives"      // JSON-String [ForecastPerspective.rawValue] aktivierter Perspektiven, Default = ForecastPerspective.defaultEnabledRaw
+    static let forecastConfigs           = "forecastConfigs"          // JSON-Dictionary [ForecastPerspective.rawValue: ForecastConfig], Default "{}" (fehlende Perspektive → ForecastConfig.default(for:))
 }
 
 /// Darstellungsmodus der Vorschau über der Aufgabenliste (Follow-up zu #11):
-/// aus, schlanker Wochen-Streifen oder tagesgruppierte Agenda (Things-Stil).
-enum ForecastDisplayMode: String, CaseIterable, Identifiable {
+/// aus, kompakter Wochen-Streifen oder tagesgruppierte Agenda (Things-Stil).
+/// `.off` IST die Sichtbarkeitssteuerung — kein separater Schalter mehr.
+enum ForecastDisplayMode: String, CaseIterable, Identifiable, Codable {
     case off, compact, agenda
 
     var id: String { rawValue }
@@ -37,30 +34,99 @@ enum ForecastDisplayMode: String, CaseIterable, Identifiable {
     var label: LocalizedStringKey {
         switch self {
         case .off:     return "Aus"
-        case .compact: return "Wochen-Streifen"
+        case .compact: return "Kompakt"
         case .agenda:  return "Agenda"
         }
     }
 }
 
-/// Sichtbares Zeitfenster der Vorschau ab heute.
-enum ForecastRange: String, CaseIterable, Identifiable {
-    case days3, days7, days14, thisAndNextWeek
+/// Sichtbares Zeitfenster der Vorschau ab heute. `days3` = 3 rollende Tage;
+/// `weeks1` = 7 rollende Tage ab heute (entspricht dem alten `days7`); `weeks2/3/4`
+/// reichen bis zum Ende der N-ten ISO-Woche (Montag-erste Woche, exklusiv).
+enum ForecastRange: String, CaseIterable, Identifiable, Codable {
+    case days3, weeks1, weeks2, weeks3, weeks4
 
     var id: String { rawValue }
 
     var label: LocalizedStringKey {
         switch self {
-        case .days3:           return "Nächste 3 Tage"
-        case .days7:           return "Nächste 7 Tage"
-        case .days14:          return "Nächste 14 Tage"
-        case .thisAndNextWeek: return "Diese und nächste Woche"
+        case .days3:  return "Nächste 3 Tage"
+        case .weeks1: return "1 Woche"
+        case .weeks2: return "2 Wochen"
+        case .weeks3: return "3 Wochen"
+        case .weeks4: return "4 Wochen"
+        }
+    }
+
+    /// Anzahl ISO-Wochen für die mehrwöchige Kompakt-Stapelung; `nil` für
+    /// Tagesfenster (`days3`) und das rollende 1-Wochen-Fenster (`weeks1`), die
+    /// als EINE Streifen-Zeile gerendert werden (Single-Week-Kompakt).
+    var weekCount: Int? {
+        switch self {
+        case .days3, .weeks1: return nil
+        case .weeks2:         return 2
+        case .weeks3:         return 3
+        case .weeks4:         return 4
         }
     }
 }
 
+/// Vorschau-Konfiguration EINER Perspektive (Follow-up #11): Darstellung, Zeitraum,
+/// Tageskappung und KW-Anzeige. `display == .off` blendet die Vorschau dort aus
+/// (keine separate Sichtbarkeits-Liste mehr). Codable → JSON-Dictionary in
+/// `@AppStorage` (Schlüssel `ForecastPerspective.rawValue`).
+struct ForecastConfig: Codable, Equatable {
+    var display: ForecastDisplayMode
+    var range: ForecastRange
+    var maxPerDay: ForecastMaxPerDay
+    var showCalendarWeeks: Bool
+
+    /// Default je Perspektive: die vier nächst-relevanten Listen zeigen eine
+    /// 1-Wochen-Agenda mit KW; alles andere (inkl. dynamischer Catch-all) ist aus.
+    static func `default`(for perspective: ForecastPerspective) -> ForecastConfig {
+        switch perspective {
+        case .today, .todo, .dueSoon, .upcoming:
+            return ForecastConfig(display: .agenda, range: .weeks1, maxPerDay: .five, showCalendarWeeks: true)
+        case .inbox, .overdue, .waiting, .all, .dynamic:
+            return ForecastConfig(display: .off, range: .weeks1, maxPerDay: .five, showCalendarWeeks: true)
+        }
+    }
+
+    // MARK: - Persistenz (JSON-Dictionary, wie SavedSearch eine JSON-Liste ist)
+
+    /// Löst die Konfiguration für `perspective` aus dem `@AppStorage`-Dictionary-
+    /// String auf. Fehlt der Eintrag (oder ist der String korrupt), greift der
+    /// perspektiven-spezifische Default.
+    static func resolve(_ perspective: ForecastPerspective, from raw: String) -> ForecastConfig {
+        decodeAll(from: raw)[perspective.rawValue] ?? .default(for: perspective)
+    }
+
+    /// Dekodiert das gesamte Dictionary; bei Fehler eine leere Map (→ Defaults).
+    static func decodeAll(from raw: String) -> [String: ForecastConfig] {
+        guard let data = raw.data(using: .utf8),
+              let map = try? JSONDecoder().decode([String: ForecastConfig].self, from: data)
+        else { return [:] }
+        return map
+    }
+
+    /// Setzt die Konfiguration für eine Perspektive und gibt den neuen JSON-String
+    /// zurück (Identität bei Encode-Fehler — kein stiller Datenverlust).
+    static func update(
+        _ perspective: ForecastPerspective,
+        to config: ForecastConfig,
+        in raw: String
+    ) -> String {
+        var map = decodeAll(from: raw)
+        map[perspective.rawValue] = config
+        guard let data = try? JSONEncoder().encode(map),
+              let string = String(data: data, encoding: .utf8)
+        else { return raw }
+        return string
+    }
+}
+
 /// Maximale Anzahl Aufgaben pro Tag in der Agenda, bevor ein „+N"-Hinweis greift.
-enum ForecastMaxPerDay: String, CaseIterable, Identifiable {
+enum ForecastMaxPerDay: String, CaseIterable, Identifiable, Codable {
     case three, five, all
 
     var id: String { rawValue }
@@ -83,12 +149,13 @@ enum ForecastMaxPerDay: String, CaseIterable, Identifiable {
     }
 }
 
-/// Sidebar-Perspektiven, auf denen die Vorschau erscheinen darf (Follow-up #11).
+/// Sidebar-Perspektiven, die eine eigene Vorschau-Konfiguration tragen (Follow-up #11).
 ///
-/// Die acht System-Zeilen erhalten je einen Schalter; die dynamischen Perspektiven
-/// (Projekte, Tags, gespeicherte Suchen) teilen sich den Sammel-Schalter `dynamic`.
-/// Abhängigkeits-Berichte (`blocked`/`blocking`/`unblocked`) sind bewusst NICHT
-/// abgebildet — `init?(for:)` liefert dort `nil`, sodass die Vorschau dort nie zeigt.
+/// Die acht System-Zeilen sind je eine eigene Perspektive; die dynamischen
+/// Perspektiven (Projekte, Tags, gespeicherte Suchen) teilen sich die Sammel-
+/// Perspektive `dynamic`. Abhängigkeits-Berichte (`blocked`/`blocking`/`unblocked`)
+/// sind bewusst NICHT abgebildet — `init?(for:)` liefert dort `nil`, sodass die
+/// Vorschau dort nie zeigt.
 enum ForecastPerspective: String, CaseIterable, Identifiable {
     case today, todo, dueSoon, upcoming, inbox, overdue, waiting, all
     /// Sammel-Schalter für Projekte / Tags / gespeicherte Suchen.
@@ -126,50 +193,6 @@ enum ForecastPerspective: String, CaseIterable, Identifiable {
         case .project, .tag, .savedSearch:    self = .dynamic
         case .blocked, .blocking, .unblocked: return nil
         }
-    }
-
-    /// Standardmäßig aktivierte Perspektiven (mit dem User bestätigt): die vier
-    /// nächst-relevanten Listen. Alles andere — inkl. dynamischer Perspektiven — aus.
-    static let defaultEnabled: Set<ForecastPerspective> = [.today, .todo, .dueSoon, .upcoming]
-
-    /// JSON-Serialisierung der Default-Menge für den `@AppStorage`-Default.
-    /// Wichtig: der Default greift nur bei abwesendem Schlüssel — eine leere Menge
-    /// (User hat alles deaktiviert) wird separat persistiert und respektiert.
-    static var defaultEnabledRaw: String {
-        encode(defaultEnabled)
-    }
-
-    /// Reine Sichtbarkeitslogik: zeigt die Vorschau für (Modus + aktiver Filter +
-    /// aktivierte Menge)? Kalender-Modus ist bereits strukturell ausgeschlossen
-    /// (die Vorschau hängt nur im Listen-Zweig), daher hier kein Parameter nötig.
-    static func shouldShow(
-        mode: ForecastDisplayMode,
-        activeFilter: SidebarFilter,
-        enabled: Set<ForecastPerspective>
-    ) -> Bool {
-        guard mode != .off else { return false }
-        guard let perspective = ForecastPerspective(for: activeFilter) else { return false }
-        return enabled.contains(perspective)
-    }
-
-    // MARK: - Persistenz (JSON-Liste der rawValues, wie SavedSearch)
-
-    /// Dekodiert die aktivierte Menge aus einem `@AppStorage`-String. Bei Fehler
-    /// fällt sie auf die Default-Menge zurück (kein stilles „alles aus").
-    static func decode(from raw: String) -> Set<ForecastPerspective> {
-        guard let data = raw.data(using: .utf8),
-              let values = try? JSONDecoder().decode([String].self, from: data)
-        else { return defaultEnabled }
-        return Set(values.compactMap { ForecastPerspective(rawValue: $0) })
-    }
-
-    /// Kodiert die Menge zu einem JSON-String (stabile Reihenfolge via `allCases`).
-    static func encode(_ set: Set<ForecastPerspective>) -> String {
-        let ordered = allCases.filter { set.contains($0) }.map(\.rawValue)
-        guard let data = try? JSONEncoder().encode(ordered),
-              let string = String(data: data, encoding: .utf8)
-        else { return "[]" }
-        return string
     }
 }
 
