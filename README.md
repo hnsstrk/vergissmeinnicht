@@ -30,8 +30,11 @@ front-end, Rust core via UniFFI, sandboxed, App-Store-friendly.
   `task calendar`. Month grid rendering only native fields: `due` as a chip on its
   day, a `scheduled`→`due` span as a multi-day bar, recurring tasks repeated per
   occurrence. Capped chips with a "+N" overflow; click a day for an agenda popover,
-  click a task to open its detail. A slim **week forecast strip** above the task
-  list shows per-day task counts and jumps into the calendar; toggle it in Settings.
+  click a task to open its detail. A configurable **forecast** above the task list
+  (Settings ▸ *Forecast*) shows either a day-grouped **agenda** (big day header,
+  per-task project subtitle, `scheduled` shown as "scheduled", "+N" per-day cap) or
+  a compact **week strip** with per-day counts — both with ISO calendar-week (KW)
+  separators and a selectable range (3/7/14 days or this-and-next week).
 - **Quick Capture** (⌘N) — focused capture sheet with title, notes, project, tags,
   due, priority, recurrence. Or terminal-style tokens (`+tag project:foo
   due:tomorrow`).

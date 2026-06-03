@@ -23,6 +23,7 @@
 		CA1E0001A0000000CA1E0001 /* CalendarBucketing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1E0001B0000000CA1E0001 /* CalendarBucketing.swift */; };
 		CA1E0002A0000000CA1E0002 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1E0002B0000000CA1E0002 /* CalendarView.swift */; };
 		CA1E0003A0000000CA1E0003 /* ForecastStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1E0003B0000000CA1E0003 /* ForecastStripView.swift */; };
+		CA1E0005A0000000CA1E0005 /* ForecastAgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1E0005B0000000CA1E0005 /* ForecastAgendaView.swift */; };
 		CA1E0004A0000000CA1E0004 /* CalendarBucketingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1E0004B0000000CA1E0004 /* CalendarBucketingTests.swift */; };
 		FC3F1EBAE16CFB148B17C641 /* SyncStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F252657A495464ECB2CAEC /* SyncStatusView.swift */; };
 		A1B2C3D4E5F60718293A4B5C /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B5CDE /* SidebarView.swift */; };
@@ -54,6 +55,7 @@
 		CA1E0001B0000000CA1E0001 /* CalendarBucketing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarBucketing.swift; sourceTree = "<group>"; };
 		CA1E0002B0000000CA1E0002 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		CA1E0003B0000000CA1E0003 /* ForecastStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastStripView.swift; sourceTree = "<group>"; };
+		CA1E0005B0000000CA1E0005 /* ForecastAgendaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastAgendaView.swift; sourceTree = "<group>"; };
 		CA1E0004B0000000CA1E0004 /* CalendarBucketingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarBucketingTests.swift; sourceTree = "<group>"; };
 		25E021FA287483A39C94B9CF /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		3308F5136CAA7FABCC2D161A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -181,6 +183,7 @@
 				CA1E0001B0000000CA1E0001 /* CalendarBucketing.swift */,
 				CA1E0002B0000000CA1E0002 /* CalendarView.swift */,
 				CA1E0003B0000000CA1E0003 /* ForecastStripView.swift */,
+				CA1E0005B0000000CA1E0005 /* ForecastAgendaView.swift */,
 				AB1239A4B5CDEEF123456789 /* BackupRestoreSheet.swift */,
 				89AB1239A4B5CDEEF1234567 /* BackupService.swift */,
 				AAF1CE6CE75AB93ED0E9DA24 /* DetailView.swift */,
@@ -305,6 +308,7 @@
 				CA1E0001A0000000CA1E0001 /* CalendarBucketing.swift in Sources */,
 				CA1E0002A0000000CA1E0002 /* CalendarView.swift in Sources */,
 				CA1E0003A0000000CA1E0003 /* ForecastStripView.swift in Sources */,
+				CA1E0005A0000000CA1E0005 /* ForecastAgendaView.swift in Sources */,
 				657D4B6D16DAA072530F66D7 /* DetailView.swift in Sources */,
 				C3D4E5F60718293A4B5CDE01 /* DueDateParser.swift in Sources */,
 				5FE9226760158ABE8A738D35 /* KeychainStore.swift in Sources */,

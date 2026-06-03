@@ -2960,6 +2960,186 @@
           }
         }
       }
+    },
+    "Aus": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
+          }
+        }
+      }
+    },
+    "Wochen-Streifen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Week strip"
+          }
+        }
+      }
+    },
+    "Agenda": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agenda"
+          }
+        }
+      }
+    },
+    "Nächste 3 Tage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next 3 days"
+          }
+        }
+      }
+    },
+    "Nächste 7 Tage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next 7 days"
+          }
+        }
+      }
+    },
+    "Nächste 14 Tage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next 14 days"
+          }
+        }
+      }
+    },
+    "Diese und nächste Woche": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This and next week"
+          }
+        }
+      }
+    },
+    "3 pro Tag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 per day"
+          }
+        }
+      }
+    },
+    "5 pro Tag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 per day"
+          }
+        }
+      }
+    },
+    "Anzeige": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display"
+          }
+        }
+      }
+    },
+    "Zeitraum": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Range"
+          }
+        }
+      }
+    },
+    "Aufgaben pro Tag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tasks per day"
+          }
+        }
+      }
+    },
+    "Kalenderwochen anzeigen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show calendar weeks"
+          }
+        }
+      }
+    },
+    "Vorschau": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forecast"
+          }
+        }
+      }
+    },
+    "Über der Aufgabenliste: \"Agenda\" gruppiert nach Tag mit Projekt-Untertitel, \"Wochen-Streifen\" zeigt eine kompakte Tagesleiste. Aufgaben mit Plantermin (scheduled) erscheinen als \"geplant\". Kalenderwochen folgen der ISO-Norm (Montag-erste Woche).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Above the task list: \"Agenda\" groups by day with a project subtitle, \"Week strip\" shows a compact day bar. Tasks with a scheduled date appear as \"scheduled\". Calendar weeks follow the ISO standard (Monday-first week)."
+          }
+        }
+      }
+    },
+    "geplant": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "scheduled"
+          }
+        }
+      }
+    },
+    "geplant %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "scheduled %@"
+          }
+        }
+      }
+    },
+    "KW %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CW %lld"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

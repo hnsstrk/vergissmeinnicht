@@ -20,7 +20,66 @@ enum AppSettingsKey {
     static let savedSearches         = "savedSearches"          // JSON-String [SavedSearch], Default "[]"
     static let sidebarProjectHierarchy = "sidebarProjectHierarchy"   // Bool, Default true (hierarchische Projektdarstellung)
     static let sidebarCollapsedProjects = "sidebarCollapsedProjects" // JSON-String [String] eingeklappter Projekt-Pfade, Default "[]"
-    static let showForecastStrip       = "showForecastStrip"        // Bool, Default true (Wochen-Streifen über der Liste)
+    static let forecastDisplayMode       = "forecastDisplayMode"      // String (ForecastDisplayMode.rawValue), Default "agenda"
+    static let forecastRange             = "forecastRange"            // String (ForecastRange.rawValue), Default "days7"
+    static let forecastMaxPerDay         = "forecastMaxPerDay"        // String (ForecastMaxPerDay.rawValue), Default "five"
+    static let forecastShowCalendarWeeks = "forecastShowCalendarWeeks" // Bool, Default true (KW-Anzeige in der Vorschau)
+}
+
+/// Darstellungsmodus der Vorschau über der Aufgabenliste (Follow-up zu #11):
+/// aus, schlanker Wochen-Streifen oder tagesgruppierte Agenda (Things-Stil).
+enum ForecastDisplayMode: String, CaseIterable, Identifiable {
+    case off, compact, agenda
+
+    var id: String { rawValue }
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .off:     return "Aus"
+        case .compact: return "Wochen-Streifen"
+        case .agenda:  return "Agenda"
+        }
+    }
+}
+
+/// Sichtbares Zeitfenster der Vorschau ab heute.
+enum ForecastRange: String, CaseIterable, Identifiable {
+    case days3, days7, days14, thisAndNextWeek
+
+    var id: String { rawValue }
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .days3:           return "Nächste 3 Tage"
+        case .days7:           return "Nächste 7 Tage"
+        case .days14:          return "Nächste 14 Tage"
+        case .thisAndNextWeek: return "Diese und nächste Woche"
+        }
+    }
+}
+
+/// Maximale Anzahl Aufgaben pro Tag in der Agenda, bevor ein „+N"-Hinweis greift.
+enum ForecastMaxPerDay: String, CaseIterable, Identifiable {
+    case three, five, all
+
+    var id: String { rawValue }
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .three: return "3 pro Tag"
+        case .five:  return "5 pro Tag"
+        case .all:   return "Alle"
+        }
+    }
+
+    /// Kappungswert; `nil` = keine Kappung.
+    var cap: Int? {
+        switch self {
+        case .three: return 3
+        case .five:  return 5
+        case .all:   return nil
+        }
+    }
 }
 
 enum AppLanguage: String, CaseIterable, Identifiable {

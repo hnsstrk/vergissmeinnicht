@@ -17,7 +17,10 @@ struct SettingsView: View {
     @AppStorage(AppSettingsKey.autoSyncMode)       private var autoSyncMode: String = AutoSyncMode.manual.rawValue
     @AppStorage(AppSettingsKey.sidebarColoredIcons) private var sidebarColoredIcons: Bool = true
     @AppStorage(AppSettingsKey.sidebarProjectHierarchy) private var sidebarProjectHierarchy: Bool = true
-    @AppStorage(AppSettingsKey.showForecastStrip) private var showForecastStrip: Bool = true
+    @AppStorage(AppSettingsKey.forecastDisplayMode)       private var forecastDisplayMode: String = ForecastDisplayMode.agenda.rawValue
+    @AppStorage(AppSettingsKey.forecastRange)             private var forecastRange: String = ForecastRange.days7.rawValue
+    @AppStorage(AppSettingsKey.forecastMaxPerDay)         private var forecastMaxPerDay: String = ForecastMaxPerDay.five.rawValue
+    @AppStorage(AppSettingsKey.forecastShowCalendarWeeks) private var forecastShowCalendarWeeks: Bool = true
 
     var body: some View {
         TabView {
@@ -69,11 +72,40 @@ struct SettingsView: View {
             Section {
                 Toggle("Farbige Symbole in der Seitenleiste", isOn: $sidebarColoredIcons)
                 Toggle("Projekte hierarchisch anzeigen", isOn: $sidebarProjectHierarchy)
-                Toggle("Wochen-Streifen über der Aufgabenliste anzeigen", isOn: $showForecastStrip)
             } header: {
                 Text("Darstellung").font(.headline)
             } footer: {
                 Text("Aus: Symbole erscheinen einfarbig wie Projekt- und Tag-Einträge. Bei deaktivierter Hierarchie erscheinen Projekte als flache Liste mit vollständigen Punkt-Namen (z. B. \"Arbeit.KundeA\").")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section {
+                Picker("Anzeige", selection: $forecastDisplayMode) {
+                    ForEach(ForecastDisplayMode.allCases) { mode in
+                        Text(mode.label).tag(mode.rawValue)
+                    }
+                }
+                if forecastDisplayMode != ForecastDisplayMode.off.rawValue {
+                    Picker("Zeitraum", selection: $forecastRange) {
+                        ForEach(ForecastRange.allCases) { r in
+                            Text(r.label).tag(r.rawValue)
+                        }
+                    }
+                    if forecastDisplayMode == ForecastDisplayMode.agenda.rawValue {
+                        Picker("Aufgaben pro Tag", selection: $forecastMaxPerDay) {
+                            ForEach(ForecastMaxPerDay.allCases) { m in
+                                Text(m.label).tag(m.rawValue)
+                            }
+                        }
+                    }
+                    Toggle("Kalenderwochen anzeigen", isOn: $forecastShowCalendarWeeks)
+                }
+            } header: {
+                Text("Vorschau").font(.headline)
+            } footer: {
+                Text("Über der Aufgabenliste: \"Agenda\" gruppiert nach Tag mit Projekt-Untertitel, \"Wochen-Streifen\" zeigt eine kompakte Tagesleiste. Aufgaben mit Plantermin (scheduled) erscheinen als \"geplant\". Kalenderwochen folgen der ISO-Norm (Montag-erste Woche).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

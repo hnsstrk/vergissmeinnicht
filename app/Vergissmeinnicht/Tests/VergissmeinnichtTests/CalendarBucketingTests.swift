@@ -32,13 +32,14 @@ final class CalendarBucketingTests: XCTestCase {
     private func task(
         uuid: String = UUID().uuidString,
         description: String = "Task",
+        project: String? = nil,
         due: Int64? = nil,
         status: TaskStatus = .pending,
         recur: String? = nil,
         scheduled: Int64? = nil
     ) -> TaskInfo {
         TaskInfo(
-            uuid: uuid, description: description, project: nil, tags: [],
+            uuid: uuid, description: description, project: project, tags: [],
             due: due, status: status, entry: nil, workingSetId: nil,
             priority: nil, annotations: [], wait: nil, recur: recur,
             scheduled: scheduled, depends: [], isBlocked: false, isBlocking: false
@@ -162,5 +163,149 @@ final class CalendarBucketingTests: XCTestCase {
         let day = dayStart(2026, 6, 20)
         let tasks = [task(due: unix(2026, 6, 15))]
         XCTAssertEqual(CalendarBucketing.count(on: day, tasks: tasks, calendar: utcCalendar()), 0)
+    }
+
+    // MARK: - ISO-Kalenderwoche (Follow-up #11)
+    //
+    // Ground-Truth via `date -j -f "%Y-%m-%d" <d> "+%V"` (macOS) — die KW-Werte
+    // sind nicht aus dem Gedächtnis, sondern gegen das System verifiziert. 2026
+    // hat eine KW53, die bis 3.1.2027 läuft; 4.1.2027 ist KW1/2027.
+
+    private let utc = TimeZone(identifier: "UTC")!
+
+    private func midday(_ year: Int, _ month: Int, _ day: Int) -> Date {
+        Date(timeIntervalSince1970: TimeInterval(unix(year, month, day)))
+    }
+
+    func testIsoWeekMidYear() {
+        XCTAssertEqual(CalendarBucketing.isoWeek(of: midday(2026, 6, 15), timeZone: utc), 25)
+    }
+
+    func testIsoWeekYearBoundaryKW53() {
+        // 28.12.2026 → KW53/2026, läuft bis 3.1.2027 (noch KW53).
+        XCTAssertEqual(CalendarBucketing.isoWeek(of: midday(2026, 12, 28), timeZone: utc), 53)
+        XCTAssertEqual(CalendarBucketing.isoYearForWeek(of: midday(2026, 12, 28), timeZone: utc), 2026)
+        XCTAssertEqual(CalendarBucketing.isoWeek(of: midday(2027, 1, 3), timeZone: utc), 53)
+        XCTAssertEqual(CalendarBucketing.isoYearForWeek(of: midday(2027, 1, 3), timeZone: utc), 2026)
+    }
+
+    func testIsoWeekRollsToKW1() {
+        // 4.1.2027 → KW1/2027.
+        XCTAssertEqual(CalendarBucketing.isoWeek(of: midday(2027, 1, 4), timeZone: utc), 1)
+        XCTAssertEqual(CalendarBucketing.isoYearForWeek(of: midday(2027, 1, 4), timeZone: utc), 2027)
+    }
+
+    func testIsoWeek53BelongsToPreviousYear() {
+        // 3.1.2021 → KW53/2020 (klassischer Jahreswechsel-Fall).
+        XCTAssertEqual(CalendarBucketing.isoWeek(of: midday(2021, 1, 3), timeZone: utc), 53)
+        XCTAssertEqual(CalendarBucketing.isoYearForWeek(of: midday(2021, 1, 3), timeZone: utc), 2020)
+    }
+
+    // MARK: - Fenster (ForecastRange)
+
+    func testWindowFixedDayRanges() {
+        let cal = utcCalendar()
+        let today = midday(2026, 6, 15)
+        let start = dayStart(2026, 6, 15)
+        XCTAssertEqual(CalendarBucketing.window(for: .days3, today: today, calendar: cal).start, start)
+        XCTAssertEqual(CalendarBucketing.window(for: .days3, today: today, calendar: cal).end, dayStart(2026, 6, 18))
+        XCTAssertEqual(CalendarBucketing.window(for: .days7, today: today, calendar: cal).end, dayStart(2026, 6, 22))
+        XCTAssertEqual(CalendarBucketing.window(for: .days14, today: today, calendar: cal).end, dayStart(2026, 6, 29))
+    }
+
+    func testWindowThisAndNextWeek() {
+        // 15.6.2026 ist ein Montag → diese ISO-Woche beginnt am 15., Ende der
+        // nächsten Woche ist exklusiv der 29.6. (Montag + 14 Tage).
+        let cal = utcCalendar()
+        let today = midday(2026, 6, 15)
+        let w = CalendarBucketing.window(for: .thisAndNextWeek, today: today, calendar: cal)
+        XCTAssertEqual(w.start, dayStart(2026, 6, 15))
+        XCTAssertEqual(w.end, dayStart(2026, 6, 29))
+    }
+
+    // MARK: - Agenda-Buckets: scheduled vs. due
+
+    func testAgendaScheduledAndDueAppearSeparately() {
+        // scheduled 10., due 12. → zwei getrennte Agenda-Einträge an je einem Tag.
+        let t = task(due: unix(2026, 6, 12), scheduled: unix(2026, 6, 10))
+        let cal = utcCalendar()
+        let start = dayStart(2026, 6, 1)
+        let end = dayStart(2026, 7, 1)
+        let buckets = CalendarBucketing.agendaBuckets(tasks: [t], from: start, to: end, calendar: cal)
+        let sched = buckets[dayStart(2026, 6, 10)] ?? []
+        let due = buckets[dayStart(2026, 6, 12)] ?? []
+        XCTAssertEqual(sched.count, 1)
+        XCTAssertEqual(due.count, 1)
+        if case .scheduled = sched.first?.reason {} else { XCTFail("Erwartet: .scheduled am 10.") }
+        if case .due = due.first?.reason {} else { XCTFail("Erwartet: .due am 12.") }
+        // Kein Span-Mittag.
+        XCTAssertNil(buckets[dayStart(2026, 6, 11)])
+    }
+
+    func testAgendaCarriesProjectSubtitleData() {
+        let t = task(project: "Arbeit", due: unix(2026, 6, 15))
+        let cal = utcCalendar()
+        let buckets = CalendarBucketing.agendaBuckets(
+            tasks: [t], from: dayStart(2026, 6, 1), to: dayStart(2026, 7, 1), calendar: cal
+        )
+        XCTAssertEqual(buckets[dayStart(2026, 6, 15)]?.first?.task.project, "Arbeit")
+    }
+
+    func testAgendaCompletedIgnored() {
+        let t = task(due: unix(2026, 6, 15), status: .completed)
+        let cal = utcCalendar()
+        let buckets = CalendarBucketing.agendaBuckets(
+            tasks: [t], from: dayStart(2026, 6, 1), to: dayStart(2026, 7, 1), calendar: cal
+        )
+        XCTAssertTrue(buckets.isEmpty)
+    }
+
+    func testAgendaRespectsWindowExclusiveEnd() {
+        // due exakt am end-Tag → außerhalb (Fenster ist [start, end)).
+        let t = task(due: unix(2026, 6, 22))
+        let cal = utcCalendar()
+        let (start, end) = CalendarBucketing.window(for: .days7, today: midday(2026, 6, 15), calendar: cal)
+        let buckets = CalendarBucketing.agendaBuckets(tasks: [t], from: start, to: end, calendar: cal)
+        XCTAssertTrue(buckets.isEmpty)
+    }
+
+    func testAgendaWeeklyRecurExpandsDue() {
+        let t = task(due: unix(2026, 6, 1), recur: "weekly")
+        let cal = utcCalendar()
+        let buckets = CalendarBucketing.agendaBuckets(
+            tasks: [t], from: dayStart(2026, 6, 1), to: dayStart(2026, 7, 1), calendar: cal
+        )
+        for day in [1, 8, 15, 22, 29] {
+            XCTAssertEqual(buckets[dayStart(2026, 6, day)]?.count, 1, "Recur-Vorkommen am \(day). fehlt")
+        }
+    }
+
+    // MARK: - Kappung / Überlauf
+
+    func testCappedReturnsOverflow() {
+        let items = (0..<5).map {
+            CalendarBucketing.AgendaItem(task: task(uuid: "u\($0)", due: unix(2026, 6, 15)), reason: .due)
+        }
+        let (shown, overflow) = CalendarBucketing.capped(items, cap: 3)
+        XCTAssertEqual(shown.count, 3)
+        XCTAssertEqual(overflow, 2)
+    }
+
+    func testCappedNoOverflowUnderCap() {
+        let items = (0..<2).map {
+            CalendarBucketing.AgendaItem(task: task(uuid: "u\($0)", due: unix(2026, 6, 15)), reason: .due)
+        }
+        let (shown, overflow) = CalendarBucketing.capped(items, cap: 5)
+        XCTAssertEqual(shown.count, 2)
+        XCTAssertEqual(overflow, 0)
+    }
+
+    func testCappedNilCapShowsAll() {
+        let items = (0..<7).map {
+            CalendarBucketing.AgendaItem(task: task(uuid: "u\($0)", due: unix(2026, 6, 15)), reason: .due)
+        }
+        let (shown, overflow) = CalendarBucketing.capped(items, cap: nil)
+        XCTAssertEqual(shown.count, 7)
+        XCTAssertEqual(overflow, 0)
     }
 }

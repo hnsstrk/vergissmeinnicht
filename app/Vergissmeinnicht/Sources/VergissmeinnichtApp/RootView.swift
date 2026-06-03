@@ -64,7 +64,10 @@ struct RootView: View {
     @AppStorage(AppSettingsKey.hideCompleted) private var hideCompleted: Bool = false
     @AppStorage(AppSettingsKey.autoSyncMode)    private var autoSyncModeRaw: String = AutoSyncMode.manual.rawValue
     @AppStorage(AppSettingsKey.savedSearches)  private var savedSearchesRaw: String = "[]"
-    @AppStorage(AppSettingsKey.showForecastStrip) private var showForecastStrip: Bool = true
+    @AppStorage(AppSettingsKey.forecastDisplayMode)       private var forecastDisplayModeRaw: String = ForecastDisplayMode.agenda.rawValue
+    @AppStorage(AppSettingsKey.forecastRange)             private var forecastRangeRaw: String = ForecastRange.days7.rawValue
+    @AppStorage(AppSettingsKey.forecastMaxPerDay)         private var forecastMaxPerDayRaw: String = ForecastMaxPerDay.five.rawValue
+    @AppStorage(AppSettingsKey.forecastShowCalendarWeeks) private var forecastShowCalendarWeeks: Bool = true
 
     var body: some View {
         @Bindable var vm = viewModel
@@ -231,16 +234,34 @@ struct RootView: View {
         }
     }
 
-    // MARK: - Wochen-Streifen
+    // MARK: - Vorschau (Follow-up #11)
 
-    /// Wochen-Streifen über der Liste (#11). Nur im Listen-Modus und nur wenn der
-    /// Settings-Toggle aktiv ist — im Kalender-Modus ist der Streifen redundant.
+    /// Vorschau über der Liste: aus / schlanker Wochen-Streifen / tagesgruppierte
+    /// Agenda — gesteuert über die „Vorschau"-Einstellungen. Nur im Listen-Modus
+    /// (im Kalender-Modus redundant).
     @ViewBuilder
     private var forecastStrip: some View {
-        if showForecastStrip {
-            ForecastStripView(tasks: container.tasks) { day in
+        let mode = ForecastDisplayMode(rawValue: forecastDisplayModeRaw) ?? .agenda
+        let range = ForecastRange(rawValue: forecastRangeRaw) ?? .days7
+        switch mode {
+        case .off:
+            EmptyView()
+        case .compact:
+            ForecastStripView(
+                tasks: container.tasks,
+                range: range,
+                showCalendarWeeks: forecastShowCalendarWeeks
+            ) { day in
                 contentMode = .calendar(day)
             }
+        case .agenda:
+            ForecastAgendaView(
+                tasks: container.tasks,
+                range: range,
+                maxPerDay: ForecastMaxPerDay(rawValue: forecastMaxPerDayRaw) ?? .five,
+                showCalendarWeeks: forecastShowCalendarWeeks,
+                onOpenDetail: openDetailWindow
+            )
         }
     }
 

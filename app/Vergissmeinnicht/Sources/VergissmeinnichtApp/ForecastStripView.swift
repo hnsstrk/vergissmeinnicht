@@ -1,22 +1,31 @@
 import SwiftUI
 import VergissmeinnichtKit
 
-/// Schlanker horizontaler Wochen-Streifen über der Aufgabenliste: 7 Tageszellen
-/// (locale-Wochentag + Datum + Task-Zähler-Badge aus `due`+`scheduled`), heute
-/// hervorgehoben. Klick auf eine Zelle wechselt in den Kalender-Modus, fokussiert
-/// auf den Monat dieses Tages — verbindet Streifen (A) und Kalender (B).
+/// Schlanker horizontaler Wochen-Streifen über der Aufgabenliste: Tageszellen ab
+/// heute über das eingestellte Fenster (`ForecastRange`), je mit locale-Wochentag,
+/// Datum und Task-Zähler-Badge (aus `due`+`scheduled`); heute hervorgehoben.
+/// Optional links eine ISO-„KW <n>"-Marke. Klick auf eine Zelle wechselt in den
+/// Kalender-Modus, fokussiert auf den Monat dieses Tages.
 ///
-/// Zählung liefert `CalendarBucketing.count` (separat unit-getestet). Reine
-/// Darstellung, schreibt nichts.
+/// Zählung liefert `CalendarBucketing.count`, das Fenster `CalendarBucketing.window`,
+/// die KW `CalendarBucketing.isoWeek` (separat unit-getestet). Reine Darstellung.
 struct ForecastStripView: View {
     let tasks: [TaskInfo]
+    let range: ForecastRange
+    let showCalendarWeeks: Bool
     let onSelectDay: (Date) -> Void
 
     private let calendar = Calendar.current
 
     var body: some View {
         HStack(spacing: 6) {
-            ForEach(weekDays, id: \.self) { day in
+            if showCalendarWeeks, let first = stripDays.first {
+                Text("KW \(CalendarBucketing.isoWeek(of: first, timeZone: calendar.timeZone))")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.trailing, 2)
+            }
+            ForEach(stripDays, id: \.self) { day in
                 dayCell(day)
             }
         }
@@ -62,15 +71,18 @@ struct ForecastStripView: View {
         .help(Text("\(count) Aufgaben"))
     }
 
-    /// Die 7 Tage der aktuellen Woche, beginnend am `firstWeekday` des Kalenders.
-    private var weekDays: [Date] {
-        let today = calendar.startOfDay(for: Date())
-        let weekday = calendar.component(.weekday, from: today)
-        let leading = (weekday - calendar.firstWeekday + 7) % 7
-        guard let weekStart = calendar.date(byAdding: .day, value: -leading, to: today) else {
-            return [today]
+    /// Die Tage des eingestellten Fensters ab heute (geteiltes
+    /// `CalendarBucketing.window` mit der Agenda).
+    private var stripDays: [Date] {
+        let (start, end) = CalendarBucketing.window(for: range, today: Date(), calendar: calendar)
+        var days: [Date] = []
+        var cursor = start
+        while cursor < end {
+            days.append(cursor)
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
         }
-        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: weekStart) }
+        return days
     }
 
     /// Locale-Wochentags-Kürzel (kein hartkodierter String).

@@ -58,6 +58,153 @@ enum CalendarBucketing {
         return result
     }
 
+    // MARK: - Agenda (Follow-up #11)
+
+    /// Grund, warum eine Task an einem Agenda-Tag erscheint. Anders als das
+    /// `Entry`-Modell des Monats-Grids (das nur *wo* kodiert) trägt die Agenda
+    /// auch das *warum* — eine Task mit `scheduled` UND `due` erscheint zweimal:
+    /// am `scheduled`-Tag als „geplant" (Things-Verhalten), am `due`-Tag als
+    /// fällig. Das ist einfacher als der Mehrtagesbalken und nah am Things-Vorbild.
+    enum AgendaReason: Hashable {
+        /// Fällig an diesem Tag (`due`).
+        case due
+        /// Geplant an diesem Tag (`scheduled`); `time` = Unix-Sekunden des
+        /// Zeitpunkts (für die Uhrzeit-Anzeige), falls vorhanden.
+        case scheduled(time: Int64)
+    }
+
+    /// Ein Agenda-Eintrag: Task + Grund. Reine Daten, keine View-Abhängigkeit.
+    struct AgendaItem: Hashable {
+        let task: TaskInfo
+        let reason: AgendaReason
+    }
+
+    /// Bucketet (pending) Tasks auf die Tage des Fensters `[windowStart, windowEnd)`.
+    /// Schlüssel ist `calendar.startOfDay(for:)`. Eine Task landet pro relevantem
+    /// Feld einmal: `due`-Tag als `.due`, `scheduled`-Tag als `.scheduled`. Recur
+    /// expandiert in `.due`-Vorkommen (analog Monats-Grid, gemeinsames Stepping).
+    /// Kein Span — die Agenda ist tagesgruppiert, nicht balkenorientiert.
+    static func agendaBuckets(
+        tasks: [TaskInfo],
+        from windowStart: Date,
+        to windowEnd: Date,
+        calendar: Calendar
+    ) -> [Date: [AgendaItem]] {
+        let startDay = calendar.startOfDay(for: windowStart)
+        var result: [Date: [AgendaItem]] = [:]
+
+        for task in tasks where task.status == .pending {
+            // scheduled → „geplant" am scheduled-Tag (mit Uhrzeit).
+            if let scheduled = task.scheduled {
+                let day = calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(scheduled)))
+                if day >= startDay && day < windowEnd {
+                    result[day, default: []].append(
+                        AgendaItem(task: task, reason: .scheduled(time: scheduled))
+                    )
+                }
+            }
+
+            // due → fällig am due-Tag (Recur expandiert die due-Vorkommen).
+            guard let due = task.due else { continue }
+            let hasRecur = (task.recur.map { !$0.isEmpty } ?? false)
+                && RecurParser.components(from: task.recur ?? "") != nil
+            if hasRecur, let raw = task.recur, let delta = RecurParser.components(from: raw) {
+                addRecurDueItems(task, anchorUnix: due, delta: delta,
+                                 startDay: startDay, windowEnd: windowEnd,
+                                 calendar: calendar, into: &result)
+            } else {
+                let day = calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(due)))
+                if day >= startDay && day < windowEnd {
+                    result[day, default: []].append(AgendaItem(task: task, reason: .due))
+                }
+            }
+        }
+        return result
+    }
+
+    /// Kappung pro Tag: gibt die anzuzeigenden Items und die Anzahl der
+    /// verborgenen Überlauf-Items zurück. Pure Funktion (unit-getestet), damit die
+    /// „+N"-Logik nicht im View-Body versteckt liegt.
+    static func capped(_ items: [AgendaItem], cap: Int?) -> (shown: [AgendaItem], overflow: Int) {
+        guard let cap, items.count > cap else { return (items, 0) }
+        return (Array(items.prefix(cap)), items.count - cap)
+    }
+
+    /// ISO-8601-Kalenderwoche (deutsche KW-Konvention: Montag-erster Tag, Woche 1 =
+    /// erste Woche mit ≥4 Tagen). Bewusst ein eigener, explizit konfigurierter
+    /// Kalender — nicht der locale-abhängige `Calendar(identifier:.iso8601)` allein,
+    /// dessen `firstWeekday` von der Locale verschoben werden kann.
+    static func isoWeek(of date: Date, timeZone: TimeZone) -> Int {
+        isoCalendar(timeZone: timeZone).component(.weekOfYear, from: date)
+    }
+
+    /// ISO-Wochen-Jahr (`yearForWeekOfYear`) — am Jahreswechsel kann es vom
+    /// Kalenderjahr abweichen (z. B. 1.1.2027 liegt in KW53/2026).
+    static func isoYearForWeek(of date: Date, timeZone: TimeZone) -> Int {
+        isoCalendar(timeZone: timeZone).component(.yearForWeekOfYear, from: date)
+    }
+
+    /// Fenster `[start, end)` für eine `ForecastRange`. Start = Tagesanfang von
+    /// `today`. Feste Tagesfenster zählen `n` Tage; `thisAndNextWeek` reicht bis
+    /// zum Ende der *nächsten* ISO-Woche (Montag-erste Woche).
+    static func window(
+        for range: ForecastRange,
+        today: Date,
+        calendar: Calendar
+    ) -> (start: Date, end: Date) {
+        let start = calendar.startOfDay(for: today)
+        switch range {
+        case .days3, .days7, .days14:
+            let days: Int = range == .days3 ? 3 : (range == .days7 ? 7 : 14)
+            let end = calendar.date(byAdding: .day, value: days, to: start) ?? start
+            return (start, end)
+        case .thisAndNextWeek:
+            // Ende der nächsten ISO-Woche: Montag dieser Woche + 14 Tage (exklusiv).
+            let iso = isoCalendar(timeZone: calendar.timeZone)
+            let weekday = iso.component(.weekday, from: start) // 1=So…2=Mo
+            let leading = (weekday - iso.firstWeekday + 7) % 7
+            let weekStart = iso.date(byAdding: .day, value: -leading, to: start) ?? start
+            let end = iso.date(byAdding: .day, value: 14, to: weekStart) ?? start
+            return (start, end)
+        }
+    }
+
+    /// Explizit konfigurierter ISO-Kalender: Montag-erster, ≥4 Tage in Woche 1.
+    static func isoCalendar(timeZone: TimeZone) -> Calendar {
+        var cal = Calendar(identifier: .iso8601)
+        cal.timeZone = timeZone
+        cal.firstWeekday = 2            // Montag
+        cal.minimumDaysInFirstWeek = 4  // Woche 1 = erste Woche mit ≥4 Tagen
+        return cal
+    }
+
+    private static func addRecurDueItems(
+        _ task: TaskInfo,
+        anchorUnix: Int64,
+        delta: DateComponents,
+        startDay: Date,
+        windowEnd: Date,
+        calendar: Calendar,
+        into result: inout [Date: [AgendaItem]]
+    ) {
+        var occurrence = Date(timeIntervalSince1970: TimeInterval(anchorUnix))
+        var iterations = 0
+        while occurrence < startDay && iterations < maxRecurIterations {
+            guard let next = calendar.date(byAdding: delta, to: occurrence) else { return }
+            occurrence = next
+            iterations += 1
+        }
+        while occurrence < windowEnd && iterations < maxRecurIterations {
+            let day = calendar.startOfDay(for: occurrence)
+            if day >= startDay {
+                result[day, default: []].append(AgendaItem(task: task, reason: .due))
+            }
+            guard let next = calendar.date(byAdding: delta, to: occurrence) else { break }
+            occurrence = next
+            iterations += 1
+        }
+    }
+
     /// Tages-Zählung (für den Wochen-Streifen-Badge): Anzahl Tasks, die an `day`
     /// einen `due`- ODER `scheduled`-Zeitpunkt haben. Kein Recur-Stepping —
     /// der Streifen zeigt die nahe Woche, Recur-Wiederholungen sind dort selten
