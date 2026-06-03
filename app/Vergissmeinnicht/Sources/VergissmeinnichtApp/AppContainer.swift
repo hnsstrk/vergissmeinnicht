@@ -349,6 +349,93 @@ final class AppContainer {
         return await renameTag(from: name, to: "")
     }
 
+    // MARK: - Mehrfach-Selektion (Batch-Operationen mit Teilfehler-Report, #5)
+    //
+    // Generalisiert das „X von Y"-Muster von `renameProject`/`renameTag` auf die
+    // sechs Aktionen über eine Mehrfach-Selektion. Jede Methode zählt Erfolge im
+    // `withBatch`-Lauf und setzt `lastError` NACH dem Batch, falls Tasks fehlschlugen —
+    // sonst räumte der abschließende `refresh()` (setzt `lastError = nil`) die Meldung
+    // wieder ab. `lastError` ist `private(set)`, deshalb lebt das Counting hier statt
+    // in der aufrufenden View (BulkActions, #19).
+
+    /// Markiert mehrere Tasks als erledigt. Teilfehler erscheinen im Fehler-Banner.
+    func markDoneBatch(uuids: Set<String>) async {
+        var count = 0
+        await withBatch {
+            for uuid in uuids {
+                if await markDoneWithRecurrence(uuid: uuid) { count += 1 }
+            }
+        }
+        if count < uuids.count {
+            self.lastError = String(localized: "\(count) von \(uuids.count) fehlgeschlagen: Erledigt markieren")
+        }
+    }
+
+    /// Löscht mehrere Tasks. Teilfehler erscheinen im Fehler-Banner.
+    func deleteBatch(uuids: Set<String>) async {
+        var count = 0
+        await withBatch {
+            for uuid in uuids {
+                if await deleteTask(uuid: uuid) { count += 1 }
+            }
+        }
+        if count < uuids.count {
+            self.lastError = String(localized: "\(count) von \(uuids.count) fehlgeschlagen: Löschen")
+        }
+    }
+
+    /// Weist mehreren Tasks ein Projekt zu (`nil` entfernt es). Teilfehler im Banner.
+    func assignProjectBatch(uuids: Set<String>, project: String?) async {
+        var count = 0
+        await withBatch {
+            for uuid in uuids {
+                if await setProject(uuid: uuid, project: project) { count += 1 }
+            }
+        }
+        if count < uuids.count {
+            self.lastError = String(localized: "\(count) von \(uuids.count) fehlgeschlagen: Projekt zuweisen")
+        }
+    }
+
+    /// Fügt mehreren Tasks einen Tag hinzu. Teilfehler im Banner.
+    func addTagBatch(uuids: Set<String>, tag: String) async {
+        var count = 0
+        await withBatch {
+            for uuid in uuids {
+                if await addTag(uuid: uuid, tag: tag) { count += 1 }
+            }
+        }
+        if count < uuids.count {
+            self.lastError = String(localized: "\(count) von \(uuids.count) fehlgeschlagen: Tag hinzufügen")
+        }
+    }
+
+    /// Setzt die Priorität mehrerer Tasks (`nil` entfernt sie). Teilfehler im Banner.
+    func setPriorityBatch(uuids: Set<String>, priority: String?) async {
+        var count = 0
+        await withBatch {
+            for uuid in uuids {
+                if await setPriority(uuid: uuid, priority: priority) { count += 1 }
+            }
+        }
+        if count < uuids.count {
+            self.lastError = String(localized: "\(count) von \(uuids.count) fehlgeschlagen: Priorität setzen")
+        }
+    }
+
+    /// Setzt das Fälligkeitsdatum mehrerer Tasks (`nil` entfernt es). Teilfehler im Banner.
+    func setDueBatch(uuids: Set<String>, due: Int64?) async {
+        var count = 0
+        await withBatch {
+            for uuid in uuids {
+                if await setDue(uuid: uuid, due: due) { count += 1 }
+            }
+        }
+        if count < uuids.count {
+            self.lastError = String(localized: "\(count) von \(uuids.count) fehlgeschlagen: Fälligkeit setzen")
+        }
+    }
+
     /// Markiert einen Task als erledigt. Hat der Task ein `recur`-Property und
     /// ein `due`-Datum, wird zusätzlich in **derselben Operations-Batch** (atomar)
     /// eine neue Pending-Instanz mit `due_neu = due_alt + intervall(recur)` angelegt.

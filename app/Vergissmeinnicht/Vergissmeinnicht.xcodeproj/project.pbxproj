@@ -22,6 +22,8 @@
 		EC689DC17036C5091A4D454A /* TaskRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DA3CEEC09D2A6B7BAAC1E0E /* TaskRowView.swift */; };
 		FC3F1EBAE16CFB148B17C641 /* SyncStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F252657A495464ECB2CAEC /* SyncStatusView.swift */; };
 		A1B2C3D4E5F60718293A4B5C /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B5CDE /* SidebarView.swift */; };
+		BA01CE19F5D74A2B3C4D5E60 /* BulkActionsHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA01CE19F5D74A2B3C4D5E61 /* BulkActionsHandler.swift */; };
+		BA02DF2AF6E85B3C4D5E6F70 /* RootViewToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA02DF2AF6E85B3C4D5E6F71 /* RootViewToolbar.swift */; };
 		C3D4E5F60718293A4B5CDE01 /* DueDateParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F60718293A4B5CDE0123 /* DueDateParser.swift */; };
 		E5F60718293A4B5CDE012345 /* TaskDetailWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60718293A4B5CDE01234567 /* TaskDetailWindow.swift */; };
 		0718293A4B5CDE0123456789 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 18293A4B5CDE0123456789AB /* Localizable.xcstrings */; };
@@ -55,6 +57,8 @@
 		F21430128BD345CCB83026DE /* Vergissmeinnicht.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vergissmeinnicht.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F39931D668020EE8284FE0FB /* QuickCaptureParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCaptureParser.swift; sourceTree = "<group>"; };
 		B2C3D4E5F60718293A4B5CDE /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		BA01CE19F5D74A2B3C4D5E61 /* BulkActionsHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkActionsHandler.swift; sourceTree = "<group>"; };
+		BA02DF2AF6E85B3C4D5E6F71 /* RootViewToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootViewToolbar.swift; sourceTree = "<group>"; };
 		D4E5F60718293A4B5CDE0123 /* DueDateParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DueDateParser.swift; sourceTree = "<group>"; };
 		F60718293A4B5CDE01234567 /* TaskDetailWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailWindow.swift; sourceTree = "<group>"; };
 		18293A4B5CDE0123456789AB /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Resources/Localizable.xcstrings; sourceTree = "<group>"; };
@@ -141,6 +145,8 @@
 				E4F5D6C7B8A9012345EDCBA0 /* SavedSearch.swift */,
 				3308F5136CAA7FABCC2D161A /* SettingsView.swift */,
 				B2C3D4E5F60718293A4B5CDE /* SidebarView.swift */,
+				BA01CE19F5D74A2B3C4D5E61 /* BulkActionsHandler.swift */,
+				BA02DF2AF6E85B3C4D5E6F71 /* RootViewToolbar.swift */,
 				07F252657A495464ECB2CAEC /* SyncStatusView.swift */,
 				F60718293A4B5CDE01234567 /* TaskDetailWindow.swift */,
 				79CD54228FBD77EEF7F54E0E /* TaskListView.swift */,
@@ -237,6 +243,8 @@
 				F3E4D5C6B7A8091234FEDCBA /* SavedSearch.swift in Sources */,
 				DBDE1F6E00A815D5DD22BC2C /* SettingsView.swift in Sources */,
 				A1B2C3D4E5F60718293A4B5C /* SidebarView.swift in Sources */,
+				BA01CE19F5D74A2B3C4D5E60 /* BulkActionsHandler.swift in Sources */,
+				BA02DF2AF6E85B3C4D5E6F70 /* RootViewToolbar.swift in Sources */,
 				FC3F1EBAE16CFB148B17C641 /* SyncStatusView.swift in Sources */,
 				E5F60718293A4B5CDE012345 /* TaskDetailWindow.swift in Sources */,
 				47C2EF34CFAB656F6E475B68 /* TaskListView.swift in Sources */,

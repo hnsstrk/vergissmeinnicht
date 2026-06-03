@@ -861,6 +861,66 @@
         }
       }
     },
+    "%lld von %lld fehlgeschlagen: Erledigt markieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld of %lld failed: Mark done"
+          }
+        }
+      }
+    },
+    "%lld von %lld fehlgeschlagen: Fälligkeit setzen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld of %lld failed: Set due date"
+          }
+        }
+      }
+    },
+    "%lld von %lld fehlgeschlagen: Löschen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld of %lld failed: Delete"
+          }
+        }
+      }
+    },
+    "%lld von %lld fehlgeschlagen: Priorität setzen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld of %lld failed: Set priority"
+          }
+        }
+      }
+    },
+    "%lld von %lld fehlgeschlagen: Projekt zuweisen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld of %lld failed: Assign project"
+          }
+        }
+      }
+    },
+    "%lld von %lld fehlgeschlagen: Tag hinzufügen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld of %lld failed: Add tag"
+          }
+        }
+      }
+    },
     "Diese Aktion ist nicht umkehrbar.": {
       "localizations": {
         "en": {

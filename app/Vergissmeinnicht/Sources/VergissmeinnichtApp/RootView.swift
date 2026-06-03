@@ -99,7 +99,18 @@ struct RootView: View {
             .safeAreaInset(edge: .bottom) { syncFooter }
             .navigationTitle(filterTitle)
             .searchable(text: $vm.searchQuery, prompt: Text("Suchen…"))
-            .toolbar { detailToolbar(vm: vm) }
+            .toolbar {
+                RootViewToolbar(
+                    vm: vm,
+                    showSaveSearchPopover: $showSaveSearchPopover,
+                    savedSearchesRaw: $savedSearchesRaw,
+                    defaultSortRaw: $defaultSortRaw,
+                    sortAscending: $sortAscending,
+                    onNewTask: { showQuickCapture = true },
+                    onMarkDoneSelection: { handleMarkDoneSelection() },
+                    onRequestDelete: { requestDelete(uuids: $0) }
+                )
+            }
         }
         .frame(minWidth: 720, minHeight: 420)
         .sheet(isPresented: $showQuickCapture) {
@@ -188,75 +199,6 @@ struct RootView: View {
         }
     }
 
-    // MARK: - Toolbar
-
-    /// Mail-Stil: Sort / Plus / Erledigt / Löschen / Sync zentral (principal),
-    /// Bookmark rechts (primaryAction) — nur bei aktiver Suche sichtbar.
-    @ToolbarContentBuilder
-    private func detailToolbar(vm: TaskListViewModel) -> some ToolbarContent {
-        ToolbarItemGroup(placement: .principal) {
-            Menu {
-                Picker(selection: Binding(get: { vm.sortOrder }, set: { vm.sortOrder = $0; defaultSortRaw = $0.rawValue })) {
-                    ForEach(SortOrder.allCases) { order in
-                        Text(order.label).tag(order)
-                    }
-                } label: { Text("Sortieren") }
-                Divider()
-                Picker(selection: Binding(get: { vm.sortAscending }, set: { vm.sortAscending = $0; sortAscending = $0 })) {
-                    Text("Aufsteigend").tag(true)
-                    Text("Absteigend").tag(false)
-                } label: { Text("Richtung") }
-            } label: {
-                Label("Sortieren", systemImage: vm.sortAscending ? "arrow.up.arrow.down" : "arrow.up.arrow.down.circle")
-            }
-            .menuIndicator(.hidden)
-            .help("Sortierung")
-
-            Button {
-                showQuickCapture = true
-            } label: {
-                Label("Neue Aufgabe", systemImage: "plus")
-            }
-            .help("Neue Aufgabe (Cmd+N)")
-
-            Button {
-                handleMarkDoneSelection()
-            } label: {
-                Label("Erledigt", systemImage: "checkmark.circle")
-            }
-            .disabled(vm.selectedUuids.isEmpty)
-            .help("Ausgewählte Aufgabe(n) als erledigt markieren (Cmd+D)")
-
-            Button {
-                requestDelete(uuids: vm.selectedUuids)
-            } label: {
-                Label("Löschen", systemImage: "trash")
-            }
-            .disabled(vm.selectedUuids.isEmpty)
-            .help("Ausgewählte Aufgabe(n) löschen (Cmd+⌫)")
-
-            SyncStatusView()
-        }
-        if !vm.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showSaveSearchPopover = true
-                } label: {
-                    Label("Suche sichern", systemImage: "bookmark")
-                }
-                .help("Suche sichern (⇧⌘D)")
-                .keyboardShortcut("d", modifiers: [.command, .shift])
-                .popover(isPresented: $showSaveSearchPopover) {
-                    SaveSearchPopoverView(
-                        query: vm.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines),
-                        savedSearchesRaw: $savedSearchesRaw,
-                        isPresented: $showSaveSearchPopover
-                    )
-                }
-            }
-        }
-    }
-
     // MARK: - Sync-Footer
 
     /// Live tickender Auto-Sync-Countdown am unteren Rand der Aufgabenliste.
@@ -310,15 +252,12 @@ struct RootView: View {
         Task { await container.markDoneWithRecurrence(uuid: uuid) }
     }
 
+    /// Dispatcher für Aktionen über eine Mehrfach-Selektion (#19). Dünn:
+    /// die Batch-Schleifen + Teilfehler-Report leben in `AppContainer` (#5).
+    private var bulk: BulkActions { BulkActions(container: container) }
+
     private func handleMarkDoneSelection() {
-        let uuids = viewModel.selectedUuids
-        Task {
-            await container.withBatch {
-                for uuid in uuids {
-                    _ = await container.markDoneWithRecurrence(uuid: uuid)
-                }
-            }
-        }
+        bulk.markDone(viewModel.selectedUuids)
     }
 
     private func requestDelete(uuids: Set<String>) {
@@ -329,13 +268,7 @@ struct RootView: View {
     private func performDelete() {
         let uuids = pendingDelete
         pendingDelete.removeAll()
-        Task {
-            await container.withBatch {
-                for uuid in uuids {
-                    _ = await container.deleteTask(uuid: uuid)
-                }
-            }
-        }
+        bulk.delete(uuids)
     }
 
     private func handleSnooze(_ uuid: String, _ wait: Int64?) {
@@ -343,43 +276,19 @@ struct RootView: View {
     }
 
     private func handleAssignProject(_ uuids: Set<String>, _ project: String?) {
-        Task {
-            await container.withBatch {
-                for uuid in uuids {
-                    _ = await container.setProject(uuid: uuid, project: project)
-                }
-            }
-        }
+        bulk.assignProject(uuids, project)
     }
 
     private func handleAddTag(_ uuids: Set<String>, _ tag: String) {
-        Task {
-            await container.withBatch {
-                for uuid in uuids {
-                    _ = await container.addTag(uuid: uuid, tag: tag)
-                }
-            }
-        }
+        bulk.addTag(uuids, tag)
     }
 
     private func handleSetPriority(_ uuids: Set<String>, _ priority: String?) {
-        Task {
-            await container.withBatch {
-                for uuid in uuids {
-                    _ = await container.setPriority(uuid: uuid, priority: priority)
-                }
-            }
-        }
+        bulk.setPriority(uuids, priority)
     }
 
     private func handleSetDue(_ uuids: Set<String>, _ due: Int64?) {
-        Task {
-            await container.withBatch {
-                for uuid in uuids {
-                    _ = await container.setDue(uuid: uuid, due: due)
-                }
-            }
-        }
+        bulk.setDue(uuids, due)
     }
 
     private func handleRename(target: RenameTarget, newName: String) {
@@ -471,79 +380,5 @@ struct RootView: View {
                 .first(where: { $0.id == id })?.name
             return LocalizedStringKey(name ?? "Gespeicherte Suchen")
         }
-    }
-}
-
-// MARK: - Suche sichern Popover
-
-/// Kleines Popover zum Benennen und Speichern einer Suchanfrage.
-/// Karpathy 2: eigener FocusState lebt hier, damit RootView schlank bleibt.
-private struct SaveSearchPopoverView: View {
-    let query: String
-    @Binding var savedSearchesRaw: String
-    @Binding var isPresented: Bool
-
-    @State private var name: String = ""
-    @State private var duplicateName: String? = nil
-    @FocusState private var focused: Bool
-
-    // `nonmutating set` korrekt: der Setter schreibt nur durch @Binding (referenzsemantisch).
-    private var savedSearches: [SavedSearch] {
-        get { SavedSearch.decodeAll(from: savedSearchesRaw) }
-        nonmutating set { savedSearchesRaw = SavedSearch.encodeAll(newValue) }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Suche sichern").font(.headline)
-            TextField("Name", text: $name)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 260)
-                .focused($focused)
-                .onSubmit(commit)
-            if let dup = duplicateName {
-                Text("Diese Suche existiert bereits als \u{201E}\(dup)\u{201C}")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .frame(width: 260, alignment: .leading)
-            }
-            HStack {
-                Spacer()
-                Button("Abbrechen") {
-                    isPresented = false
-                    duplicateName = nil
-                }
-                .keyboardShortcut(.cancelAction)
-                Button("Sichern", action: commit)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(
-                        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        || duplicateName != nil
-                    )
-            }
-        }
-        .padding(20)
-        .frame(minWidth: 300)
-        .onAppear {
-            name = query
-            focused = true
-            // Duplikat vorab erkennen: existiert dieselbe Query bereits, ist
-            // Sichern direkt disabled und der Hinweis sichtbar.
-            duplicateName = savedSearches.first(where: { $0.query == query })?.name
-        }
-    }
-
-    private func commit() {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        let currentSearches = savedSearches
-        if let existing = currentSearches.first(where: { $0.query == query }) {
-            duplicateName = existing.name
-            return
-        }
-        var searches = currentSearches
-        searches.append(SavedSearch(id: UUID(), name: trimmed, query: query))
-        savedSearches = searches
-        isPresented = false
     }
 }
