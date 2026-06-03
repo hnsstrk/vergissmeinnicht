@@ -157,7 +157,9 @@ enum ForecastMaxPerDay: String, CaseIterable, Identifiable, Codable {
 /// sind bewusst NICHT abgebildet — `init?(for:)` liefert dort `nil`, sodass die
 /// Vorschau dort nie zeigt.
 enum ForecastPerspective: String, CaseIterable, Identifiable {
-    case today, todo, dueSoon, upcoming, inbox, overdue, waiting, all
+    // Reihenfolge folgt der Sidebar (allCases treibt die Settings-Liste):
+    // Eingang zuerst, dann Heute/Zu erledigen/Überfällig/Bald fällig/Geplant/Wartend/Alle.
+    case inbox, today, todo, overdue, dueSoon, upcoming, waiting, all
     /// Sammel-Schalter für Projekte / Tags / gespeicherte Suchen.
     case dynamic
 
