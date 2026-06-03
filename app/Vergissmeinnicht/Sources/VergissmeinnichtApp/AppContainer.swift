@@ -237,6 +237,23 @@ final class AppContainer {
         }
     }
 
+    /// Fügt eine Abhängigkeit hinzu: `uuid` hängt fortan von `dependsOn` ab
+    /// (native Taskwarrior `depends`). Idempotent.
+    @discardableResult
+    func addDependency(uuid: String, dependsOn: String) async -> Bool {
+        await mutate { store in
+            try store.addDependency(uuid: uuid, dependsOnUuid: dependsOn)
+        }
+    }
+
+    /// Entfernt eine Abhängigkeit (idempotent).
+    @discardableResult
+    func removeDependency(uuid: String, dependsOn: String) async -> Bool {
+        await mutate { store in
+            try store.removeDependency(uuid: uuid, dependsOnUuid: dependsOn)
+        }
+    }
+
     /// Reaktiviert einen erledigten Task (Status zurück auf Pending).
     @discardableResult
     func reactivate(uuid: String) async -> Bool {

@@ -11,6 +11,36 @@
         }
       }
     },
+    "Abhängigkeit entfernen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove dependency"
+          }
+        }
+      }
+    },
+    "Abhängigkeit hinzufügen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add dependency"
+          }
+        }
+      }
+    },
+    "Abhängigkeiten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dependencies"
+          }
+        }
+      }
+    },
     "Aktualisieren": {
       "localizations": {
         "en": {
@@ -111,12 +141,42 @@
         }
       }
     },
+    "Berichte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reports"
+          }
+        }
+      }
+    },
     "Beschreibung": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Description"
+          }
+        }
+      }
+    },
+    "Blockierend": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blocking"
+          }
+        }
+      }
+    },
+    "Blockiert": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blocked"
           }
         }
       }
@@ -177,6 +237,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Completed"
+          }
+        }
+      }
+    },
+    "Erledigt — blockiert nicht mehr": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completed — no longer blocking"
           }
         }
       }
@@ -261,12 +331,42 @@
         }
       }
     },
+    "Hängt von keiner Aufgabe ab.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Does not depend on any task."
+          }
+        }
+      }
+    },
     "ID": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "ID"
+          }
+        }
+      }
+    },
+    "Keine Aufgabe blockiert eine andere.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No task blocks another."
+          }
+        }
+      }
+    },
+    "Keine Aufgabe wartet auf eine andere.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No task is waiting on another."
           }
         }
       }
@@ -297,6 +397,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "No tasks in the current selection."
+          }
+        }
+      }
+    },
+    "Keine sofort machbaren Aufgaben.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No tasks ready to act on."
+          }
+        }
+      }
+    },
+    "Nicht blockiert": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unblocked"
+          }
+        }
+      }
+    },
+    "Nichts blockierend": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing blocking"
+          }
+        }
+      }
+    },
+    "Nichts blockiert": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing blocked"
+          }
+        }
+      }
+    },
+    "Nichts frei": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing ready"
           }
         }
       }

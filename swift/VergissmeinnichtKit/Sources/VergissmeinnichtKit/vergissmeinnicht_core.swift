@@ -521,6 +521,15 @@ public protocol TaskStoreProtocol: AnyObject, Sendable {
     func addAnnotation(uuid: String, annotation: String) throws 
     
     /**
+     * Fügt eine Abhängigkeit hinzu: `uuid` hängt fortan von `depends_on_uuid` ab
+     * (native Taskwarrior `depends`). Idempotent — `add_dependency` setzt nur das
+     * `dep_<uuid>`-Property, ein erneuter Aufruf ist ein No-op. Es wird nicht geprüft,
+     * ob das Ziel existiert oder ob ein Zyklus entsteht — Taskwarrior selbst erzwingt
+     * das ebenfalls nicht (Karpathy 2: keine spekulative Validierung).
+     */
+    func addDependency(uuid: String, dependsOnUuid: String) throws 
+    
+    /**
      * Fügt einen einzelnen User-Tag hinzu. No-op, falls der Tag bereits existiert.
      */
     func addTag(uuid: String, tag: String) throws 
@@ -602,6 +611,12 @@ public protocol TaskStoreProtocol: AnyObject, Sendable {
      * Wird vom Detail-Editor zum Löschen einzelner Annotations genutzt.
      */
     func removeAnnotation(uuid: String, entry: Int64) throws 
+    
+    /**
+     * Entfernt eine Abhängigkeit. Idempotent — `remove_dependency` löscht nur das
+     * `dep_<uuid>`-Property; existiert es nicht, ist der Aufruf ein No-op.
+     */
+    func removeDependency(uuid: String, dependsOnUuid: String) throws 
     
     /**
      * Entfernt einen User-Tag. No-op, falls der Tag nicht existiert.
@@ -731,6 +746,21 @@ open func addAnnotation(uuid: String, annotation: String)throws   {try rustCallW
     uniffi_vergissmeinnicht_core_fn_method_taskstore_add_annotation(self.uniffiClonePointer(),
         FfiConverterString.lower(uuid),
         FfiConverterString.lower(annotation),$0
+    )
+}
+}
+    
+    /**
+     * Fügt eine Abhängigkeit hinzu: `uuid` hängt fortan von `depends_on_uuid` ab
+     * (native Taskwarrior `depends`). Idempotent — `add_dependency` setzt nur das
+     * `dep_<uuid>`-Property, ein erneuter Aufruf ist ein No-op. Es wird nicht geprüft,
+     * ob das Ziel existiert oder ob ein Zyklus entsteht — Taskwarrior selbst erzwingt
+     * das ebenfalls nicht (Karpathy 2: keine spekulative Validierung).
+     */
+open func addDependency(uuid: String, dependsOnUuid: String)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_add_dependency(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterString.lower(dependsOnUuid),$0
     )
 }
 }
@@ -890,6 +920,18 @@ open func removeAnnotation(uuid: String, entry: Int64)throws   {try rustCallWith
     uniffi_vergissmeinnicht_core_fn_method_taskstore_remove_annotation(self.uniffiClonePointer(),
         FfiConverterString.lower(uuid),
         FfiConverterInt64.lower(entry),$0
+    )
+}
+}
+    
+    /**
+     * Entfernt eine Abhängigkeit. Idempotent — `remove_dependency` löscht nur das
+     * `dep_<uuid>`-Property; existiert es nicht, ist der Aufruf ein No-op.
+     */
+open func removeDependency(uuid: String, dependsOnUuid: String)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
+    uniffi_vergissmeinnicht_core_fn_method_taskstore_remove_dependency(self.uniffiClonePointer(),
+        FfiConverterString.lower(uuid),
+        FfiConverterString.lower(dependsOnUuid),$0
     )
 }
 }
@@ -1197,6 +1239,22 @@ public struct TaskInfo {
      * ausgeblendet, bis das Datum erreicht ist.
      */
     public var scheduled: Int64?
+    /**
+     * UUID-Strings aller Tasks, von denen dieser Task abhängt (`depends`), unabhängig
+     * vom Status. Native Taskwarrior-Relation. Speist den DetailView-Editor.
+     */
+    public var depends: [String]
+    /**
+     * `true`, wenn dieser Task von mindestens einem noch *pending* Task abhängt
+     * (Taskwarrior `+BLOCKED`). Aus `Replica::dependency_map()` abgeleitet, nicht aus
+     * dem Task allein — daher ein abgeleitetes Feld analog `working_set_id`.
+     */
+    public var isBlocked: Bool
+    /**
+     * `true`, wenn mindestens ein anderer noch *pending* Task von diesem abhängt
+     * (Taskwarrior `+BLOCKING`).
+     */
+    public var isBlocking: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -1241,7 +1299,20 @@ public struct TaskInfo {
          * Scheduled-Property (Start-Datum / Defer-Until) als Unix-Sekunden. Tasks mit
          * `scheduled` in der Zukunft sind „geplant" und werden aus ToDo/Inbox/Überfällig
          * ausgeblendet, bis das Datum erreicht ist.
-         */scheduled: Int64?) {
+         */scheduled: Int64?, 
+        /**
+         * UUID-Strings aller Tasks, von denen dieser Task abhängt (`depends`), unabhängig
+         * vom Status. Native Taskwarrior-Relation. Speist den DetailView-Editor.
+         */depends: [String], 
+        /**
+         * `true`, wenn dieser Task von mindestens einem noch *pending* Task abhängt
+         * (Taskwarrior `+BLOCKED`). Aus `Replica::dependency_map()` abgeleitet, nicht aus
+         * dem Task allein — daher ein abgeleitetes Feld analog `working_set_id`.
+         */isBlocked: Bool, 
+        /**
+         * `true`, wenn mindestens ein anderer noch *pending* Task von diesem abhängt
+         * (Taskwarrior `+BLOCKING`).
+         */isBlocking: Bool) {
         self.uuid = uuid
         self.description = description
         self.project = project
@@ -1255,6 +1326,9 @@ public struct TaskInfo {
         self.wait = wait
         self.recur = recur
         self.scheduled = scheduled
+        self.depends = depends
+        self.isBlocked = isBlocked
+        self.isBlocking = isBlocking
     }
 }
 
@@ -1304,6 +1378,15 @@ extension TaskInfo: Equatable, Hashable {
         if lhs.scheduled != rhs.scheduled {
             return false
         }
+        if lhs.depends != rhs.depends {
+            return false
+        }
+        if lhs.isBlocked != rhs.isBlocked {
+            return false
+        }
+        if lhs.isBlocking != rhs.isBlocking {
+            return false
+        }
         return true
     }
 
@@ -1321,6 +1404,9 @@ extension TaskInfo: Equatable, Hashable {
         hasher.combine(wait)
         hasher.combine(recur)
         hasher.combine(scheduled)
+        hasher.combine(depends)
+        hasher.combine(isBlocked)
+        hasher.combine(isBlocking)
     }
 }
 
@@ -1345,7 +1431,10 @@ public struct FfiConverterTypeTaskInfo: FfiConverterRustBuffer {
                 annotations: FfiConverterSequenceTypeAnnotationInfo.read(from: &buf), 
                 wait: FfiConverterOptionInt64.read(from: &buf), 
                 recur: FfiConverterOptionString.read(from: &buf), 
-                scheduled: FfiConverterOptionInt64.read(from: &buf)
+                scheduled: FfiConverterOptionInt64.read(from: &buf), 
+                depends: FfiConverterSequenceString.read(from: &buf), 
+                isBlocked: FfiConverterBool.read(from: &buf), 
+                isBlocking: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -1363,6 +1452,9 @@ public struct FfiConverterTypeTaskInfo: FfiConverterRustBuffer {
         FfiConverterOptionInt64.write(value.wait, into: &buf)
         FfiConverterOptionString.write(value.recur, into: &buf)
         FfiConverterOptionInt64.write(value.scheduled, into: &buf)
+        FfiConverterSequenceString.write(value.depends, into: &buf)
+        FfiConverterBool.write(value.isBlocked, into: &buf)
+        FfiConverterBool.write(value.isBlocking, into: &buf)
     }
 }
 
@@ -1755,6 +1847,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_add_annotation() != 16896) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_add_dependency() != 49804) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_add_tag() != 42420) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -1789,6 +1884,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_remove_annotation() != 19111) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_remove_dependency() != 8216) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_remove_tag() != 3845) {

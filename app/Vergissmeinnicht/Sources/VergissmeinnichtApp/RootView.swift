@@ -140,6 +140,8 @@ struct RootView: View {
                 if let uuid = viewModel.selectedUuid {
                     openDetailWindow(uuid)
                 }
+            case .showFilter(let filter):
+                viewModel.activeFilter = filter
             }
         }
         .onChange(of: dueSoonDays) { _, newValue in
@@ -459,6 +461,9 @@ struct RootView: View {
         case .dueSoon:           return "Bald fällig"
         case .upcoming:          return "Geplant"
         case .waiting:           return "Wartend"
+        case .blocked:           return "Blockiert"
+        case .blocking:          return "Blockierend"
+        case .unblocked:         return "Nicht blockiert"
         case .project(let p):    return LocalizedStringKey(p)
         case .tag(let t):        return LocalizedStringKey(t)
         case .savedSearch(let id):

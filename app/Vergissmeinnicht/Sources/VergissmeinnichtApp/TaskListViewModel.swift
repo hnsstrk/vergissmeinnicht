@@ -18,6 +18,13 @@ enum SidebarFilter: Hashable {
     case dueSoon
     case upcoming
     case waiting
+    /// Native Taskwarrior-Abhängigkeits-Reports (`+BLOCKED`/`+BLOCKING`/`+UNBLOCKED`).
+    /// `isBlocked`/`isBlocking` werden in Rust über `dependency_map` berechnet und auf
+    /// `TaskInfo` annotiert — `matches` testet hier nur das vorab gesetzte Flag, sodass
+    /// die zentrale per-Task-Filterlogik intakt bleibt (Karpathy 3).
+    case blocked
+    case blocking
+    case unblocked
     case project(String)
     case tag(String)
     /// Gespeicherte Suche. Wird gleichzeitig mit `searchQuery` gesetzt; die
@@ -88,6 +95,16 @@ enum SidebarFilter: Hashable {
             return task.status == .pending && Self.isUpcoming(task, now: now)
         case .waiting:
             return task.status == .pending && Self.isWaiting(task, now: now)
+        case .blocked:
+            // +BLOCKED: hängt von ≥1 noch pending Task ab.
+            return task.status == .pending && task.isBlocked
+        case .blocking:
+            // +BLOCKING: ≥1 anderer pending Task hängt von diesem ab.
+            return task.status == .pending && task.isBlocking
+        case .unblocked:
+            // +UNBLOCKED: pending und nicht blockiert. Kein eigenes Flag nötig —
+            // abgeleitet aus dem Pending-Status und `!isBlocked`.
+            return task.status == .pending && !task.isBlocked
         case .project(let name):
             return task.project == name
         case .tag(let name):

@@ -74,7 +74,18 @@ fn user_tags(task: &taskchampion::Task) -> impl Iterator<Item = Tag> + '_ {
 
 /// Baut ein `TaskInfo` aus einem `taskchampion::Task` plus optionaler Working-Set-ID.
 /// Zentralisiert die Property-Extraktion (project, tags, due, entry, priority, annotations).
-fn build_task_info(task: &taskchampion::Task, uuid: Uuid, working_set_id: Option<u32>) -> TaskInfo {
+///
+/// `is_blocked`/`is_blocking` werden NICHT aus dem Task allein abgeleitet — sie hängen vom
+/// Abhängigkeits-*Graphen* (welcher Task von welchem) ab und kommen aus der einmal pro
+/// `list_tasks`-Lauf berechneten `dependency_map` herein (Karpathy 3: die Graph-Berechnung
+/// bleibt an der Datenquelle, der per-Task-Filter bleibt unangetastet).
+fn build_task_info(
+    task: &taskchampion::Task,
+    uuid: Uuid,
+    working_set_id: Option<u32>,
+    is_blocked: bool,
+    is_blocking: bool,
+) -> TaskInfo {
     let project = task
         .get_value(PROP_PROJECT)
         .map(|s| s.to_owned())
@@ -98,6 +109,10 @@ fn build_task_info(task: &taskchampion::Task, uuid: Uuid, working_set_id: Option
     let scheduled = task
         .get_value(PROP_SCHEDULED)
         .and_then(|s| s.parse::<i64>().ok());
+    // `depends` = ALLE Abhängigkeiten als UUID-Strings, unabhängig vom Status (kann laut
+    // taskchampion-Doku auch nicht (mehr) existierende UUIDs enthalten). Speist den
+    // DetailView-Editor — bewusst getrennt von den pending-only `is_blocked`/`is_blocking`.
+    let depends: Vec<String> = task.get_dependencies().map(|u| u.to_string()).collect();
     let status = match task.get_status() {
         Status::Pending => TaskStatus::Pending,
         Status::Completed => TaskStatus::Completed,
@@ -121,6 +136,9 @@ fn build_task_info(task: &taskchampion::Task, uuid: Uuid, working_set_id: Option
         wait,
         recur,
         scheduled,
+        depends,
+        is_blocked,
+        is_blocking,
     }
 }
 
@@ -177,6 +195,16 @@ pub struct TaskInfo {
     /// `scheduled` in der Zukunft sind „geplant" und werden aus ToDo/Inbox/Überfällig
     /// ausgeblendet, bis das Datum erreicht ist.
     pub scheduled: Option<i64>,
+    /// UUID-Strings aller Tasks, von denen dieser Task abhängt (`depends`), unabhängig
+    /// vom Status. Native Taskwarrior-Relation. Speist den DetailView-Editor.
+    pub depends: Vec<String>,
+    /// `true`, wenn dieser Task von mindestens einem noch *pending* Task abhängt
+    /// (Taskwarrior `+BLOCKED`). Aus `Replica::dependency_map()` abgeleitet, nicht aus
+    /// dem Task allein — daher ein abgeleitetes Feld analog `working_set_id`.
+    pub is_blocked: bool,
+    /// `true`, wenn mindestens ein anderer noch *pending* Task von diesem abhängt
+    /// (Taskwarrior `+BLOCKING`).
+    pub is_blocking: bool,
 }
 
 // ─── FFI Object ─────────────────────────────────────────────────────────────
@@ -364,6 +392,16 @@ impl TaskStore {
         let replica: &mut AppReplica = &mut *guard;
 
         let infos = self.rt.block_on(async {
+            // Abhängigkeits-Graph einmal pro Lauf berechnen (NICHT per Task — `dependency_map`
+            // scannt das ganze Working Set). `force = false` genügt: `commit_operations`
+            // invalidiert den Cache nach jeder Mutation (taskchampion 3.0.1 replica.rs:386),
+            // dieser Read-Pfad sieht also stets einen frischen Graphen. `dependencies(u)` =
+            // Tasks, von denen u abhängt → u ist BLOCKED; `dependents(u)` = Tasks, die von u
+            // abhängen → u ist BLOCKING. Beide pending-only (entspricht +BLOCKED/+BLOCKING).
+            let depmap = replica.dependency_map(false).await?;
+            let blocked = |uuid: Uuid| depmap.dependencies(uuid).next().is_some();
+            let blocking = |uuid: Uuid| depmap.dependents(uuid).next().is_some();
+
             let ws = replica.working_set().await?;
             let mut out = Vec::new();
             let mut seen_pending = std::collections::HashSet::new();
@@ -372,7 +410,7 @@ impl TaskStore {
                 if let Some(task) = replica.get_task(uuid).await? {
                     if task.get_status() == Status::Pending {
                         seen_pending.insert(uuid);
-                        out.push(build_task_info(&task, uuid, Some(index as u32)));
+                        out.push(build_task_info(&task, uuid, Some(index as u32), blocked(uuid), blocking(uuid)));
                     }
                 }
             }
@@ -383,14 +421,14 @@ impl TaskStore {
                 entries.sort_by_key(|(uuid, _)| *uuid);  // deterministisch über App-Starts
                 for (uuid, task) in entries {
                     match task.get_status() {
-                        Status::Completed => out.push(build_task_info(task, *uuid, None)),
+                        Status::Completed => out.push(build_task_info(task, *uuid, None, blocked(*uuid), blocking(*uuid))),
                         // Recurring-Master haben keinen Working-Set-Eintrag und sind
                         // ausschließlich über diesen Pfad sichtbar (siehe Doc oben).
-                        Status::Recurring => out.push(build_task_info(task, *uuid, None)),
+                        Status::Recurring => out.push(build_task_info(task, *uuid, None, blocked(*uuid), blocking(*uuid))),
                         // Pending ohne Working-Set-Eintrag (sollte nicht vorkommen,
                         // aber theoretisch möglich) — sicherheitshalber ergänzen.
                         Status::Pending if !seen_pending.contains(uuid) => {
-                            out.push(build_task_info(task, *uuid, None));
+                            out.push(build_task_info(task, *uuid, None, blocked(*uuid), blocking(*uuid)));
                         }
                         _ => {}
                     }
@@ -742,6 +780,49 @@ impl TaskStore {
                 task.remove_tag(&tag_obj, &mut ops)?;
                 replica.commit_operations(ops).await?;
             }
+            Ok::<_, VmError>(())
+        })
+    }
+
+    /// Fügt eine Abhängigkeit hinzu: `uuid` hängt fortan von `depends_on_uuid` ab
+    /// (native Taskwarrior `depends`). Idempotent — `add_dependency` setzt nur das
+    /// `dep_<uuid>`-Property, ein erneuter Aufruf ist ein No-op. Es wird nicht geprüft,
+    /// ob das Ziel existiert oder ob ein Zyklus entsteht — Taskwarrior selbst erzwingt
+    /// das ebenfalls nicht (Karpathy 2: keine spekulative Validierung).
+    pub fn add_dependency(&self, uuid: String, depends_on_uuid: String) -> Result<(), VmError> {
+        let task_uuid = parse_uuid(&uuid)?;
+        let dep_uuid = parse_uuid(&depends_on_uuid)?;
+        let mut guard = self.lock_replica()?;
+        let replica: &mut AppReplica = &mut *guard;
+
+        self.rt.block_on(async {
+            let mut ops = Operations::new();
+            let mut task = replica
+                .get_task(task_uuid)
+                .await?
+                .ok_or(VmError::NotFound { uuid: uuid.clone() })?;
+            task.add_dependency(dep_uuid, &mut ops)?;
+            replica.commit_operations(ops).await?;
+            Ok::<_, VmError>(())
+        })
+    }
+
+    /// Entfernt eine Abhängigkeit. Idempotent — `remove_dependency` löscht nur das
+    /// `dep_<uuid>`-Property; existiert es nicht, ist der Aufruf ein No-op.
+    pub fn remove_dependency(&self, uuid: String, depends_on_uuid: String) -> Result<(), VmError> {
+        let task_uuid = parse_uuid(&uuid)?;
+        let dep_uuid = parse_uuid(&depends_on_uuid)?;
+        let mut guard = self.lock_replica()?;
+        let replica: &mut AppReplica = &mut *guard;
+
+        self.rt.block_on(async {
+            let mut ops = Operations::new();
+            let mut task = replica
+                .get_task(task_uuid)
+                .await?
+                .ok_or(VmError::NotFound { uuid: uuid.clone() })?;
+            task.remove_dependency(dep_uuid, &mut ops)?;
+            replica.commit_operations(ops).await?;
             Ok::<_, VmError>(())
         })
     }

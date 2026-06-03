@@ -7,6 +7,9 @@ enum AppCommand {
     case markDoneSelection
     case deleteSelection
     case openDetail
+    /// Wechselt die Hauptliste auf einen der nativen Abhängigkeits-Reports
+    /// (Taskwarrior `+BLOCKED`/`+BLOCKING`/`+UNBLOCKED`).
+    case showFilter(SidebarFilter)
 }
 
 extension Notification.Name {
@@ -104,6 +107,23 @@ struct VergissmeinnichtApp: App {
                     NotificationCenter.default.post(name: .vmCommand, object: AppCommand.openDetail)
                 }
                 .keyboardShortcut(.return, modifiers: [])
+            }
+            // Native Taskwarrior-Abhängigkeits-Reports. Vom User explizit als
+            // Menüleisten-Zugang gewünscht (#3). Setzen den Sidebar-Filter über den
+            // bestehenden AppCommand/NotificationCenter-Pfad.
+            CommandMenu("Berichte") {
+                Button("Blockiert") {
+                    NotificationCenter.default.post(name: .vmCommand, object: AppCommand.showFilter(.blocked))
+                }
+                .disabled(container == nil)
+                Button("Blockierend") {
+                    NotificationCenter.default.post(name: .vmCommand, object: AppCommand.showFilter(.blocking))
+                }
+                .disabled(container == nil)
+                Button("Nicht blockiert") {
+                    NotificationCenter.default.post(name: .vmCommand, object: AppCommand.showFilter(.unblocked))
+                }
+                .disabled(container == nil)
             }
         }
 

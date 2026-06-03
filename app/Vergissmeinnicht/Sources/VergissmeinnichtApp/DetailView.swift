@@ -65,6 +65,8 @@ struct DetailView: View {
                 Divider()
                 editor(task: task)
                 Divider()
+                dependenciesSection(task: task)
+                Divider()
                 annotationsSection(task: task)
                 Divider()
                 readOnlyMeta(task: task)
@@ -177,6 +179,98 @@ struct DetailView: View {
                 .frame(maxWidth: 200, alignment: .leading)
             }
         }
+    }
+
+    /// Abhängigkeiten-Editor (native Taskwarrior `depends`). Wie der Annotation-Editor
+    /// schreibt jede Änderung sofort (kein Save) — Abhängigkeiten sind UUIDs, die der
+    /// Nutzer nicht tippen kann, daher Add via Picker / Remove via Button.
+    @ViewBuilder
+    private func dependenciesSection(task: TaskInfo) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Abhängigkeiten")
+                    .font(.title3.bold())
+                Spacer()
+                if !addableDependencies(for: task).isEmpty {
+                    Menu {
+                        ForEach(addableDependencies(for: task), id: \.uuid) { candidate in
+                            Button(dependencyLabel(candidate)) {
+                                Task { await container.addDependency(uuid: task.uuid, dependsOn: candidate.uuid) }
+                            }
+                        }
+                    } label: {
+                        Label("Abhängigkeit hinzufügen", systemImage: "plus.circle")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                }
+            }
+
+            if task.depends.isEmpty {
+                Text("Hängt von keiner Aufgabe ab.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(task.depends, id: \.self) { depUuid in
+                        dependencyRow(taskUuid: task.uuid, dependsOn: depUuid)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    @ViewBuilder
+    private func dependencyRow(taskUuid: String, dependsOn depUuid: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            // Verwaiste/nicht (mehr) geladene UUIDs (laut taskchampion möglich) zeigen wir
+            // als Rohstring statt zu crashen oder leer zu bleiben (Karpathy 3, robuster Fallback).
+            if let dep = container.tasks.first(where: { $0.uuid == depUuid }) {
+                if dep.status != .pending {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .help("Erledigt — blockiert nicht mehr")
+                }
+                Text(dep.description)
+                    .font(.body)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text(depUuid)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Button {
+                Task { await container.removeDependency(uuid: taskUuid, dependsOn: depUuid) }
+            } label: {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.borderless)
+            .help("Abhängigkeit entfernen")
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// Kandidaten für eine neue Abhängigkeit: alle pending Tasks außer der Task selbst
+    /// und bereits verknüpften. Zyklen werden bewusst nicht geprüft — Taskwarrior tut
+    /// das ebenfalls nicht (Karpathy 2).
+    private func addableDependencies(for task: TaskInfo) -> [TaskInfo] {
+        container.tasks
+            .filter { $0.status == .pending }
+            .filter { $0.uuid != task.uuid }
+            .filter { !task.depends.contains($0.uuid) }
+            .sorted { $0.description.localizedCaseInsensitiveCompare($1.description) == .orderedAscending }
+    }
+
+    private func dependencyLabel(_ candidate: TaskInfo) -> String {
+        if let id = candidate.workingSetId {
+            return "#\(id) \(candidate.description)"
+        }
+        return candidate.description
     }
 
     @ViewBuilder

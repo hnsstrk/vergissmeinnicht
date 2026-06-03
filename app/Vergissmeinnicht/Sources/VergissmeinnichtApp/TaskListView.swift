@@ -215,6 +215,12 @@ struct TaskListView: View {
             return ("Nichts geplant", "calendar", "Keine zukünftig geplanten Aufgaben.")
         case .waiting:
             return ("Nichts wartend", "moon.zzz", "Keine wartenden Aufgaben.")
+        case .blocked:
+            return ("Nichts blockiert", "lock.open", "Keine Aufgabe wartet auf eine andere.")
+        case .blocking:
+            return ("Nichts blockierend", "lock.open", "Keine Aufgabe blockiert eine andere.")
+        case .unblocked:
+            return ("Nichts frei", "checkmark.circle", "Keine sofort machbaren Aufgaben.")
         case .project, .tag:
             return ("Keine Aufgaben", "tray", "Keine Tasks in der aktuellen Auswahl.")
         case .savedSearch:
