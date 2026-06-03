@@ -60,6 +60,11 @@ The **GitHub Issues** of this repo (`hnsstrk/vergissmeinnicht`) are the single s
 - Audit findings (e.g. multi-agent reviews) are filed as individual issues — one per finding — after verification against current code; skip items the code already satisfies.
 - Close issues when the work lands and reference the issue number in the commit/PR.
 
+### Releases & Changelog
+- **`CHANGELOG.md`** (Keep a Changelog format) is the curated, human-written source of release notes — one `## [x.y.z]` section per release, user-facing wording (not raw commits). Add/update the section **before** tagging.
+- **Release notes are generated from the changelog, never hand-written per release.** `.github/workflows/release.yml` extracts the matching `## [<version>]` section from `CHANGELOG.md` and uses it as the GitHub Release body, appending the install/quarantine footer from `.github/release-footer.md` (with `__TAG__` substituted for the tag). Do **not** reintroduce a hard-coded release body — that produced identical notes for every release.
+- **Release flow:** bump `MARKETING_VERSION` (two places in `project.pbxproj`) → update `CHANGELOG.md` → push `main`, wait for CI green → push an annotated tag `vX.Y.Z` (triggers `release.yml`) → watch the release run to green. Tags are `v`-prefixed (e.g. `v0.2.4`).
+
 ### xcodeproj — new Swift files
 New `.swift` files in the app target **must** be registered four times in `app/Vergissmeinnicht/Vergissmeinnicht.xcodeproj/project.pbxproj`: `PBXBuildFile`, `PBXFileReference`, `PBXGroup`, `PBXSourcesBuildPhase`. Same for `Assets.xcassets` & `Localizable.xcstrings` — see the v0.1.1 icon hotfix in the journal as a cautionary tale.
 
