@@ -587,6 +587,7 @@ final class AppContainer {
 
     /// Pfad zum Replica-Verzeichnis im App-Container. Im Sandbox liefert
     /// `applicationSupportDirectory` automatisch den Container-Pfad.
+    /// Rationale (Container-Hierarchie): siehe docs/architecture.md.
     private static func replicaURL() throws -> URL {
         let fm = FileManager.default
         let appSupport = try fm.url(

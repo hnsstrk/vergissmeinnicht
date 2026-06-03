@@ -178,7 +178,8 @@ pub struct TaskInfo {
     /// Entry-Zeitpunkt der Task (Anlage-Datum) als Unix-Sekunden. Wird beim Anlegen gesetzt.
     pub entry: Option<i64>,
     /// Working-Set-ID (Taskwarrior-typische numerische ID, 1-N). Nur für Pending-Tasks
-    /// definiert; für Completed/Deleted ist `None`.
+    /// definiert; für Completed/Deleted ist `None`. Kein stabiler Identifier (das ist
+    /// die UUID); Rationale zu u32 und Lifecycle: siehe docs/architecture.md.
     pub working_set_id: Option<u32>,
     /// Priority-Property als Rohwert (typisch `H` / `M` / `L`); nicht validiert.
     pub priority: Option<String>,

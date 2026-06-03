@@ -76,6 +76,9 @@ The app runs sandboxed. Its replica lives in
 `~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application Support/`.
 There is no direct access to `~/.task/` — sync goes through the server.
 
+See [`docs/architecture.md`](docs/architecture.md) for the design rationale behind
+the container hierarchy, the `u32` working-set ID, and the replica lifecycle.
+
 ## Download
 
 Pre-built `.app` bundles are available **arm64-only** (Apple Silicon, macOS 14+):
