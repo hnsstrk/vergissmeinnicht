@@ -82,7 +82,9 @@ let ws = replica.working_set().await?;
 for (index, uuid) in ws.iter() {
     if let Some(task) = replica.get_task(uuid).await? {
         if task.get_status() == Status::Pending {
-            out.push(build_task_info(&task, uuid, Some(index as u32)));
+            // Only the `Some(index as u32)` argument is relevant here; the
+            // remaining args carry unrelated dependency flags.
+            out.push(build_task_info(&task, uuid, Some(index as u32), /* … */));
         }
     }
 }
