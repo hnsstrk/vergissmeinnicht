@@ -51,11 +51,14 @@ enum SidebarFilter: Hashable {
                 // Strikt vor Mitternacht des Folgetags: heute fällige (Ende des Tages =
                 // 23:59:59) und überfällige Tasks zählen, ein exakt auf 00:00 morgen
                 // fallender `due` gehört dagegen zu „morgen", nicht „heute".
-                if dueDate < cal.startOfDay(for: now).addingTimeInterval(24 * 60 * 60) {
-                    return true
-                }
+                return dueDate < cal.startOfDay(for: now).addingTimeInterval(24 * 60 * 60)
             }
-            return false
+            // Kein `due`, aber `scheduled` gesetzt: der `!isUpcoming`-Guard oben hat
+            // bereits alles mit `scheduled > now` ausgeschlossen, ein vorhandenes
+            // `scheduled` liegt also zwangsläufig heute oder in der Vergangenheit —
+            // genau die „heute machbar"-Tasks ohne Deadline. Taskwarrior-natives
+            // `scheduled:today` ist der manuelle „für heute einplanen"-Hebel (#1).
+            return task.scheduled != nil
         case .todo:
             return task.status == .pending
                 && !Self.isWaiting(task, now: now)
