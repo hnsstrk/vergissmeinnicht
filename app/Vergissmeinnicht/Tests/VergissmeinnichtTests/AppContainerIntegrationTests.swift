@@ -16,19 +16,23 @@ final class AppContainerIntegrationTests: XCTestCase {
 
     private var tempDir: URL!
 
-    override func setUpWithError() throws {
-        try super.setUpWithError()
+    // Die async-Varianten von setUp/tearDown erben in einer `@MainActor`-Klasse
+    // deren Isolation — anders als die synchronen `*WithError`-Overrides nonisolated
+    // XCTest-Methoden, in denen Swift 6.0 die Mutation des main-actor-isolierten
+    // `tempDir` ablehnt (CI ist mit Swift 6.0 strenger als das lokale 6.3).
+    override func setUp() async throws {
+        try await super.setUp()
         tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
     }
 
-    override func tearDownWithError() throws {
+    override func tearDown() async throws {
         if let tempDir, FileManager.default.fileExists(atPath: tempDir.path) {
             try FileManager.default.removeItem(at: tempDir)
         }
         tempDir = nil
-        try super.tearDownWithError()
+        try await super.tearDown()
     }
 
     private func makeContainer() throws -> AppContainer {
