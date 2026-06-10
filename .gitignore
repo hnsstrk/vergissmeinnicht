@@ -36,3 +36,4 @@ build/
 
 # Other local agent tooling state
 .antigravitycli/
+build-test/

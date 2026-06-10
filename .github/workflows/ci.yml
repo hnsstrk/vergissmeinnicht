@@ -12,6 +12,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  audit:
+    name: Dependency audit (cargo-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Audit Rust dependencies (RustSec advisory DB)
+        working-directory: rust
+        run: cargo audit
+
   build:
     name: Build & test (macOS arm64)
     runs-on: macos-15
@@ -52,6 +68,9 @@ jobs:
 
       - name: Build Rust core + Swift bindings + XCFramework
         run: ./scripts/build-macos.sh
+
+      - name: Rust lint (clippy)
+        run: cargo clippy --manifest-path rust/Cargo.toml --all-targets --release -- -D warnings
 
       - name: Rust tests
         run: cargo test --manifest-path rust/Cargo.toml --release

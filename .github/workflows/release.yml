@@ -58,6 +58,13 @@ jobs:
       - name: Build Rust core + Swift bindings + XCFramework
         run: ./scripts/build-macos.sh
 
+      # Gate the release on the test suites — a tag must not ship untested code.
+      - name: Rust tests
+        run: cargo test --manifest-path rust/Cargo.toml --release
+
+      - name: Swift package tests
+        run: swift test --package-path swift/VergissmeinnichtKit
+
       - name: Build app (Release)
         run: |
           xcodebuild \
