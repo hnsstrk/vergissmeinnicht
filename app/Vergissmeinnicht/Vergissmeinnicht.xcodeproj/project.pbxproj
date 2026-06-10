@@ -47,6 +47,7 @@
 		7E5701A1000000000000000B /* ParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5701B1000000000000000B /* ParserTests.swift */; };
 		7E5701A2000000000000000C /* TaskListViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5701B2000000000000000C /* TaskListViewModelTests.swift */; };
 		7E5701A3000000000000000D /* AppContainerIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5701B3000000000000000D /* AppContainerIntegrationTests.swift */; };
+		7E5701A4000000000000000E /* SidebarFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5701B4000000000000000E /* SidebarFilterTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -92,6 +93,7 @@
 		7E5701B1000000000000000B /* ParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParserTests.swift; sourceTree = "<group>"; };
 		7E5701B2000000000000000C /* TaskListViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListViewModelTests.swift; sourceTree = "<group>"; };
 		7E5701B3000000000000000D /* AppContainerIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainerIntegrationTests.swift; sourceTree = "<group>"; };
+		7E5701B4000000000000000E /* SidebarFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarFilterTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
@@ -167,6 +169,7 @@
 				7E5701B3000000000000000D /* AppContainerIntegrationTests.swift */,
 				CA1E0004B0000000CA1E0004 /* CalendarBucketingTests.swift */,
 				7E5701B1000000000000000B /* ParserTests.swift */,
+				7E5701B4000000000000000E /* SidebarFilterTests.swift */,
 				7E5701B0000000000000000A /* SmokeTests.swift */,
 				7E5701B2000000000000000C /* TaskListViewModelTests.swift */,
 			);
@@ -342,6 +345,7 @@
 			files = (
 				7E5701A0000000000000000A /* SmokeTests.swift in Sources */,
 				7E5701A1000000000000000B /* ParserTests.swift in Sources */,
+				7E5701A4000000000000000E /* SidebarFilterTests.swift in Sources */,
 				7E5701A2000000000000000C /* TaskListViewModelTests.swift in Sources */,
 				7E5701A3000000000000000D /* AppContainerIntegrationTests.swift in Sources */,
 				CA1E0004A0000000CA1E0004 /* CalendarBucketingTests.swift in Sources */,
@@ -553,6 +557,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -573,6 +578,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

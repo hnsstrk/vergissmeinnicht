@@ -63,12 +63,16 @@ enum KeychainStore {
         return value
     }
 
-    static func delete(key: Key) {
+    static func delete(key: Key) throws {
         let query: [CFString: Any] = [
             kSecClass:       kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: key.rawValue,
         ]
-        SecItemDelete(query as CFDictionary)
+        let status = SecItemDelete(query as CFDictionary)
+        // errSecItemNotFound ist kein Fehler — idempotentes Delete.
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw KeychainError.unexpectedStatus(status)
+        }
     }
 }
