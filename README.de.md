@@ -10,7 +10,7 @@ SwiftUI-Frontend, Rust-Core via UniFFI, sandboxed, App-Store-tauglich.
 
 🇬🇧 [English version](README.md)
 
-![Vergissmeinnicht — Heute-Ansicht im Dark Mode](docs/screenshots/main.png)
+![Vergissmeinnicht — Heute-Ansicht](docs/screenshots/main.png)
 
 ## Features
 
@@ -26,6 +26,15 @@ SwiftUI-Frontend, Rust-Core via UniFFI, sandboxed, App-Store-tauglich.
   in der Sidebar zwischen System-Filtern und Projekten pinnen. Rechtsklick zum
   Umbenennen oder Löschen. Die Sektion erscheint erst nach der ersten
   gespeicherten Suche.
+- **Monatskalender** (⇧⌘K, *Ansicht ▸ Kalender*) — GUI-Gegenstück zu Taskwarriors
+  `task calendar`. Monatsraster ausschließlich mit nativen Feldern: `due` als Chip
+  am Tag, eine `scheduled`→`due`-Spanne als mehrtägiger Balken, Recurring-Tasks
+  pro Vorkommen wiederholt. Chips mit „+N"-Überlauf; Klick auf einen Tag öffnet
+  ein Agenda-Popover, Klick auf eine Aufgabe das Detail. Dazu eine konfigurierbare
+  **Vorschau** über der Aufgabenliste (Einstellungen ▸ *Vorschau*): tagesgruppierte
+  **Agenda** oder kompakter **Wochen-Streifen** mit Tages-Counts — beide mit
+  Kalenderwochen-Trennern (KW) und wählbarem Bereich (3/7/14 Tage oder
+  diese-und-nächste Woche).
 - **Quick Capture** (⌘N) — fokussiertes Eingabe-Sheet mit Titel, Notizen, Projekt,
   Tags, Fälligkeit, Priorität, Wiederholung. Alternativ Token-Syntax (`+tag
   project:foo due:tomorrow`).
@@ -48,6 +57,11 @@ SwiftUI-Frontend, Rust-Core via UniFFI, sandboxed, App-Store-tauglich.
 - **Automatische Backups** — `VACUUM INTO`-Snapshot vor jedem Sync, rotierend
   die letzten 10. Manuelles Backup und Restore aus den Einstellungen. Siehe
   [`docs/backup-and-restore.md`](docs/backup-and-restore.md).
+
+![Vergissmeinnicht — Monatskalender](docs/screenshots/calendar.png)
+
+*(Alle Screenshots zeigen einen geseedeten Demo-Datensatz —
+`cargo run --release --example seed_demo -- <replica-pfad>`.)*
 
 ## Architektur
 

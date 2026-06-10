@@ -13,7 +13,7 @@ front-end, Rust core via UniFFI, sandboxed, App-Store-friendly.
 
 🇩🇪 [Deutsche Version](README.de.md)
 
-![Vergissmeinnicht — Today view in dark mode](docs/screenshots/main.png)
+![Vergissmeinnicht — Today view](docs/screenshots/main.png)
 
 ## Features
 
@@ -56,6 +56,11 @@ front-end, Rust core via UniFFI, sandboxed, App-Store-friendly.
 - **Automatic backups** — `VACUUM INTO` snapshot before every sync, rotated to
   the last 10. Manual backup and restore from settings. See
   [`docs/backup-and-restore.md`](docs/backup-and-restore.md).
+
+![Vergissmeinnicht — month calendar](docs/screenshots/calendar.png)
+
+*(All screenshots show a seeded demo dataset —
+`cargo run --release --example seed_demo -- <replica-path>`.)*
 
 ## Architecture
 
