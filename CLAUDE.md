@@ -101,6 +101,27 @@ Unified concept: **every toolbar entry is a single SF-Symbol glyph in a standard
 ### Karpathy Principles
 Code comments explicitly reference "Karpathy 2 (Simplicity)" and "Karpathy 3 (Surgical)" as justification. Keep the style — no speculative features, no adjacent refactorings.
 
+### Coding Guidelines
+
+Distilled from the patterns already in the codebase — new code follows them; deviations need a stated reason.
+
+**Error handling**
+- Rust: no `unwrap()`/`expect()`/`panic!` outside `#[cfg(test)]`. Fallible conversions return a `VmError` variant (`Storage`, `Conversion`, `NotFound`, `Sync`, `Internal`) with a message that names the offending value (e.g. `"invalid tag {tag_str:?}"`). Validate inputs at the FFI boundary, early — do not let bad input fail deep inside taskchampion.
+- The one sanctioned exception: `lock_replica()` recovers a poisoned mutex (`unwrap_or_else(|e| e.into_inner())`) — rationale in `docs/architecture.md`; do not copy this pattern elsewhere.
+- Swift: no force unwrap (`!`), no `try!`, no `as!`, no `fatalError` in app code. UI-visible failures land in `AppContainer.lastError`; silently swallowed errors (e.g. an ignored OSStatus) are bugs.
+
+**Concurrency**
+- `AppContainer`, services, and views are `@MainActor`; mutations run on `Task.detached(priority: .userInitiated)` and hop back to the MainActor to publish.
+- Multi-task operations go through `withBatch` (one final refresh, partial-failure reporting) — never loop raw single mutations with per-op refreshes.
+- Rust side: current-thread Tokio runtime + one `Mutex<AppReplica>`; all replica access goes through `lock_replica()`.
+
+**Testing**
+- New logic ships with tests: Rust helpers get `#[cfg(test)]` unit tests in `lib.rs`; Swift logic gets tests in `VergissmeinnichtTests` (app) or `VergissmeinnichtKitTests` (FFI roundtrips). Pure functions (parsers, filters, formatters) are the priority — UI snapshots are not expected.
+- Gates that must stay green: `cargo clippy --all-targets -- -D warnings`, `cargo test`, `swift test`, `xcodebuild test`. CI enforces clippy and runs `cargo audit` (RustSec) — do not introduce new warnings.
+
+**Versioning**
+- `MARKETING_VERSION` (pbxproj) and the Cargo workspace version stay in sync — bump both on release.
+
 ### Localization
 Source language **German**, EN as the translation in `app/Vergissmeinnicht/Resources/Localizable.xcstrings`. New user-facing strings via `String(localized:)` / `LocalizedStringKey`, then invoke the `localizer` subagent.
 
