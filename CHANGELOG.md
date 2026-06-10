@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows a loose [Semantic Versioning](https://semver.org/) scheme.
 Releases before 0.2.4 are recorded only as Git tags and GitHub Releases.
 
+## [0.2.5] - 2026-06-10
+
+### Fixed
+- The pending-changes dot on the sync toolbar button no longer shows when no
+  sync server is configured. Without credentials every operation stays
+  "unsynced" forever, so the dot was permanently on and carried no
+  information (#29).
+- Removing sync credentials from the Keychain no longer fails silently — a
+  failed delete now surfaces as an error.
+- The app test target was missing its generated Info.plist, which broke
+  `xcodebuild test` entirely.
+
+### Added
+- The sync server URL is validated up front (scheme + host) and rejected with
+  a clear error message instead of failing deep inside the sync stack.
+- New unit tests: sidebar filter semantics (app target) and
+  timestamp/UUID/URL helpers (Rust core).
+- CI hardening: a `cargo clippy -D warnings` gate and a RustSec `cargo audit`
+  dependency-audit job; the release workflow now runs the Rust and Swift test
+  suites before building.
+
+### Changed
+- Refreshed README screenshots: fully English demo dataset, plus a new
+  month-calendar screenshot.
+
 ## [0.2.4] - 2026-06-04
 
 ### Added
@@ -24,4 +49,5 @@ Releases before 0.2.4 are recorded only as Git tags and GitHub Releases.
 ### Not planned
 - System-wide global hotkey and manual `sort_order` reordering were declined as out of scope — they are not native Taskwarrior concepts. Ordering in Taskwarrior is driven by urgency.
 
+[0.2.5]: https://github.com/hnsstrk/vergissmeinnicht/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/hnsstrk/vergissmeinnicht/compare/v0.2.3...v0.2.4
