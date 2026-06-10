@@ -290,6 +290,7 @@ struct SettingsView: View {
             try KeychainStore.save(serverUrl,        for: .serverUrl)
             try KeychainStore.save(clientId,         for: .clientId)
             try KeychainStore.save(encryptionSecret, for: .encryptionSecret)
+            container.updateSyncConfigured()
             statusMessage = String(localized: "✓ Gespeichert")
         } catch {
             statusMessage = String(localized: "Fehler beim Speichern: \(error.localizedDescription)")

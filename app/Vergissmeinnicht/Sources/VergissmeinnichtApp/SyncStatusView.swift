@@ -51,7 +51,10 @@ struct SyncStatusView: View {
                     }
                     .frame(width: 16, height: 16)
                     .overlay(alignment: .topTrailing) {
-                        if !container.isSyncing && pending > 0 {
+                        // Nur bei konfiguriertem Sync-Server: ohne Server bleibt jede
+                        // Operation für immer "unsynchronisiert" — der Punkt wäre
+                        // dauerhaft an und ohne Aussage (#29).
+                        if !container.isSyncing && pending > 0 && container.isSyncConfigured {
                             Circle()
                                 .fill(Color.orange)
                                 .frame(width: 6, height: 6)
@@ -72,7 +75,7 @@ struct SyncStatusView: View {
         if container.isSyncing {
             return String(localized: "Synchronisiere …")
         }
-        if container.localChanges > 0 {
+        if container.localChanges > 0 && container.isSyncConfigured {
             return String(localized: "Nicht synchronisierte Änderungen — jetzt synchronisieren")
         }
         return String(localized: "Jetzt synchronisieren")

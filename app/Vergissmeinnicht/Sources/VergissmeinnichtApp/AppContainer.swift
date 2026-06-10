@@ -25,6 +25,11 @@ final class AppContainer {
     private(set) var lastSyncDate: Date?
     /// Anzahl lokaler Operationen, die noch nicht synchronisiert wurden.
     private(set) var localChanges: UInt64 = 0
+    /// Ob Sync-Credentials im Keychain konfiguriert sind. Ohne Server-Konfiguration
+    /// bleibt JEDE Operation für immer "unsynchronisiert" (taskchampion markiert
+    /// Operationen erst nach erfolgreichem Server-Sync als synced) — der
+    /// Pending-Indikator wäre dauerhaft an und bedeutungslos (#29).
+    private(set) var isSyncConfigured: Bool = false
     /// Nächster geplanter Auto-Sync-Zeitpunkt (nil wenn kein Timer aktiv).
     private(set) var nextSyncDate: Date?
 
@@ -46,6 +51,8 @@ final class AppContainer {
         let url = try replicaURL ?? Self.replicaURL()
         self.store = try TaskStore(dbPath: url.path)
         self.backupService = try BackupService(replicaURL: url, backupsURL: nil)
+
+        updateSyncConfigured()
 
         // Sanity-Check: kann der Store die Replica lesen? Beim Listing eines
         // leeren Working-Sets ist die Operation Read-only; ein Fehler hier weist
@@ -623,7 +630,10 @@ final class AppContainer {
     /// damit ist der Sync-Button in der Toolbar auch ohne Server-Konfiguration
     /// sinnvoll und bringt die UI auf den aktuellen Replica-Stand.
     func syncIfConfigured() async {
-        guard let serverUrl = KeychainStore.load(key: .serverUrl), !serverUrl.isEmpty,
+        // Ein Codepfad für die isSyncConfigured-Invariante (Karpathy-Review).
+        updateSyncConfigured()
+        guard isSyncConfigured,
+              let serverUrl = KeychainStore.load(key: .serverUrl), !serverUrl.isEmpty,
               let clientId = KeychainStore.load(key: .clientId), !clientId.isEmpty,
               let secret = KeychainStore.load(key: .encryptionSecret), !secret.isEmpty
         else {
@@ -631,6 +641,15 @@ final class AppContainer {
             return
         }
         await sync(serverUrl: serverUrl, clientId: clientId, encryptionSecret: secret)
+    }
+
+    /// Liest den Konfigurationsstand der Sync-Credentials neu aus dem Keychain.
+    /// Aufgerufen bei Init und nach dem Speichern der Credentials in den Settings (#29).
+    func updateSyncConfigured() {
+        let serverUrl = KeychainStore.load(key: .serverUrl) ?? ""
+        let clientId = KeychainStore.load(key: .clientId) ?? ""
+        let secret = KeychainStore.load(key: .encryptionSecret) ?? ""
+        isSyncConfigured = !serverUrl.isEmpty && !clientId.isEmpty && !secret.isEmpty
     }
 
     /// Liest die Anzahl der noch nicht synchronisierten lokalen Operationen vom Store.
