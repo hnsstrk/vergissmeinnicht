@@ -72,6 +72,31 @@ fn user_tags(task: &taskchampion::Task) -> impl Iterator<Item = Tag> + '_ {
     task.get_tags().filter(|t| t.is_user())
 }
 
+/// Validiert die Sync-Server-URL: Schema muss `http` oder `https` sein, und der
+/// Host-Teil darf nicht leer sein. Kein `url`-Crate nötig — einfache String-Prüfung
+/// reicht, um den häufigsten Konfigurationsfehler (fehlendes Schema) früh abzufangen.
+fn validate_sync_url(url: &str) -> Result<(), VmError> {
+    // Schema extrahieren: alles vor dem ersten "://"
+    let after_schema = url
+        .strip_prefix("http://")
+        .or_else(|| url.strip_prefix("https://"))
+        .ok_or_else(|| VmError::Sync {
+            msg: format!("server_url must start with http:// or https://, got: {url:?}"),
+        })?;
+
+    // Host ist alles vor dem ersten '/' (oder der gesamte Rest).
+    let host = after_schema.split('/').next().unwrap_or("");
+    // Entferne Port-Angabe (host:port), sodass nur der Hostname übrig bleibt.
+    let hostname = host.split(':').next().unwrap_or("");
+    if hostname.is_empty() {
+        return Err(VmError::Sync {
+            msg: format!("server_url has no host: {url:?}"),
+        });
+    }
+
+    Ok(())
+}
+
 /// Baut ein `TaskInfo` aus einem `taskchampion::Task` plus optionaler Working-Set-ID.
 /// Zentralisiert die Property-Extraktion (project, tags, due, entry, priority, annotations).
 ///
@@ -232,6 +257,11 @@ impl TaskStore {
     /// es gibt keinen konkurrierenden Leser, der inkonsistenten In-Memory-State sieht,
     /// und die SQLite-Daten auf Platte sind transaktional/durabel.
     fn lock_replica(&self) -> Result<MutexGuard<'_, AppReplica>, VmError> {
+        // Poison-Recovery: bei einem Panic innerhalb von `block_on` (während der Guard
+        // gehalten wird) borgen wir den inneren Guard statt den Mutex dauerhaft zu sperren.
+        // Zulässig, weil (a) ein current-thread Tokio-Runtime alle Async-Arbeit serialisiert,
+        // (b) kein weiterer Thread konkurrierend liest, und (c) SQLiteStorage transaktional
+        // schreibt — Plattendaten bleiben konsistent. Siehe docs/architecture.md.
         Ok(self.replica.lock().unwrap_or_else(|e| e.into_inner()))
     }
 }
@@ -265,7 +295,7 @@ impl TaskStore {
     /// Legt einen neuen Task mit der gegebenen Description an und gibt seine UUID zurück.
     pub fn add_task(&self, description: String) -> Result<String, VmError> {
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         let uuid = self.rt.block_on(async {
             let new_uuid = Uuid::new_v4();
@@ -293,7 +323,7 @@ impl TaskStore {
         due: Option<i64>,
     ) -> Result<String, VmError> {
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         let due_ts = match due {
             Some(secs) => Some(timestamp_from_secs(secs)?),
@@ -341,7 +371,7 @@ impl TaskStore {
     ) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         let due_ts = match due {
             Some(secs) => Some(timestamp_from_secs(secs)?),
@@ -390,7 +420,7 @@ impl TaskStore {
     /// Working-Set-Eintrag) — die App sortiert clientseitig.
     pub fn list_tasks(&self, include_completed: bool) -> Result<Vec<TaskInfo>, VmError> {
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         let infos = self.rt.block_on(async {
             // Abhängigkeits-Graph einmal pro Lauf berechnen (NICHT per Task — `dependency_map`
@@ -455,7 +485,7 @@ impl TaskStore {
     /// verlustfrei aufwärts.
     pub fn num_local_operations(&self) -> Result<u64, VmError> {
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         let count = self.rt.block_on(async {
             replica.num_local_operations().await
@@ -468,7 +498,7 @@ impl TaskStore {
     pub fn mark_done(&self, uuid: String) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -490,7 +520,7 @@ impl TaskStore {
     ) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -509,7 +539,7 @@ impl TaskStore {
     pub fn delete_task(&self, uuid: String) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -527,7 +557,7 @@ impl TaskStore {
     pub fn add_annotation(&self, uuid: String, annotation: String) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -553,7 +583,7 @@ impl TaskStore {
         let task_uuid = parse_uuid(&uuid)?;
         let ts = timestamp_from_secs(entry)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -571,7 +601,7 @@ impl TaskStore {
     pub fn set_project(&self, uuid: String, project: Option<String>) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -594,7 +624,7 @@ impl TaskStore {
             None => None,
         };
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -613,6 +643,9 @@ impl TaskStore {
     /// Instanz an. Description/Project/Tags/Priority werden kopiert; Annotations
     /// werden bewusst NICHT übertragen, da Annotations zeitpunktbezogen sind.
     /// Gibt die UUID der neu erzeugten Folge-Instanz zurück (`None`, wenn keine).
+    // 8 Parameter sind durch die FFI-Grenze (UniFFI kann kein Struct-Update-Syntax)
+    // bedingt — kein Refactoring ohne expliziten Auftrag (Karpathy 3).
+    #[allow(clippy::too_many_arguments)]
     pub fn mark_done_with_followup(
         &self,
         uuid: String,
@@ -629,7 +662,7 @@ impl TaskStore {
             None => None,
         };
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         let new_uuid: Option<Uuid> = self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -682,7 +715,7 @@ impl TaskStore {
     pub fn set_scheduled(&self, uuid: String, scheduled: Option<i64>) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -705,7 +738,7 @@ impl TaskStore {
     pub fn set_recur(&self, uuid: String, recur: Option<String>) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -726,7 +759,7 @@ impl TaskStore {
     pub fn set_priority(&self, uuid: String, priority: Option<String>) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -747,7 +780,7 @@ impl TaskStore {
         let tag_obj = Tag::from_str(&tag)
             .map_err(|e| VmError::Conversion { msg: format!("invalid tag {tag:?}: {e}") })?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -769,7 +802,7 @@ impl TaskStore {
         let tag_obj = Tag::from_str(&tag)
             .map_err(|e| VmError::Conversion { msg: format!("invalid tag {tag:?}: {e}") })?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -794,7 +827,7 @@ impl TaskStore {
         let task_uuid = parse_uuid(&uuid)?;
         let dep_uuid = parse_uuid(&depends_on_uuid)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -814,7 +847,7 @@ impl TaskStore {
         let task_uuid = parse_uuid(&uuid)?;
         let dep_uuid = parse_uuid(&depends_on_uuid)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -837,7 +870,7 @@ impl TaskStore {
             None => None,
         };
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -856,7 +889,7 @@ impl TaskStore {
     pub fn reactivate(&self, uuid: String) -> Result<(), VmError> {
         let task_uuid = parse_uuid(&uuid)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut ops = Operations::new();
@@ -872,15 +905,23 @@ impl TaskStore {
 
     /// Synchronisiert die Replica gegen einen TaskChampion-Sync-Server.
     /// `client_id` muss ein UUID-String sein. `encryption_secret` wird als UTF-8-Bytes verwendet.
+    ///
+    /// `server_url` muss mit `http://` oder `https://` beginnen und einen nicht-leeren Host
+    /// enthalten — sonst wird sofort `VmError::Sync` zurückgegeben, bevor taskchampion
+    /// tief in der Netzwerk-Schicht einen weniger verständlichen Fehler produziert.
     pub fn sync(
         &self,
         server_url: String,
         client_id: String,
         encryption_secret: String,
     ) -> Result<(), VmError> {
+        // Frühe URL-Validierung: Schema und Host prüfen ohne zusätzliche Dependency
+        // (Karpathy 2 — das `url`-Crate ist in taskchampion nur optional/feature-gated).
+        validate_sync_url(&server_url)?;
+
         let client_uuid = parse_uuid(&client_id)?;
         let mut guard = self.lock_replica()?;
-        let replica: &mut AppReplica = &mut *guard;
+        let replica: &mut AppReplica = &mut guard;
 
         self.rt.block_on(async {
             let mut server = ServerConfig::Remote {
@@ -895,5 +936,79 @@ impl TaskStore {
         })?;
 
         Ok(())
+    }
+}
+
+// ─── Unit Tests ─────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── timestamp_from_secs ──────────────────────────────────────────────────
+
+    #[test]
+    fn timestamp_from_secs_valid() {
+        // Unix-Epoch selbst und ein repräsentativer Wert müssen fehlerfrei konvertieren.
+        assert!(timestamp_from_secs(0).is_ok());
+        assert!(timestamp_from_secs(1_700_000_000).is_ok());
+    }
+
+    #[test]
+    fn timestamp_from_secs_out_of_range() {
+        // chrono akzeptiert keine Werte außerhalb des i64-nanosekunden-Bereichs.
+        // i64::MAX liegt weit außerhalb des erlaubten Chrono-Bereichs.
+        let result = timestamp_from_secs(i64::MAX);
+        assert!(matches!(result, Err(VmError::Conversion { .. })));
+    }
+
+    // ── parse_uuid ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_uuid_invalid_returns_conversion_error() {
+        let result = parse_uuid("not-a-uuid");
+        assert!(matches!(result, Err(VmError::Conversion { .. })));
+    }
+
+    #[test]
+    fn parse_uuid_valid() {
+        let result = parse_uuid("550e8400-e29b-41d4-a716-446655440000");
+        assert!(result.is_ok());
+    }
+
+    // ── validate_sync_url ───────────────────────────────────────────────────
+
+    #[test]
+    fn validate_sync_url_http_ok() {
+        assert!(validate_sync_url("http://sync.example.com").is_ok());
+    }
+
+    #[test]
+    fn validate_sync_url_https_with_path_ok() {
+        assert!(validate_sync_url("https://sync.example.com/v1/client/add-version/").is_ok());
+    }
+
+    #[test]
+    fn validate_sync_url_https_with_port_ok() {
+        assert!(validate_sync_url("https://localhost:8080").is_ok());
+    }
+
+    #[test]
+    fn validate_sync_url_missing_schema() {
+        let result = validate_sync_url("sync.example.com");
+        assert!(matches!(result, Err(VmError::Sync { .. })));
+    }
+
+    #[test]
+    fn validate_sync_url_wrong_schema() {
+        let result = validate_sync_url("ftp://sync.example.com");
+        assert!(matches!(result, Err(VmError::Sync { .. })));
+    }
+
+    #[test]
+    fn validate_sync_url_empty_host() {
+        // "http://" ohne Host
+        let result = validate_sync_url("http://");
+        assert!(matches!(result, Err(VmError::Sync { .. })));
     }
 }

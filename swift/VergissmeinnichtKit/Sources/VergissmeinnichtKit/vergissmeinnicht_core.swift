@@ -663,6 +663,10 @@ public protocol TaskStoreProtocol: AnyObject, Sendable {
     /**
      * Synchronisiert die Replica gegen einen TaskChampion-Sync-Server.
      * `client_id` muss ein UUID-String sein. `encryption_secret` wird als UTF-8-Bytes verwendet.
+     *
+     * `server_url` muss mit `http://` oder `https://` beginnen und einen nicht-leeren Host
+     * enthalten — sonst wird sofort `VmError::Sync` zurückgegeben, bevor taskchampion
+     * tief in der Netzwerk-Schicht einen weniger verständlichen Fehler produziert.
      */
     func sync(serverUrl: String, clientId: String, encryptionSecret: String) throws 
     
@@ -1023,6 +1027,10 @@ open func setWait(uuid: String, wait: Int64?)throws   {try rustCallWithError(Ffi
     /**
      * Synchronisiert die Replica gegen einen TaskChampion-Sync-Server.
      * `client_id` muss ein UUID-String sein. `encryption_secret` wird als UTF-8-Bytes verwendet.
+     *
+     * `server_url` muss mit `http://` oder `https://` beginnen und einen nicht-leeren Host
+     * enthalten — sonst wird sofort `VmError::Sync` zurückgegeben, bevor taskchampion
+     * tief in der Netzwerk-Schicht einen weniger verständlichen Fehler produziert.
      */
 open func sync(serverUrl: String, clientId: String, encryptionSecret: String)throws   {try rustCallWithError(FfiConverterTypeVmError_lift) {
     uniffi_vergissmeinnicht_core_fn_method_taskstore_sync(self.uniffiClonePointer(),
@@ -1912,7 +1920,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_set_wait() != 31016) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_sync() != 8453) {
+    if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_sync() != 55895) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_vergissmeinnicht_core_checksum_method_taskstore_update_task_metadata() != 4155) {
