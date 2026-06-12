@@ -6,9 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows a loose [Semantic Versioning](https://semver.org/) scheme.
 Releases before 0.2.4 are recorded only as Git tags and GitHub Releases.
 
-## [Unreleased]
+## [0.2.6] - 2026-06-12
+
+### Added
+- The agenda preview above the task list shows an explicit empty state when no
+  task falls within the configured window ("Keine Aufgaben bis ‹Datum›"),
+  including the next upcoming due/scheduled date beyond the window. Previously
+  the preview collapsed invisibly and was indistinguishable from a defect.
 
 ### Fixed
+- Dates across the app (forecast preview, calendar, task row chips, detail
+  timestamps, backup list) now follow the language chosen in the settings.
+  Previously an explicit language choice only switched the strings while the
+  date order and punctuation kept following the macOS region, producing mixed
+  output such as "28. June" in the English UI. With "System" nothing changes.
 - App bundles are ad-hoc code-signed again, so the app-sandbox entitlement is
   embedded. Release zips and locally installed builds were previously produced
   with code signing disabled and ran *without* the sandbox, reading and writing
