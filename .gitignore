@@ -1,6 +1,6 @@
-# Rust
+# Rust (Cargo.lock is committed on purpose: the app is a binary artifact and
+# release builds must reproduce the locally tested dependency resolution)
 target/
-Cargo.lock
 
 # Xcode / SwiftPM
 .build/
