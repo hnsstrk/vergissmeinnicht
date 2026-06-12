@@ -464,6 +464,67 @@ final class CalendarBucketingTests: XCTestCase {
         XCTAssertEqual(sorted.map(\.task.uuid), ["a", "z"])
     }
 
+    // MARK: - AppLanguage: Formatierungs-Locale (Datumssprache folgt Sprachwahl)
+
+    func testFormattingLocaleFollowsExplicitChoice() {
+        XCTAssertEqual(AppLanguage.de.formattingLocale.identifier, "de_DE")
+        XCTAssertEqual(AppLanguage.en.formattingLocale.identifier, "en_US")
+    }
+
+    func testFormattingLocaleSystemFollowsSystem() {
+        XCTAssertEqual(AppLanguage.system.formattingLocale, Locale.autoupdatingCurrent)
+    }
+
+    /// Regressionstest gegen den Sprach-Mix „28. June": bei expliziter Sprachwahl
+    /// müssen Monatsname UND Konventionen (Reihenfolge, Trennzeichen) der Sprache
+    /// folgen — nicht der macOS-Region. Kalender und Zeitzone sind explizit
+    /// gepinnt, damit der Test nicht von der Gerätekonfiguration abhängt.
+    func testFormattingLocaleProducesLanguageTypicalDates() {
+        let d = Date(timeIntervalSince1970: TimeInterval(unix(2026, 6, 15)))
+        func style(_ locale: Locale) -> Date.FormatStyle {
+            Date.FormatStyle(
+                locale: locale,
+                calendar: Calendar(identifier: .gregorian),
+                timeZone: TimeZone(identifier: "UTC")!
+            ).day().month(.wide)
+        }
+        XCTAssertEqual(d.formatted(style(AppLanguage.de.formattingLocale)), "15. Juni")
+        XCTAssertEqual(d.formatted(style(AppLanguage.en.formattingLocale)), "June 15")
+    }
+
+    // MARK: - Nächster Termin (Agenda-Leerzustand)
+
+    func testNextRelevantDatePicksEarliestDue() {
+        let tasks = [
+            task(due: unix(2026, 8, 1)),
+            task(due: unix(2026, 7, 1)),
+        ]
+        let next = CalendarBucketing.nextRelevantDate(tasks: tasks, onOrAfter: dayStart(2026, 6, 19))
+        XCTAssertEqual(next, Date(timeIntervalSince1970: TimeInterval(unix(2026, 7, 1))))
+    }
+
+    func testNextRelevantDateConsidersScheduled() {
+        // scheduled (25.6.) liegt vor due (1.7.) → scheduled gewinnt.
+        let tasks = [
+            task(due: unix(2026, 7, 1)),
+            task(scheduled: unix(2026, 6, 25)),
+        ]
+        let next = CalendarBucketing.nextRelevantDate(tasks: tasks, onOrAfter: dayStart(2026, 6, 19))
+        XCTAssertEqual(next, Date(timeIntervalSince1970: TimeInterval(unix(2026, 6, 25))))
+    }
+
+    func testNextRelevantDateIgnoresPastAndNonPending() {
+        let tasks = [
+            task(due: unix(2026, 6, 1)),                       // vor dem Limit
+            task(due: unix(2026, 7, 1), status: .completed),   // nicht pending
+        ]
+        XCTAssertNil(CalendarBucketing.nextRelevantDate(tasks: tasks, onOrAfter: dayStart(2026, 6, 19)))
+    }
+
+    func testNextRelevantDateNilWithoutAnyDates() {
+        XCTAssertNil(CalendarBucketing.nextRelevantDate(tasks: [task()], onOrAfter: dayStart(2026, 6, 19)))
+    }
+
     // MARK: - Vorschau-Perspektiven: Mapping + Sichtbarkeits-Gate (Follow-up #11)
     //
     // Reine Logik (`ForecastPerspective`) — daher hier im schlichten XCTestCase

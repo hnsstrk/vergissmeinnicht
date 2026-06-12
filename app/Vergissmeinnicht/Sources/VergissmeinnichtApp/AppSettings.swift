@@ -213,9 +213,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     /// Setzt `AppleLanguages` in `UserDefaults` entsprechend der Wahl. Wirkt erst
     /// beim nächsten App-Start — Apple hat keine Live-Locale-Umschaltung.
     static func applyAtLaunch() {
-        let raw = UserDefaults.standard.string(forKey: AppSettingsKey.language) ?? AppLanguage.system.rawValue
-        let language = AppLanguage(rawValue: raw) ?? .system
-        switch language {
+        switch current {
         case .system:
             UserDefaults.standard.removeObject(forKey: "AppleLanguages")
         case .de:
@@ -224,6 +222,30 @@ enum AppLanguage: String, CaseIterable, Identifiable {
             UserDefaults.standard.set(["en"], forKey: "AppleLanguages")
         }
     }
+
+    /// Aktive Sprachwahl aus `UserDefaults` (gleiche Quelle wie `applyAtLaunch`).
+    static var current: AppLanguage {
+        let raw = UserDefaults.standard.string(forKey: AppSettingsKey.language) ?? AppLanguage.system.rawValue
+        return AppLanguage(rawValue: raw) ?? .system
+    }
+
+    /// Locale für Datums-/Zeit-FORMATIERUNG passend zur Sprachwahl. Der
+    /// `AppleLanguages`-Override schaltet nur Strings/Monatsnamen um — Reihenfolge
+    /// und Trennzeichen kämen weiter aus der macOS-REGION (z. B. „28. June" bei
+    /// EN-App auf Region Deutschland). Bei expliziter Sprachwahl deshalb die
+    /// Referenz-Region der Sprache; bei `system` unverändert die System-Locale.
+    var formattingLocale: Locale {
+        switch self {
+        case .system: return .autoupdatingCurrent
+        case .de:     return Locale(identifier: "de_DE")
+        case .en:     return Locale(identifier: "en_US")
+        }
+    }
+
+    /// Bequemer Zugriff für Views: Formatierungs-Locale der AKTIVEN Sprachwahl.
+    /// Statisch gelesen wie die Strings — Sprachwechsel greift ohnehin erst nach
+    /// App-Neustart (`applyAtLaunch`).
+    static var currentFormattingLocale: Locale { current.formattingLocale }
 }
 
 /// Persistente Default-Sidebar-Auswahl. Speichert die `SidebarFilter`-Variante als

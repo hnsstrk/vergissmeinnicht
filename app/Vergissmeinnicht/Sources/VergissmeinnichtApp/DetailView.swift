@@ -463,7 +463,7 @@ struct DetailView: View {
 
     private func formatTimestamp(_ unixSeconds: Int64) -> String {
         let date = Date(timeIntervalSince1970: TimeInterval(unixSeconds))
-        return date.formatted(date: .abbreviated, time: .shortened)
+        return date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: AppLanguage.currentFormattingLocale))
     }
 
     private func statusInfo(_ status: TaskStatus) -> (LocalizedStringKey, Color) {

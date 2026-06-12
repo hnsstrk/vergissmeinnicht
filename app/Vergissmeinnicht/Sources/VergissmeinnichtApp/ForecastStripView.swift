@@ -191,11 +191,12 @@ struct ForecastStripView: View {
 
     // MARK: - Helfer
 
-    /// Locale-Wochentags-Kürzel (kein hartkodierter String).
+    /// Locale-Wochentags-Kürzel (kein hartkodierter String); App-Sprach-Locale
+    /// statt System-Region (siehe `AppLanguage.formattingLocale`).
     private func weekdaySymbol(_ day: Date) -> String {
         let fmt = DateFormatter()
         fmt.calendar = calendar
-        fmt.locale = .autoupdatingCurrent
+        fmt.locale = AppLanguage.currentFormattingLocale
         let symbols = fmt.shortStandaloneWeekdaySymbols ?? fmt.shortWeekdaySymbols ?? []
         let idx = calendar.component(.weekday, from: day) - 1
         return symbols.indices.contains(idx) ? symbols[idx] : ""

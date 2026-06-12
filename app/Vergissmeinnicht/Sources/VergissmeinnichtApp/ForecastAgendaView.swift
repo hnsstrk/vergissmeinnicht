@@ -30,6 +30,17 @@ struct ForecastAgendaView: View {
     @State private var contentHeight: CGFloat = 0
 
     var body: some View {
+        Group {
+            if days.isEmpty {
+                emptyState
+            } else {
+                agendaContent
+            }
+        }
+        .background(.bar)
+    }
+
+    private var agendaContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(days.enumerated()), id: \.element) { index, day in
@@ -50,7 +61,51 @@ struct ForecastAgendaView: View {
         // sichere Obergrenze, damit nichts kurz die ganze Höhe greift.
         .frame(height: contentHeight > 0 ? min(contentHeight, Self.maxHeight) : Self.maxHeight)
         .onPreferenceChange(ForecastContentHeightKey.self) { contentHeight = $0 }
-        .background(.bar)
+    }
+
+    // MARK: - Leerzustand
+
+    /// Hinweiszeile statt unsichtbarem Kollaps, wenn KEIN Tag des Fensters eine
+    /// Aufgabe trägt: ohne sie wäre die leere Agenda nicht von einem Defekt zu
+    /// unterscheiden. Nennt das Fensterende (letzter eingeschlossener Tag) und —
+    /// falls vorhanden — den nächsten Termin dahinter, damit klar ist, ab wann
+    /// wieder etwas ansteht. Stil wie die Agenda-Untertitel: sekundär, eine Zeile.
+    private var emptyState: some View {
+        // `agendaWindow`-Ende ist EXKLUSIV → letzter angezeigter Tag = end − 1;
+        // `nextRelevantDate(onOrAfter: end)` sucht ab dem ersten Tag NACH dem Fenster.
+        let (_, end) = CalendarBucketing.agendaWindow(for: range, today: Date(), calendar: calendar)
+        let lastIncludedDay = calendar.date(byAdding: .day, value: -1, to: end) ?? end
+        let next = CalendarBucketing.nextRelevantDate(tasks: tasks, onOrAfter: end)
+        // `Text` mit String-Interpolation erzeugt den Katalog-Key „… %@" —
+        // gleiche Keys wie im xcstrings-Eintrag, nicht den ausformatierten String.
+        return HStack(spacing: 6) {
+            Image(systemName: "calendar.badge.checkmark")
+                .foregroundStyle(.secondary)
+            Text("Keine Aufgaben bis \(shortDate(lastIncludedDay))")
+                .foregroundStyle(.secondary)
+            if let next {
+                Text("·")
+                    .foregroundStyle(.tertiary)
+                Text("Nächster Termin: \(shortDate(next))")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.callout)
+        .lineLimit(1)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+
+    /// Kompaktes locale-Datum („18. Juni"); Jahr nur, wenn es vom laufenden abweicht.
+    /// Formatiert über die App-Sprach-Locale, nicht die System-Region — sonst
+    /// mischt eine EN-App auf Region DE Sprachen („28. June").
+    private func shortDate(_ date: Date) -> String {
+        let locale = AppLanguage.currentFormattingLocale
+        if calendar.component(.year, from: date) == calendar.component(.year, from: Date()) {
+            return date.formatted(.dateTime.day().month(.wide).locale(locale))
+        }
+        return date.formatted(.dateTime.day().month(.wide).year().locale(locale))
     }
 
     // MARK: - Tages-Abschnitt
@@ -137,7 +192,7 @@ struct ForecastAgendaView: View {
             let date = Date(timeIntervalSince1970: TimeInterval(time))
             let hasTime = !calendar.isDate(date, equalTo: calendar.startOfDay(for: date), toGranularity: .second)
             if hasTime {
-                let t = date.formatted(date: .omitted, time: .shortened)
+                let t = date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: AppLanguage.currentFormattingLocale))
                 parts.append(String(localized: "geplant \(t)", comment: "Agenda: geplant mit Uhrzeit"))
             } else {
                 parts.append(String(localized: "geplant", comment: "Agenda: geplant ohne Uhrzeit"))
@@ -209,7 +264,7 @@ struct ForecastAgendaView: View {
     private func weekdayName(_ day: Date) -> String {
         let fmt = DateFormatter()
         fmt.calendar = calendar
-        fmt.locale = .autoupdatingCurrent
+        fmt.locale = AppLanguage.currentFormattingLocale
         let symbols = fmt.standaloneWeekdaySymbols ?? fmt.weekdaySymbols ?? []
         let idx = calendar.component(.weekday, from: day) - 1
         return symbols.indices.contains(idx) ? symbols[idx] : ""

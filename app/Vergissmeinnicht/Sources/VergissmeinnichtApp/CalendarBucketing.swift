@@ -317,6 +317,24 @@ enum CalendarBucketing {
         }
     }
 
+    /// Frühester Termin (`due` ODER `scheduled`) einer pending Task ab `limit` —
+    /// für den Agenda-Leerzustand („Nächster Termin: …"). `nil`, wenn keine
+    /// pending Task einen Zeitpunkt ab `limit` trägt. Kein Recur-Stepping (wie
+    /// `count(on:)`): eine Recur-Task mit künftigem Anker zählt über ihren Anker;
+    /// ein Anker in der Vergangenheit hätte Vorkommen im Agenda-Fenster und der
+    /// Leerzustand griffe gar nicht erst (Simplicity).
+    static func nextRelevantDate(tasks: [TaskInfo], onOrAfter limit: Date) -> Date? {
+        let threshold = Int64(limit.timeIntervalSince1970)
+        var best: Int64?
+        for task in tasks where task.status == .pending {
+            for stamp in [task.due, task.scheduled].compactMap({ $0 })
+            where stamp >= threshold && stamp < (best ?? Int64.max) {
+                best = stamp
+            }
+        }
+        return best.map { Date(timeIntervalSince1970: TimeInterval($0)) }
+    }
+
     /// Tages-Zählung (für den Wochen-Streifen-Badge): Anzahl Tasks, die an `day`
     /// einen `due`- ODER `scheduled`-Zeitpunkt haben. Kein Recur-Stepping —
     /// der Streifen zeigt die nahe Woche, Recur-Wiederholungen sind dort selten

@@ -1121,6 +1121,26 @@
         }
       }
     },
+    "Keine Aufgaben bis %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No tasks until %@"
+          }
+        }
+      }
+    },
+    "Nächster Termin: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next date: %@"
+          }
+        }
+      }
+    },
     "Working Set ist leer.": {
       "localizations": {
         "en": {

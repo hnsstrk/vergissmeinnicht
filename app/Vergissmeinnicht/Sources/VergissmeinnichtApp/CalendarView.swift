@@ -179,7 +179,7 @@ struct CalendarView: View {
 
     private func agendaPopover(_ day: AgendaDay) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(day.date.formatted(date: .complete, time: .omitted))
+            Text(day.date.formatted(Date.FormatStyle(date: .complete, time: .omitted, locale: AppLanguage.currentFormattingLocale)))
                 .font(.headline)
                 .padding(.bottom, 2)
             ForEach(day.tasks, id: \.uuid) { task in
@@ -218,7 +218,7 @@ struct CalendarView: View {
     private var monthTitle: String {
         let fmt = DateFormatter()
         fmt.calendar = calendar
-        fmt.locale = .autoupdatingCurrent
+        fmt.locale = AppLanguage.currentFormattingLocale
         fmt.setLocalizedDateFormatFromTemplate("yMMMM")
         return fmt.string(from: visibleMonth)
     }
@@ -228,7 +228,7 @@ struct CalendarView: View {
     private var orderedWeekdaySymbols: [String] {
         let fmt = DateFormatter()
         fmt.calendar = calendar
-        fmt.locale = .autoupdatingCurrent
+        fmt.locale = AppLanguage.currentFormattingLocale
         let symbols = fmt.shortStandaloneWeekdaySymbols ?? fmt.shortWeekdaySymbols ?? []
         guard symbols.count == 7 else { return symbols }
         let first = calendar.firstWeekday - 1 // firstWeekday ist 1-basiert

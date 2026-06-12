@@ -14,6 +14,7 @@ struct BackupRestoreSheet: View {
 
     private static let displayFormatter: DateFormatter = {
         let f = DateFormatter()
+        f.locale = AppLanguage.currentFormattingLocale
         f.dateStyle = .medium
         f.timeStyle = .medium
         return f

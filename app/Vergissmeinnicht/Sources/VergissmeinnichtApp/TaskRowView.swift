@@ -72,7 +72,7 @@ struct TaskRowView: View {
         }
         if let due = task.due {
             let d = Date(timeIntervalSince1970: TimeInterval(due))
-            parts.append(String(localized: "fällig \(d.formatted(date: .abbreviated, time: .omitted))", comment: "VoiceOver: Fälligkeitsdatum"))
+            parts.append(String(localized: "fällig \(d.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted, locale: AppLanguage.currentFormattingLocale)))", comment: "VoiceOver: Fälligkeitsdatum"))
         }
         return parts.joined(separator: ", ")
     }
@@ -122,7 +122,7 @@ struct TaskRowView: View {
 
     private func formatted(_ unixSeconds: Int64) -> String {
         let date = Date(timeIntervalSince1970: TimeInterval(unixSeconds))
-        return date.formatted(date: .numeric, time: .omitted)
+        return date.formatted(Date.FormatStyle(date: .numeric, time: .omitted, locale: AppLanguage.currentFormattingLocale))
     }
 
     private func dueColor(_ unixSeconds: Int64) -> Color {
