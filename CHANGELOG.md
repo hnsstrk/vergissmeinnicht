@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows a loose [Semantic Versioning](https://semver.org/) scheme.
 Releases before 0.2.4 are recorded only as Git tags and GitHub Releases.
 
+## [Unreleased]
+
+### Fixed
+- App bundles are ad-hoc code-signed again, so the app-sandbox entitlement is
+  embedded. Release zips and locally installed builds were previously produced
+  with code signing disabled and ran *without* the sandbox, reading and writing
+  `~/Library/Application Support/vergissmeinnicht/` and
+  `~/Library/Preferences/` instead of the documented container paths (#30).
+  If you used an earlier release zip and the app starts with stale or missing
+  tasks after updating, copy your replica into the container (or re-sync from
+  your sync server):
+  ```sh
+  mkdir -p ~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application\ Support/vergissmeinnicht
+  cp -R ~/Library/Application\ Support/vergissmeinnicht/replica \
+    ~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application\ Support/vergissmeinnicht/
+  ```
+
 ## [0.2.5] - 2026-06-10
 
 ### Fixed

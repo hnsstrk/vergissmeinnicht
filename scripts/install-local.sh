@@ -38,11 +38,13 @@ fi
 
 step "Release-Build der App"
 cd "$APP_DIR"
+# Ad-hoc-Signierung (CODE_SIGN_IDENTITY="-" aus dem pbxproj) bleibt aktiv:
+# ohne Signierung fehlt das app-sandbox-Entitlement und die App liest/schreibt
+# unsandboxed Pfade statt des Containers (siehe docs/building.md).
 xcodebuild \
     -scheme Vergissmeinnicht \
     -configuration Release \
     -derivedDataPath "$BUILD_DIR" \
-    CODE_SIGNING_ALLOWED=NO \
     build \
     | tail -5
 

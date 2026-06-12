@@ -110,6 +110,8 @@ xcodebuild \
   -derivedDataPath build/ \
   CODE_SIGNING_ALLOWED=NO \
   test
+# CODE_SIGNING_ALLOWED=NO is fine here: tests don't produce a shipped bundle.
+# Bundle-producing builds must keep ad-hoc signing — see "Common failures".
 ```
 
 | Suite | What it covers |
@@ -157,6 +159,17 @@ Rust `Mutex<Replica>` blocks a background thread, never the main actor.
 - **Code signing failures in Xcode** — ad-hoc signing is on by default. If Xcode
   prompts for a team, set "Signing Certificate" to "Sign to Run Locally" in the
   target's Signing & Capabilities tab.
+- **App data lands in `~/Library/Application Support/vergissmeinnicht/` and
+  `~/Library/Preferences/` instead of the container** — the bundle was built
+  unsigned (e.g. with `CODE_SIGNING_ALLOWED=NO`). The sandbox is granted via the
+  `com.apple.security.app-sandbox` entitlement, which is only embedded into the
+  binary during code signing; an unsigned (merely linker-signed) build runs
+  *without* the sandbox and uses different preference/replica paths than a
+  signed one. For that reason every bundle that actually gets run or shipped
+  (`scripts/install-local.sh`, the CI debug artifact, the release workflow)
+  keeps ad-hoc signing enabled. Verify with
+  `codesign -d --entitlements - Vergissmeinnicht.app` — the output must contain
+  `com.apple.security.app-sandbox`.
 
 ## Replica location and reset
 
@@ -165,6 +178,10 @@ The app's replica lives in the sandbox container:
 ```
 ~/Library/Containers/de.hnsstrk.vergissmeinnicht/Data/Library/Application Support/vergissmeinnicht/replica/
 ```
+
+This path assumes a (at least ad-hoc) signed build — see the unsigned-build
+entry under [Common failures](#common-failures) for the unsandboxed fallback
+paths.
 
 To reset to a clean state:
 
