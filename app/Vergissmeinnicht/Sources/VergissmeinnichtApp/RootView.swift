@@ -147,7 +147,12 @@ struct RootView: View {
                         TaskInspectorView(
                             selectedUuids: viewModel.selectedUuids,
                             onMarkDoneSelection: handleMarkDoneSelection,
-                            onRequestDelete: { requestDelete(uuids: $0) }
+                            onRequestDelete: { requestDelete(uuids: $0) },
+                            onAssignProject: handleAssignProject,
+                            onReplaceTags: handleReplaceTags,
+                            onSetDue: handleSetDue,
+                            onSetScheduled: handleSetScheduled,
+                            onSetPriority: handleSetPriority
                         )
                         .inspectorColumnWidth(min: 340, ideal: 480, max: 700)
                     }
@@ -385,6 +390,14 @@ struct RootView: View {
 
     private func handleSetDue(_ uuids: Set<String>, _ due: Int64?) {
         bulk.setDue(uuids, due)
+    }
+
+    private func handleSetScheduled(_ uuids: Set<String>, _ scheduled: Int64?) {
+        bulk.setScheduled(uuids, scheduled)
+    }
+
+    private func handleReplaceTags(_ uuids: Set<String>, _ tags: [String]) {
+        bulk.replaceTags(uuids, tags)
     }
 
     private func handleRename(target: RenameTarget, newName: String) {

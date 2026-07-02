@@ -3310,6 +3310,46 @@
           }
         }
       }
+    },
+    "Mehrere Werte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multiple Values"
+          }
+        }
+      }
+    },
+    "Für alle setzen …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set for All …"
+          }
+        }
+      }
+    },
+    "Bei allen entfernen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from All"
+          }
+        }
+      }
+    },
+    "Änderungen gelten für alle %lld ausgewählten Aufgaben.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changes apply to all %lld selected tasks."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

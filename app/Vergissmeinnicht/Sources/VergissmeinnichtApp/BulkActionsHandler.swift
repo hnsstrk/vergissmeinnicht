@@ -1,7 +1,8 @@
 import Foundation
 
-/// View-seitiger Dispatcher für die sechs Aktionen über eine Mehrfach-Selektion
-/// (Erledigt, Löschen, Projekt zuweisen, Tag hinzufügen, Priorität, Fälligkeit).
+/// View-seitiger Dispatcher für die Aktionen über eine Mehrfach-Selektion (Erledigt,
+/// Löschen, Projekt zuweisen, Tag hinzufügen, Tags ersetzen, Priorität, Fälligkeit,
+/// Geplant ab).
 ///
 /// Aus `RootView` extrahiert (#19), damit die View schlank bleibt. Bewusst dünn:
 /// die Batch-Schleifen samt Teilfehler-Report („X von Y fehlgeschlagen") leben in
@@ -34,5 +35,13 @@ struct BulkActions {
 
     func setDue(_ uuids: Set<String>, _ due: Int64?) {
         Task { await container.setDueBatch(uuids: uuids, due: due) }
+    }
+
+    func setScheduled(_ uuids: Set<String>, _ scheduled: Int64?) {
+        Task { await container.setScheduledBatch(uuids: uuids, scheduled: scheduled) }
+    }
+
+    func replaceTags(_ uuids: Set<String>, _ tags: [String]) {
+        Task { await container.replaceTagsBatch(uuids: uuids, tags: tags) }
     }
 }

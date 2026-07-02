@@ -449,6 +449,46 @@ final class AppContainer {
         }
     }
 
+    /// Setzt „Geplant ab" (`scheduled`) mehrerer Tasks (`nil` entfernt es). Für den
+    /// Bulk-Editor der Mehrfachauswahl (#33). Teilfehler im Banner.
+    func setScheduledBatch(uuids: Set<String>, scheduled: Int64?) async {
+        var count = 0
+        await withBatch {
+            for uuid in uuids {
+                if await setScheduled(uuid: uuid, scheduled: scheduled) { count += 1 }
+            }
+        }
+        if count < uuids.count {
+            self.lastError = String(localized: "\(count) von \(uuids.count) fehlgeschlagen: Geplant ab setzen")
+        }
+    }
+
+    /// Ersetzt die komplette Tag-Menge mehrerer Tasks: fehlende Tags werden ergänzt,
+    /// überzählige entfernt (Diff gegen den aktuellen Stand aus `self.tasks`). Für den
+    /// Bulk-Editor der Mehrfachauswahl (#33). Ein Task gilt als fehlgeschlagen, sobald
+    /// irgendeine Teil-Mutation (Add/Remove) fehlschlägt. Teilfehler im Banner.
+    func replaceTagsBatch(uuids: Set<String>, tags: [String]) async {
+        let target = Set(tags)
+        var count = 0
+        await withBatch {
+            for uuid in uuids {
+                guard let task = self.tasks.first(where: { $0.uuid == uuid }) else { continue }
+                let current = Set(task.tags)
+                var ok = true
+                for tag in current.subtracting(target) {
+                    if !(await removeTag(uuid: uuid, tag: tag)) { ok = false }
+                }
+                for tag in target.subtracting(current) {
+                    if !(await addTag(uuid: uuid, tag: tag)) { ok = false }
+                }
+                if ok { count += 1 }
+            }
+        }
+        if count < uuids.count {
+            self.lastError = String(localized: "\(count) von \(uuids.count) fehlgeschlagen: Tags ersetzen")
+        }
+    }
+
     /// Markiert einen Task als erledigt. Hat der Task ein `recur`-Property und
     /// ein `due`-Datum, wird zusätzlich in **derselben Operations-Batch** (atomar)
     /// eine neue Pending-Instanz mit `due_neu = due_alt + intervall(recur)` angelegt.

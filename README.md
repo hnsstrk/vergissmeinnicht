@@ -43,8 +43,10 @@ front-end, Rust core via UniFFI, sandboxed, App-Store-friendly.
 - **Detail column** (⌥⌘0, *View ▸ Show Detail Column*) — optional Mail-style
   reading pane to the right of the task list showing the selected task inline
   (same editor as the window). With multiple tasks selected it lists all
-  selected tasks with full titles, project, and due date, plus bulk actions;
-  double-click still opens the separate window.
+  selected tasks and offers bulk editing of project, tags, due, scheduled,
+  and priority ("Multiple Values" convention: uniform values are shown,
+  mixed fields stay empty and grayed) plus bulk actions; double-click still
+  opens the separate window.
 
   ![Vergissmeinnicht — detail column](docs/screenshots/detail-column.png)
 - **Multi-select** with bulk done / delete / project / tag / priority / due

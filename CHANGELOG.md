@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows a loose [Semantic Versioning](https://semver.org/) scheme.
 Releases before 0.2.4 are recorded only as Git tags and GitHub Releases.
 
+## [Unreleased]
+
+### Added
+- Bulk editing in the detail column (#33 follow-up): with multiple tasks
+  selected, the column shows an edit form for project, tags, due, scheduled,
+  and priority following the macOS "Multiple Values" convention — a field
+  whose value is identical across the selection shows that value, mixed
+  fields stay empty with a grayed "Multiple Values" placeholder, and editing
+  a field applies the new value to every selected task. The task title is
+  deliberately not bulk-editable.
+
 ## [0.2.7] - 2026-07-02
 
 ### Added
