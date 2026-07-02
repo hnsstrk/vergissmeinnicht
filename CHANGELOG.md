@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows a loose [Semantic Versioning](https://semver.org/) scheme.
 Releases before 0.2.4 are recorded only as Git tags and GitHub Releases.
 
-## [Unreleased]
+## [0.2.7] - 2026-07-02
 
 ### Added
 - Mail-style detail column (#33): an optional third column to the right of the
