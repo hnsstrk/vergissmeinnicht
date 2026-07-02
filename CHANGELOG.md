@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows a loose [Semantic Versioning](https://semver.org/) scheme.
 Releases before 0.2.4 are recorded only as Git tags and GitHub Releases.
 
+## [Unreleased]
+
+### Added
+- Mail-style detail column (#33): an optional third column to the right of the
+  task list shows the selected task inline — same editor as the detail window.
+  Toggle it via the toolbar button, *View ▸ Show Detail Column*, or ⌥⌘0; the
+  state persists across launches. With no selection the column shows a hint,
+  with multiple tasks selected it shows a summary with bulk actions (mark done,
+  delete). Double-click still opens the separate detail window; the two-column
+  layout remains the default.
+
 ## [0.2.6] - 2026-06-12
 
 ### Added

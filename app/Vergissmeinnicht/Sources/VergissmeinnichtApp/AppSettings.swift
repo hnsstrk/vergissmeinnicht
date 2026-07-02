@@ -21,6 +21,7 @@ enum AppSettingsKey {
     static let sidebarProjectHierarchy = "sidebarProjectHierarchy"   // Bool, Default true (hierarchische Projektdarstellung)
     static let sidebarCollapsedProjects = "sidebarCollapsedProjects" // JSON-String [String] eingeklappter Projekt-Pfade, Default "[]"
     static let forecastConfigs           = "forecastConfigs"          // JSON-Dictionary [ForecastPerspective.rawValue: ForecastConfig], Default "{}" (fehlende Perspektive → ForecastConfig.default(for:))
+    static let showDetailColumn          = "showDetailColumn"         // Bool, Default false (#33 — Mail-Stil-Detailspalte rechts der Liste)
 }
 
 /// Darstellungsmodus der Vorschau über der Aufgabenliste (Follow-up zu #11):

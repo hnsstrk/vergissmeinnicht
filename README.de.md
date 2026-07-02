@@ -40,6 +40,11 @@ SwiftUI-Frontend, Rust-Core via UniFFI, sandboxed, App-Store-tauglich.
   project:foo due:tomorrow`).
 - **Detail-Editor** in eigenem Fenster — Titel, Projekt, Tags, Fälligkeit,
   Geplant ab, Priorität, Wiederholung, Notizen (mit Markdown-Rendering).
+- **Detailspalte** (⌥⌘0, *Ansicht ▸ Detailspalte anzeigen*) — optionale
+  Lesespalte im Mail-Stil rechts der Aufgabenliste, die die selektierte Aufgabe
+  inline zeigt (derselbe Editor wie im Fenster). Bei Mehrfachauswahl erscheint
+  eine Zusammenfassung mit Bulk-Aktionen; Doppelklick öffnet weiterhin das
+  separate Fenster.
 - **Multi-Selection** mit Bulk-Erledigt / Löschen / Projekt / Tag / Priorität /
   Fälligkeit über Kontextmenü, mit nativem `contextMenu(forSelectionType:)`.
 - **Drag & Drop** Tasks auf Projekte, Tags oder Eingang (löscht Projekt + Tags).

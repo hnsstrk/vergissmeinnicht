@@ -18,6 +18,8 @@ struct RootViewToolbar: ToolbarContent {
     /// Spiegeln die `@AppStorage`-Defaults in `RootView` (Sortier-Persistenz).
     @Binding var defaultSortRaw: String
     @Binding var sortAscending: Bool
+    /// Sichtbarkeit der Detailspalte (#33) — persistiert via `@AppStorage` in `RootView`.
+    @Binding var showDetailColumn: Bool
 
     let onNewTask: () -> Void
     let onMarkDoneSelection: () -> Void
@@ -67,6 +69,16 @@ struct RootViewToolbar: ToolbarContent {
             .help("Ausgewählte Aufgabe(n) löschen (Cmd+⌫)")
 
             SyncStatusView()
+        }
+        // Detailspalten-Toggle am rechten Rand (Apple-Konvention für Inspector-
+        // Toggles, vgl. Xcode/Freeform). Immer sichtbar, unabhängig von der Selektion.
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                showDetailColumn.toggle()
+            } label: {
+                Label("Detailspalte", systemImage: "sidebar.trailing")
+            }
+            .help("Detailspalte ein-/ausblenden (⌥⌘0)")
         }
         if !vm.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             ToolbarItem(placement: .primaryAction) {

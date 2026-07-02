@@ -65,6 +65,7 @@ struct RootView: View {
     @AppStorage(AppSettingsKey.autoSyncMode)    private var autoSyncModeRaw: String = AutoSyncMode.manual.rawValue
     @AppStorage(AppSettingsKey.savedSearches)  private var savedSearchesRaw: String = "[]"
     @AppStorage(AppSettingsKey.forecastConfigs) private var forecastConfigsRaw: String = "{}"
+    @AppStorage(AppSettingsKey.showDetailColumn) private var showDetailColumn: Bool = false
 
     var body: some View {
         @Bindable var vm = viewModel
@@ -127,10 +128,23 @@ struct RootView: View {
                         savedSearchesRaw: $savedSearchesRaw,
                         defaultSortRaw: $defaultSortRaw,
                         sortAscending: $sortAscending,
+                        showDetailColumn: $showDetailColumn,
                         onNewTask: { showQuickCapture = true },
                         onMarkDoneSelection: { handleMarkDoneSelection() },
                         onRequestDelete: { requestDelete(uuids: $0) }
                     )
+                }
+                // Detailspalte (Mail-Stil-Lesebereich, #33): natives Inspector-Panel
+                // rechts der Liste, nur im Listen-Modus (im Kalender gibt es keine
+                // Listen-Selektion). Doppelklick öffnet weiterhin das eigenständige
+                // Detail-Fenster — die Spalte ist ein zusätzlicher Zugang, kein Ersatz.
+                .inspector(isPresented: $showDetailColumn) {
+                    TaskInspectorView(
+                        selectedUuids: viewModel.selectedUuids,
+                        onMarkDoneSelection: handleMarkDoneSelection,
+                        onRequestDelete: { requestDelete(uuids: $0) }
+                    )
+                    .inspectorColumnWidth(min: 320, ideal: 400, max: 600)
                 }
             }
         }

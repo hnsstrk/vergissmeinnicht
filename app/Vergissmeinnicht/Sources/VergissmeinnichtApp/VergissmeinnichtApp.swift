@@ -26,6 +26,7 @@ struct VergissmeinnichtApp: App {
     @State private var showShortcuts = false
     @State private var showSearchHelp = false
     @AppStorage(AppSettingsKey.hideCompleted) private var hideCompleted: Bool = false
+    @AppStorage(AppSettingsKey.showDetailColumn) private var showDetailColumn: Bool = false
 
     init() {
         // Sprach-Override muss VOR App-Body-Init in `AppleLanguages` stehen,
@@ -101,6 +102,10 @@ struct VergissmeinnichtApp: App {
                 .keyboardShortcut("k", modifiers: [.shift, .command])
                 .disabled(container == nil)
                 Divider()
+                // Mail-Stil-Detailspalte (#33): Toggle spiegelt denselben
+                // @AppStorage-Schlüssel wie der Toolbar-Button in der Hauptliste.
+                Toggle("Detailspalte anzeigen", isOn: $showDetailColumn)
+                    .keyboardShortcut("0", modifiers: [.option, .command])
                 Toggle("Erledigte Aufgaben ausblenden", isOn: $hideCompleted)
                     .keyboardShortcut("h", modifiers: [.shift, .command])
             }
