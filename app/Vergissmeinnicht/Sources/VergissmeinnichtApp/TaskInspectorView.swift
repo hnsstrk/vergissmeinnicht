@@ -19,10 +19,6 @@ struct TaskInspectorView: View {
     let onMarkDoneSelection: () -> Void
     let onRequestDelete: (Set<String>) -> Void
 
-    /// Titel-Vorschau der Mehrfachauswahl: mehr Zeilen helfen nicht beim
-    /// Wiedererkennen, sie verschieben nur die Aktionen aus dem Blickfeld.
-    private static let maxPreviewTitles = 6
-
     var body: some View {
         if selectedUuids.isEmpty {
             ContentUnavailableView(
@@ -53,31 +49,34 @@ struct TaskInspectorView: View {
 
     // MARK: - Mehrfachauswahl
 
+    /// Kopf + scrollbare Liste ALLER selektierten Aufgaben + fixer Aktions-Footer.
+    /// Anders als die frühere gekappte Vorschau (6 Titel, `lineLimit(1)`) soll der
+    /// User die vollständige Auswahl lesen können, daher kein Kappen und kein
+    /// Zeilenlimit auf dem Titel.
     @ViewBuilder
     private var multiSelectionSummary: some View {
         let tasks = selectedTasks
-        VStack(spacing: 16) {
-            Spacer()
-            Image(systemName: "square.stack.3d.up.fill")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-            Text("\(tasks.count) Aufgaben ausgewählt")
-                .font(.title3.bold())
-
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(tasks.prefix(Self.maxPreviewTitles), id: \.uuid) { task in
-                    Text(task.description)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                if tasks.count > Self.maxPreviewTitles {
-                    Text("+ \(tasks.count - Self.maxPreviewTitles) weitere")
-                        .font(.callout.italic())
-                        .foregroundStyle(.tertiary)
-                }
+        VStack(spacing: 0) {
+            VStack(spacing: 6) {
+                Image(systemName: "square.stack.3d.up.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.secondary)
+                Text("\(tasks.count) Aufgaben ausgewählt")
+                    .font(.headline)
             }
-            .frame(maxWidth: 320, alignment: .leading)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
+
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(tasks, id: \.uuid) { task in
+                        multiSelectionRow(task)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+
+            Divider()
 
             HStack(spacing: 12) {
                 Button {
@@ -90,10 +89,55 @@ struct TaskInspectorView: View {
                 } label: {
                     Label("Löschen", systemImage: "trash")
                 }
+                Spacer()
             }
-            Spacer()
+            .padding(16)
         }
-        .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Einzelne Zeile der Mehrfachauswahl-Liste: Working-Set-ID, voll umbrechender
+    /// Titel, Meta-Zeile mit Projekt/Fälligkeit (überfällig rot). Hintergrund-Karte
+    /// statt Divider — analog der Sektionen in `DetailView`.
+    @ViewBuilder
+    private func multiSelectionRow(_ task: TaskInfo) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                if let workingSetId = task.workingSetId {
+                    Text("#\(workingSetId)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                Text(task.description)
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if task.project != nil || task.due != nil {
+                HStack(spacing: 8) {
+                    if let project = task.project {
+                        Text(project)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let due = task.due {
+                        Text(formatDue(due))
+                            .font(.caption)
+                            .foregroundStyle(isOverdue(due) ? .red : .secondary)
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func formatDue(_ unixSeconds: Int64) -> String {
+        let date = Date(timeIntervalSince1970: TimeInterval(unixSeconds))
+        return date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: AppLanguage.currentFormattingLocale))
+    }
+
+    private func isOverdue(_ unixSeconds: Int64) -> Bool {
+        Date(timeIntervalSince1970: TimeInterval(unixSeconds)) < .now
     }
 }

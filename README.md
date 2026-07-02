@@ -42,8 +42,11 @@ front-end, Rust core via UniFFI, sandboxed, App-Store-friendly.
   priority, recurrence, annotations (with Markdown rendering).
 - **Detail column** (⌥⌘0, *View ▸ Show Detail Column*) — optional Mail-style
   reading pane to the right of the task list showing the selected task inline
-  (same editor as the window). With multiple tasks selected it shows a summary
-  with bulk actions; double-click still opens the separate window.
+  (same editor as the window). With multiple tasks selected it lists all
+  selected tasks with full titles, project, and due date, plus bulk actions;
+  double-click still opens the separate window.
+
+  ![Vergissmeinnicht — detail column](docs/screenshots/detail-column.png)
 - **Multi-select** with bulk done / delete / project / tag / priority / due
   via context menu, native `contextMenu(forSelectionType:)`.
 - **Drag & drop** tasks onto projects, tags, or Inbox (clears project + tags).

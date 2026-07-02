@@ -3261,16 +3261,6 @@
         }
       }
     },
-    "+ %lld weitere": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "+ %lld more"
-          }
-        }
-      }
-    },
     "%lld Aufgaben ausgewählt": {
       "localizations": {
         "en": {

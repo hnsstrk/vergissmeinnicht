@@ -42,9 +42,12 @@ SwiftUI-Frontend, Rust-Core via UniFFI, sandboxed, App-Store-tauglich.
   Geplant ab, Priorität, Wiederholung, Notizen (mit Markdown-Rendering).
 - **Detailspalte** (⌥⌘0, *Ansicht ▸ Detailspalte anzeigen*) — optionale
   Lesespalte im Mail-Stil rechts der Aufgabenliste, die die selektierte Aufgabe
-  inline zeigt (derselbe Editor wie im Fenster). Bei Mehrfachauswahl erscheint
-  eine Zusammenfassung mit Bulk-Aktionen; Doppelklick öffnet weiterhin das
-  separate Fenster.
+  inline zeigt (derselbe Editor wie im Fenster). Bei Mehrfachauswahl werden
+  alle selektierten Aufgaben mit vollem Titel, Projekt und Fälligkeit
+  aufgelistet, dazu Bulk-Aktionen; Doppelklick öffnet weiterhin das separate
+  Fenster.
+
+  ![Vergissmeinnicht — Detailspalte](docs/screenshots/detail-column.png)
 - **Multi-Selection** mit Bulk-Erledigt / Löschen / Projekt / Tag / Priorität /
   Fälligkeit über Kontextmenü, mit nativem `contextMenu(forSelectionType:)`.
 - **Drag & Drop** Tasks auf Projekte, Tags oder Eingang (löscht Projekt + Tags).

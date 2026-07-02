@@ -65,6 +65,14 @@ The **GitHub Issues** of this repo (`hnsstrk/vergissmeinnicht`) are the single s
 - **Release notes are generated from the changelog, never hand-written per release.** `.github/workflows/release.yml` extracts the matching `## [<version>]` section from `CHANGELOG.md` and uses it as the GitHub Release body, appending the install/quarantine footer from `.github/release-footer.md` (with `__TAG__` substituted for the tag). Do **not** reintroduce a hard-coded release body — that produced identical notes for every release.
 - **Release flow:** bump `MARKETING_VERSION` (two places in `project.pbxproj`) → update `CHANGELOG.md` → push `main`, wait for CI green → push an annotated tag `vX.Y.Z` (triggers `release.yml`) → watch the release run to green. Tags are `v`-prefixed (e.g. `v0.2.4`).
 
+### Definition of Done — user-facing changes
+
+A change that alters user-visible behavior is only done when, **in the same commit/PR**:
+
+1. **Keyboard shortcuts:** every new or changed shortcut is also added to `ShortcutHelpView` (`AboutView.swift`) — the help sheet (⌘?) is the user-facing reference and must never lag behind the actual bindings.
+2. **README + Changelog:** the feature lists in `README.md` and `README.de.md` and the `## [Unreleased]` section of `CHANGELOG.md` are updated alongside the code. Do not defer this to "later" — deferred entries get lost.
+3. **Screenshots:** when the main window changes visibly (new column, toolbar/sidebar structure, layout), refresh the affected images under `docs/screenshots/` using the seeded demo dataset (`seed_demo` example, English UI) — never screenshots of real user data.
+
 ### xcodeproj — new Swift files
 New `.swift` files in the app target **must** be registered four times in `app/Vergissmeinnicht/Vergissmeinnicht.xcodeproj/project.pbxproj`: `PBXBuildFile`, `PBXFileReference`, `PBXGroup`, `PBXSourcesBuildPhase`. Same for `Assets.xcassets` & `Localizable.xcstrings` — see the v0.1.1 icon hotfix in the journal as a cautionary tale.
 

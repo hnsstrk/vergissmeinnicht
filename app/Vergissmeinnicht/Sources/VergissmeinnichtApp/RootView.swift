@@ -139,12 +139,18 @@ struct RootView: View {
                 // Listen-Selektion). Doppelklick öffnet weiterhin das eigenständige
                 // Detail-Fenster — die Spalte ist ein zusätzlicher Zugang, kein Ersatz.
                 .inspector(isPresented: $showDetailColumn) {
-                    TaskInspectorView(
-                        selectedUuids: viewModel.selectedUuids,
-                        onMarkDoneSelection: handleMarkDoneSelection,
-                        onRequestDelete: { requestDelete(uuids: $0) }
-                    )
-                    .inspectorColumnWidth(min: 320, ideal: 400, max: 600)
+                    // Inhalt nur bei sichtbarer Spalte mounten: SwiftUI hält den
+                    // Inspector-Inhalt sonst auch geschlossen am Leben, und die
+                    // Toolbar-Items der eingebetteten DetailView (Erledigt/Speichern)
+                    // würden bei aktiver Selektion in die Fenster-Toolbar leaken.
+                    if showDetailColumn {
+                        TaskInspectorView(
+                            selectedUuids: viewModel.selectedUuids,
+                            onMarkDoneSelection: handleMarkDoneSelection,
+                            onRequestDelete: { requestDelete(uuids: $0) }
+                        )
+                        .inspectorColumnWidth(min: 340, ideal: 480, max: 700)
+                    }
                 }
             }
         }
