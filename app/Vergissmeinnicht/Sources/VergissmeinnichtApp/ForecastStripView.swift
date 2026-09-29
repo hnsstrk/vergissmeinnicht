@@ -31,27 +31,27 @@ struct ForecastStripView: View {
     /// Obergrenze der Streifen-Höhe; darüber scrollt der Inhalt intern (Sicherheit
     /// gegen ein hohes 4-Wochen-Raster). Spiegelt bewusst den Agenda-Deckel.
     private static let maxHeight: CGFloat = 320
-    /// Gemessene intrinsische Inhaltshöhe (via Hintergrund-GeometryReader).
-    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
-        ScrollView {
-            content
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear.preference(key: ForecastStripHeightKey.self, value: proxy.size.height)
-                    }
-                )
-        }
         // Dynamisch: kurzer Inhalt → exakte Inhaltshöhe, sonst gedeckelt mit Scroll.
-        // Vor erster Messung (`== 0`) den Deckel als sichere Obergrenze nehmen —
-        // sonst greift die ScrollView im `safeAreaInset` kurz die volle Höhe und
-        // schiebt die Liste (gleiches Muster wie die Agenda).
-        .frame(height: contentHeight > 0 ? min(contentHeight, Self.maxHeight) : Self.maxHeight)
-        .onPreferenceChange(ForecastStripHeightKey.self) { contentHeight = $0 }
+        // Entscheidung rein im Layout per `ViewThatFits` — keine Höhenmessung per
+        // GeometryReader → `@State` (gleiche Begründung wie `ForecastAgendaView`:
+        // die Rückkopplung endet unter macOS 27 in einer Constraint-Endlosschleife).
+        CappedHeightLayout(maxHeight: Self.maxHeight) {
+            ViewThatFits(in: .vertical) {
+                // `fixedSize` hält die ungescrollte Variante auf Inhaltshöhe — sonst
+                // dehnt flexibler Inhalt sie auf den vollen Deckel.
+                paddedContent.fixedSize(horizontal: false, vertical: true)
+                ScrollView { paddedContent }
+            }
+        }
         .background(.bar)
+    }
+
+    private var paddedContent: some View {
+        content
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
     }
 
     @ViewBuilder
@@ -200,15 +200,5 @@ struct ForecastStripView: View {
         let symbols = fmt.shortStandaloneWeekdaySymbols ?? fmt.shortWeekdaySymbols ?? []
         let idx = calendar.component(.weekday, from: day) - 1
         return symbols.indices.contains(idx) ? symbols[idx] : ""
-    }
-}
-
-/// Trägt die gemessene intrinsische Inhaltshöhe des Streifens nach oben, damit die
-/// Höhe dynamisch (Inhalt vs. Deckel) gesetzt werden kann — lokale Kopie des
-/// Agenda-Musters, damit der Diff `ForecastAgendaView` nicht berührt.
-private struct ForecastStripHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
     }
 }

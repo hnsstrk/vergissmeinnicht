@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows a loose [Semantic Versioning](https://semver.org/) scheme.
 Releases before 0.2.4 are recorded only as Git tags and GitHub Releases.
 
+## [Unreleased]
+
+### Fixed
+- Crash on macOS 27 (#34) when opening a sidebar view whose forecast preview is set
+  to "Agenda" (e.g. Today): the agenda measured its own height and resized
+  itself, which AppKit aborted as an endless layout loop. The agenda and the
+  compact forecast strip (same pattern) now pick their height purely in layout
+  (content height up to the cap, scrolling above).
+
 ## [0.3.0] - 2026-07-02
 
 ### Added

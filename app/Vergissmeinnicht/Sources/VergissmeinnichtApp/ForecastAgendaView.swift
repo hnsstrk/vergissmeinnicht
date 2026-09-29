@@ -15,6 +15,11 @@ import VergissmeinnichtKit
 /// Inhaltshöhe an (kein großer Leerraum bis zur Liste); erst wenn der Inhalt die
 /// Obergrenze (`maxHeight`) übersteigt, scrollt er intern. Der Inhalt sitzt im
 /// `safeAreaInset(edge:.top)` über der Liste.
+///
+/// Die Höhe entscheidet `ViewThatFits` rein im Layout — bewusst KEINE Messung per
+/// GeometryReader → `@State` → `.frame(height:)`: diese Rückkopplung verschiebt die
+/// Mindestgröße der Split-View-Spalte bei jedem Durchlauf, und unter macOS 27 endet
+/// das in einer Constraint-Endlosschleife, die AppKit mit Absturz quittiert.
 struct ForecastAgendaView: View {
     let tasks: [TaskInfo]
     let range: ForecastRange
@@ -24,10 +29,8 @@ struct ForecastAgendaView: View {
 
     private let calendar = Calendar.current
     /// Obergrenze der Agenda-Höhe; darüber scrollt der Inhalt intern. Darunter
-    /// bestimmt die gemessene Inhaltshöhe die tatsächliche Höhe (dynamisch).
+    /// bestimmt die intrinsische Inhaltshöhe die tatsächliche Höhe (dynamisch).
     private static let maxHeight: CGFloat = 320
-    /// Gemessene intrinsische Inhaltshöhe (via Hintergrund-GeometryReader).
-    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
         Group {
@@ -41,26 +44,27 @@ struct ForecastAgendaView: View {
     }
 
     private var agendaContent: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(days.enumerated()), id: \.element) { index, day in
-                    weekSeparator(for: day, previous: index > 0 ? days[index - 1] : nil)
-                    daySection(day)
-                }
+        // Dynamisch: passt der Inhalt unter den Deckel, nimmt die Agenda genau ihre
+        // Inhaltshöhe ein; sonst die gedeckelte ScrollView mit internem Scroll.
+        CappedHeightLayout(maxHeight: Self.maxHeight) {
+            ViewThatFits(in: .vertical) {
+                // `fixedSize` hält die ungescrollte Variante auf Inhaltshöhe — sonst
+                // dehnt flexibler Inhalt sie auf den vollen Deckel.
+                agendaDays.fixedSize(horizontal: false, vertical: true)
+                ScrollView { agendaDays }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                GeometryReader { proxy in
-                    Color.clear.preference(key: ForecastContentHeightKey.self, value: proxy.size.height)
-                }
-            )
         }
-        // Dynamisch: bei kurzem Inhalt exakt die Inhaltshöhe, sonst gedeckelt mit
-        // internem Scroll. `contentHeight == 0` (vor erster Messung) → Deckel als
-        // sichere Obergrenze, damit nichts kurz die ganze Höhe greift.
-        .frame(height: contentHeight > 0 ? min(contentHeight, Self.maxHeight) : Self.maxHeight)
-        .onPreferenceChange(ForecastContentHeightKey.self) { contentHeight = $0 }
+    }
+
+    private var agendaDays: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(days.enumerated()), id: \.element) { index, day in
+                weekSeparator(for: day, previous: index > 0 ? days[index - 1] : nil)
+                daySection(day)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
     // MARK: - Leerzustand
@@ -271,11 +275,19 @@ struct ForecastAgendaView: View {
     }
 }
 
-/// Trägt die gemessene intrinsische Inhaltshöhe der Agenda nach oben, damit die
-/// Höhe dynamisch (Inhalt vs. Deckel) gesetzt werden kann (Follow-up #11).
-private struct ForecastContentHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
+/// Bietet dem Inhalt höchstens `maxHeight` an und übernimmt dessen tatsächliche
+/// Größe. Anders als `.frame(maxHeight:)` wächst das Layout NICHT auf die angebotene
+/// Höhe — kurzer Inhalt bleibt kurz. Zusammen mit `ViewThatFits` die zustandslose
+/// Höhenwahl von Agenda und Kompakt-Leiste (keine GeometryReader-Rückkopplung).
+struct CappedHeightLayout: Layout {
+    let maxHeight: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let height = min(proposal.height ?? maxHeight, maxHeight)
+        return subviews.first?.sizeThatFits(ProposedViewSize(width: proposal.width, height: height)) ?? .zero
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(bounds.size))
     }
 }
