@@ -3350,6 +3350,266 @@
           }
         }
       }
+    },
+    "Abhängigkeiten als Baum": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Dependencies as Tree"
+          }
+        }
+      }
+    },
+    "Abhängigkeitsbaum": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dependency Tree"
+          }
+        }
+      }
+    },
+    "Nur bei aktivem Schalter „Abhängigkeiten als Baum“.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only when “Show Dependencies as Tree” is on."
+          }
+        }
+      }
+    },
+    "Zweig aufklappen / zum ersten Kind": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expand branch / go to first child"
+          }
+        }
+      }
+    },
+    "Zweig zuklappen / zur Elternzeile": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse branch / go to parent row"
+          }
+        }
+      }
+    },
+    "%@ — siehe oben": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — see above"
+          }
+        }
+      }
+    },
+    "Zyklus: hängt von %@ ab": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cycle: depends on %@"
+          }
+        }
+      }
+    },
+    "%@ — nicht in dieser Ansicht": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — not in this view"
+          }
+        }
+      }
+    },
+    "Dringlichkeit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Urgency"
+          }
+        }
+      }
+    },
+    "Taskwarrior-Standardkoeffizienten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taskwarrior default coefficients"
+          }
+        }
+      }
+    },
+    "Aufgabe suchen …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search task…"
+          }
+        }
+      }
+    },
+    "Keine passende Aufgabe.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching task."
+          }
+        }
+      }
+    },
+    "Nicht möglich: Zyklus": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not possible: cycle"
+          }
+        }
+      }
+    },
+    "„%@“ hängt dann von „%@“ ab": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” will then depend on “%@”"
+          }
+        }
+      }
+    },
+    "%lld Aufgaben hängen dann von „%@“ ab": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld tasks will then depend on “%@”"
+          }
+        }
+      }
+    },
+    "%lld von %lld fehlgeschlagen: Abhängigkeit hinzufügen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld of %lld failed: Add dependency"
+          }
+        }
+      }
+    },
+    "%lld von %lld fehlgeschlagen: Abhängigkeit entfernen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld of %lld failed: Remove dependency"
+          }
+        }
+      }
+    },
+    "%lld übersprungen: würde einen Zyklus erzeugen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld skipped: would create a cycle"
+          }
+        }
+      }
+    },
+    "Hinzufügen / Entfernen widerrufen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo add / remove"
+          }
+        }
+      }
+    },
+    "Auf Aufgabe ziehen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag onto task"
+          }
+        }
+      }
+    },
+    "Drag → hängt davon ab": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag → depends on it"
+          }
+        }
+      }
+    },
+    "Wird frei, wenn %@ erledigt ist": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unblocked once %@ is completed"
+          }
+        }
+      }
+    },
+    "Voraussetzung außerhalb dieser Ansicht": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prerequisite outside this view"
+          }
+        }
+      }
+    },
+    "Erledigte Voraussetzung": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completed prerequisite"
+          }
+        }
+      }
+    },
+    "%@ — siehe unten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — see below"
+          }
+        }
+      }
+    },
+    "Hängt ab von": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Depends On"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

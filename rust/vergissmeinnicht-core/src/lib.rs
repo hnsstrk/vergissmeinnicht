@@ -164,6 +164,7 @@ fn build_task_info(
         depends,
         is_blocked,
         is_blocking,
+        is_active: task.is_active(),
     }
 }
 
@@ -231,6 +232,9 @@ pub struct TaskInfo {
     /// `true`, wenn mindestens ein anderer noch *pending* Task von diesem abhängt
     /// (Taskwarrior `+BLOCKING`).
     pub is_blocking: bool,
+    /// `true`, wenn der Task gestartet ist (`start`-Property gesetzt, Taskwarrior `+ACTIVE`).
+    /// Direkt aus `Task::is_active()` gelesen; wird für den Urgency-Term „active" gebraucht.
+    pub is_active: bool,
 }
 
 // ─── FFI Object ─────────────────────────────────────────────────────────────
@@ -1010,5 +1014,41 @@ mod tests {
         // "http://" ohne Host
         let result = validate_sync_url("http://");
         assert!(matches!(result, Err(VmError::Sync { .. })));
+    }
+
+    // ── is_active ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn task_info_is_active_follows_start() {
+        // Für `start` gibt es bewusst keine FFI-Methode — der Test setzt es direkt
+        // über die Replica.
+        let dir = std::env::temp_dir().join(format!("vm-core-test-{}", Uuid::new_v4()));
+        let store = TaskStore::new(dir.to_string_lossy().into_owned()).unwrap();
+        let uuid_str = store.add_task("active test".to_string()).unwrap();
+        let uuid = Uuid::parse_str(&uuid_str).unwrap();
+
+        let before = store.list_tasks(false).unwrap();
+        assert!(!before.iter().find(|t| t.uuid == uuid_str).unwrap().is_active);
+
+        {
+            let mut guard = store.lock_replica().unwrap();
+            let replica: &mut AppReplica = &mut guard;
+            store
+                .rt
+                .block_on(async {
+                    let mut ops = Operations::new();
+                    let mut task = replica.get_task(uuid).await?.unwrap();
+                    task.start(&mut ops)?;
+                    replica.commit_operations(ops).await?;
+                    Ok::<_, taskchampion::Error>(())
+                })
+                .unwrap();
+        }
+
+        let after = store.list_tasks(false).unwrap();
+        assert!(after.iter().find(|t| t.uuid == uuid_str).unwrap().is_active);
+
+        drop(store);
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

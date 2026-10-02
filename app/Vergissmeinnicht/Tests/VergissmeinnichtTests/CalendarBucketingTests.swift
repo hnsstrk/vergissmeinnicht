@@ -42,7 +42,7 @@ final class CalendarBucketingTests: XCTestCase {
             uuid: uuid, description: description, project: project, tags: [],
             due: due, status: status, entry: nil, workingSetId: nil,
             priority: nil, annotations: [], wait: nil, recur: recur,
-            scheduled: scheduled, depends: [], isBlocked: false, isBlocking: false
+            scheduled: scheduled, depends: [], isBlocked: false, isBlocking: false, isActive: false
         )
     }
 

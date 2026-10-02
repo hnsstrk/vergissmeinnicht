@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows a loose [Semantic Versioning](https://semver.org/) scheme.
 Releases before 0.2.4 are recorded only as Git tags and GitHub Releases.
 
+## [Unreleased]
+
+### Added
+- Dependency tree view: optional display mode (*Show dependencies as tree* in
+  the sort menu and the View menu, off by default) that arranges tasks along
+  Taskwarrior's native `depends` — the prerequisite (what has to be done first)
+  on top, the tasks that depend on it indented evenly below, with a circled
+  chevron to expand/collapse and a subtle accent-colored bar along each group.
+  A task that depends on several others appears once in full and as "see above"
+  / "see below" reference rows elsewhere; dependency cycles are flagged.
+  Prerequisites not visible in the current view appear as a header row above
+  their dependent tasks: pending ones as a grayed "not in this view" row,
+  completed ones struck through and dimmed (even when completed tasks are
+  hidden). Tooltips explain the rows. Branches collapse and expand, with the ←
+  / → keys like in Finder. Pure presentation: no data is written.
+- Dependencies by drag & drop: drag task B onto task A to make B depend on A
+  (in the flat list and in the tree; multi-selection works; cycles are
+  rejected; a hint is shown while dragging).
+- Adding and removing dependencies can be undone with ⌘Z / ⇧⌘Z.
+- Urgency sort: new sort order "Urgency", computed with Taskwarrior's default
+  urgency coefficients (highest first, like `task next`). While sorted by
+  urgency, each row shows an urgency chip and the detail view shows the value
+  read-only. Custom `.taskrc` coefficients are not read (sandbox).
+
+### Changed
+- Adding a dependency in the detail view now uses a search popover (by #ID,
+  title, or project; ↑/↓/↩/Esc; open tasks only, no cycles) instead of a
+  dropdown, and dependencies are listed with their `#ID`.
+
 ## [0.3.1] - 2026-09-29
 
 ### Fixed

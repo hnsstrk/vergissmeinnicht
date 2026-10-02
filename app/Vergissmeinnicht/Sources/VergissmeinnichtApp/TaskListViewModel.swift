@@ -144,7 +144,7 @@ enum SidebarFilter: Hashable {
 
 /// Sortier-Reihenfolge der Task-Liste im Hauptbereich.
 enum SortOrder: String, CaseIterable, Identifiable {
-    case id, description, entry, due, project
+    case id, description, entry, due, project, urgency
 
     var id: String { rawValue }
 
@@ -155,6 +155,7 @@ enum SortOrder: String, CaseIterable, Identifiable {
         case .entry:       return "Angelegt"
         case .due:         return "Fälligkeit"
         case .project:     return "Projekt"
+        case .urgency:     return "Dringlichkeit"
         }
     }
 }
@@ -185,6 +186,9 @@ final class TaskListViewModel {
     var dueSoonDays: Int = 7
     /// Wenn `true`, werden erledigte Tasks aus der sichtbaren Liste ausgeblendet.
     var hideCompleted: Bool = false
+    /// Zugeklappte Knoten des Abhängigkeitsbaums (Pfad-IDs, siehe `DependencyTreeRow.id`).
+    /// Bewusst ohne Persistenz — Standard ist alles aufgeklappt.
+    var collapsedTreeNodes: Set<String> = []
 
     /// Filtert nach `activeFilter` + `searchQuery` + `hideCompleted` und sortiert
     /// gemäß `sortOrder` + `sortAscending`.
@@ -201,7 +205,21 @@ final class TaskListViewModel {
                 .filter { activeFilter.matches($0, now: now, dueSoonDays: dueSoonDays) }
                 .filter { hideCompleted ? $0.status != .completed : true }
         }
-        let sorted = filtered.sorted { lhs, rhs in sortComparator(lhs, rhs) }
+        let sorted: [TaskInfo]
+        if sortOrder == .urgency {
+            // `now` einmal pro Lauf; Score je Task vorab, nicht pro Vergleich.
+            // Höchste zuerst (wie `task next`); Gleichstand → Name.
+            var scores: [String: Double] = [:]
+            for t in filtered { scores[t.uuid] = Urgency.score(t, now: now) }
+            sorted = filtered.sorted { lhs, rhs in
+                let l = scores[lhs.uuid] ?? 0
+                let r = scores[rhs.uuid] ?? 0
+                if l != r { return l > r }
+                return lhs.description.localizedCaseInsensitiveCompare(rhs.description) == .orderedAscending
+            }
+        } else {
+            sorted = filtered.sorted { lhs, rhs in sortComparator(lhs, rhs) }
+        }
         return sortAscending ? sorted : sorted.reversed()
     }
 
@@ -376,6 +394,9 @@ final class TaskListViewModel {
             case (.none, .none):
                 return lhs.description.localizedCaseInsensitiveCompare(rhs.description) == .orderedAscending
             }
+        case .urgency:
+            // Wird in `visibleTasks` mit vorab berechneten Scores sortiert.
+            return false
         case .project:
             switch (lhs.project, rhs.project) {
             case (let l?, let r?):

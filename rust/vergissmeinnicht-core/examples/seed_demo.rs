@@ -10,6 +10,8 @@ use std::env;
 use std::process;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use taskchampion::{storage::AccessMode, Operations, Replica, SqliteStorage};
+use uuid::Uuid;
 use vergissmeinnicht_core::TaskStore;
 
 struct Demo {
@@ -120,6 +122,59 @@ const DEMO_TASKS: &[Demo] = &[
     },
 ];
 
+/// Dependency demo: (key, description, project, tags, due offset in days, priority).
+type DepTask = (
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static [&'static str],
+    Option<i64>,
+    Option<&'static str>,
+);
+
+const DEP_TASKS: &[DepTask] = &[
+    ("launch", "Launch personal website", "website", &["milestone"], Some(12), Some("H")),
+    ("about", "Write about page", "website", &["writing"], Some(8), Some("M")),
+    ("hosting", "Set up hosting", "website", &["devops"], Some(10), None),
+    ("domain", "Register domain", "website", &["admin"], None, Some("M")),
+    ("design", "Choose a colour palette", "website", &["design"], None, Some("L")),
+    ("header", "Design header banner", "website", &["design"], Some(6), None),
+    ("footer", "Design footer layout", "website", &[], None, None),
+];
+
+/// (task, depends on) — "launch" waits for "about" and "hosting"; "hosting" waits for
+/// "domain" (chain, completed below); "header" and "footer" both wait for "design" (diamond).
+const DEPENDENCIES: &[(&str, &str)] = &[
+    ("launch", "about"),
+    ("launch", "hosting"),
+    ("hosting", "domain"),
+    ("header", "design"),
+    ("footer", "design"),
+    ("launch", "header"),
+];
+
+/// Task started by `start_task` (shows the "active" urgency term).
+const ACTIVE_KEY: &str = "about";
+
+/// `start` has no FFI method; set it by reopening the replica directly after the store
+/// is dropped.
+fn start_task(path: &str, uuid: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+    rt.block_on(async {
+        let storage =
+            SqliteStorage::new(std::path::PathBuf::from(path), AccessMode::ReadWrite, true).await?;
+        let mut replica = Replica::new(storage);
+        let mut ops = Operations::new();
+        let mut task = replica
+            .get_task(Uuid::parse_str(uuid)?)
+            .await?
+            .ok_or("task not found")?;
+        task.start(&mut ops)?;
+        replica.commit_operations(ops).await?;
+        Ok(())
+    })
+}
+
 fn main() {
     let path = match env::args().nth(1) {
         Some(p) => p,
@@ -171,5 +226,45 @@ fn main() {
         created += 1;
     }
 
+    // Dependency subset: tree view with chain (depth 2), diamond, completed dependency
+    // and one active task.
+    let mut keys: Vec<(&str, String)> = Vec::new();
+    for (key, description, project, tags, due_days, prio) in DEP_TASKS {
+        let due = due_days.map(|d| now + d * day);
+        let tags: Vec<String> = tags.iter().map(|s| s.to_string()).collect();
+        match store.add_task_full(description.to_string(), Some(project.to_string()), tags, due) {
+            Ok(uuid) => {
+                if let Some(p) = prio {
+                    if let Err(e) = store.set_priority(uuid.clone(), Some(p.to_string())) {
+                        eprintln!("set_priority failed for {uuid}: {e:?}");
+                    }
+                }
+                keys.push((key, uuid));
+                created += 1;
+            }
+            Err(e) => eprintln!("add_task_full failed for {description:?}: {e:?}"),
+        }
+    }
+    let lookup = |key: &str| keys.iter().find(|(k, _)| *k == key).map(|(_, u)| u.clone());
+    for (task, dep) in DEPENDENCIES {
+        if let (Some(t), Some(d)) = (lookup(task), lookup(dep)) {
+            if let Err(e) = store.add_dependency(t, d) {
+                eprintln!("add_dependency {task} -> {dep} failed: {e:?}");
+            }
+        }
+    }
+    if let Some(domain) = lookup("domain") {
+        if let Err(e) = store.mark_done(domain) {
+            eprintln!("mark_done failed for domain: {e:?}");
+        }
+    }
+
     println!("seeded {created} demo tasks at {path}");
+
+    if let Some(uuid) = lookup(ACTIVE_KEY) {
+        drop(store);
+        if let Err(e) = start_task(&path, &uuid) {
+            eprintln!("start failed for {ACTIVE_KEY}: {e}");
+        }
+    }
 }

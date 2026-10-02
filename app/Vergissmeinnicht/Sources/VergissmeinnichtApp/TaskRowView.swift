@@ -7,14 +7,33 @@ import VergissmeinnichtKit
 /// Selection-/Hover-Highlight liefert die umgebende `List` automatisch.
 struct TaskRowView: View {
     let task: TaskInfo
+    /// Dringlichkeits-Chip nur, solange die Liste nach Dringlichkeit sortiert ist.
+    var showUrgency: Bool = false
+    /// Baumansicht: Breite des festen ID-Slots (linksbündig) für `#ID` bzw. das Erledigt-Symbol,
+    /// Ausrichtung an der ersten Zeile. Die flache Liste lässt das aus (`nil`).
+    var treeSlotWidth: CGFloat? = nil
+    private var treeSlot: Bool { treeSlotWidth != nil }
 
     /// Zeitfenster für "bald fällig" (orange). Muss mit `AppSettings.dueSoonDays`
     /// (Default 7) synchron gehalten werden — D1.
     private static let dueSoonWindow: TimeInterval = 7 * 24 * 60 * 60
 
     var body: some View {
-        HStack(spacing: 8) {
-            if let id = task.workingSetId {
+        HStack(alignment: treeSlot ? .firstTextBaseline : .center, spacing: treeSlot ? 6 : 8) {
+            if treeSlot {
+                Group {
+                    if let id = task.workingSetId {
+                        Text("#\(id)")
+                            .font(.system(.caption, design: .monospaced))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    } else if task.status == .completed {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                }
+                .frame(width: treeSlotWidth, alignment: .leading)
+            } else if let id = task.workingSetId {
                 Text("#\(id)")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
@@ -27,7 +46,7 @@ struct TaskRowView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    if task.status == .completed {
+                    if task.status == .completed, !treeSlot {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                     }
@@ -78,7 +97,11 @@ struct TaskRowView: View {
     }
 
     private var hasMeta: Bool {
-        task.project != nil || !task.tags.isEmpty || task.due != nil || task.wait != nil || task.recur != nil || task.scheduled != nil
+        showsUrgencyChip || task.project != nil || !task.tags.isEmpty || task.due != nil || task.wait != nil || task.recur != nil || task.scheduled != nil
+    }
+
+    private var showsUrgencyChip: Bool {
+        showUrgency && task.status == .pending
     }
 
     private var isWaiting: Bool {
@@ -89,6 +112,10 @@ struct TaskRowView: View {
     @ViewBuilder
     private var metaRow: some View {
         FlowLayout(horizontalSpacing: 4, verticalSpacing: 4) {
+            if showsUrgencyChip {
+                Label(Urgency.score(task, now: Date()).formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.currentFormattingLocale)), systemImage: "flame")
+                    .labelStyle(MetaChipStyle(tint: .orange))
+            }
             if let project = task.project {
                 Label(project, systemImage: "folder")
                     .labelStyle(MetaChipStyle())

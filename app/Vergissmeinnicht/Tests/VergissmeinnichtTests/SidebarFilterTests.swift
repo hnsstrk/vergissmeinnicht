@@ -38,7 +38,7 @@ final class SidebarFilterTests: XCTestCase {
             uuid: uuid, description: description, project: project, tags: tags,
             due: due, status: status, entry: nil, workingSetId: nil,
             priority: nil, annotations: [], wait: wait, recur: nil,
-            scheduled: scheduled, depends: [], isBlocked: isBlocked, isBlocking: isBlocking
+            scheduled: scheduled, depends: [], isBlocked: isBlocked, isBlocking: isBlocking, isActive: false
         )
     }
 

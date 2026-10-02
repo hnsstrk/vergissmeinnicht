@@ -267,6 +267,93 @@ final class AppContainer {
         }
     }
 
+    // MARK: - Abhängigkeiten mit Undo
+    //
+    // Hinzufügen/Entfernen über Drag & Drop und Detail-Editor; nur diese Aktionen
+    // registrieren Undo (⌘Z) im übergebenen `UndoManager` des Fensters.
+
+    /// Lässt alle `uuids` von `target` abhängen. Bereits verknüpfte werden still
+    /// übergangen; `target` selbst und Zyklus-Erzeuger werden übersprungen und
+    /// im Fehler-Banner gezählt. Ein Batch, ein Undo-Schritt.
+    func addDependencies(uuids: [String], dependsOn target: String, undoManager: UndoManager?) async {
+        let added = await applyAddDependencies(uuids: uuids, dependsOn: target)
+        registerDependencyUndo(adding: true, uuids: added, target: target, undoManager: undoManager)
+    }
+
+    /// Entfernt die Abhängigkeit aller `uuids` von `target`.
+    func removeDependencies(uuids: [String], dependsOn target: String, undoManager: UndoManager?) async {
+        let removed = await applyRemoveDependencies(uuids: uuids, dependsOn: target)
+        registerDependencyUndo(adding: false, uuids: removed, target: target, undoManager: undoManager)
+    }
+
+    /// Gibt die tatsächlich hinzugefügten UUIDs zurück (Grundlage für Undo).
+    private func applyAddDependencies(uuids: [String], dependsOn target: String) async -> [String] {
+        let snapshot = tasks
+        var seen = Set<String>()
+        var toAdd: [String] = []
+        var skipped = 0
+        for uuid in uuids where seen.insert(uuid).inserted {
+            if snapshot.first(where: { $0.uuid == uuid })?.depends.contains(target) == true { continue }
+            if DependencyGraph.wouldCreateCycle(task: uuid, dependsOn: target, tasks: snapshot) {
+                skipped += 1
+                continue
+            }
+            toAdd.append(uuid)
+        }
+        var added: [String] = []
+        await withBatch {
+            for uuid in toAdd {
+                if await addDependency(uuid: uuid, dependsOn: target) { added.append(uuid) }
+            }
+        }
+        // NACH `withBatch` setzen, sonst räumt dessen `refresh()` die Meldung wieder ab.
+        var problems: [String] = []
+        if added.count < toAdd.count {
+            problems.append(String(localized: "\(added.count) von \(toAdd.count) fehlgeschlagen: Abhängigkeit hinzufügen"))
+        }
+        if skipped > 0 {
+            problems.append(String(localized: "\(skipped) übersprungen: würde einen Zyklus erzeugen"))
+        }
+        if !problems.isEmpty { self.lastError = problems.joined(separator: "; ") }
+        return added
+    }
+
+    private func applyRemoveDependencies(uuids: [String], dependsOn target: String) async -> [String] {
+        var removed: [String] = []
+        await withBatch {
+            for uuid in uuids {
+                if await removeDependency(uuid: uuid, dependsOn: target) { removed.append(uuid) }
+            }
+        }
+        if removed.count < uuids.count {
+            self.lastError = String(localized: "\(removed.count) von \(uuids.count) fehlgeschlagen: Abhängigkeit entfernen")
+        }
+        return removed
+    }
+
+    /// Registriert die Gegenaktion. Beim Ausführen registriert der Handler sofort die
+    /// Gegenaktion der Gegenaktion (landet dadurch auf dem Redo-Stack) und startet
+    /// die Mutation asynchron.
+    private func registerDependencyUndo(adding: Bool, uuids: [String], target: String, undoManager: UndoManager?) {
+        guard let undoManager, !uuids.isEmpty else { return }
+        nonisolated(unsafe) let um = undoManager
+        undoManager.registerUndo(withTarget: self) { container in
+            MainActor.assumeIsolated {
+                container.registerDependencyUndo(adding: !adding, uuids: uuids, target: target, undoManager: um)
+                Task {
+                    if adding {
+                        _ = await container.applyRemoveDependencies(uuids: uuids, dependsOn: target)
+                    } else {
+                        _ = await container.applyAddDependencies(uuids: uuids, dependsOn: target)
+                    }
+                }
+            }
+        }
+        undoManager.setActionName(adding
+            ? String(localized: "Abhängigkeit hinzufügen")
+            : String(localized: "Abhängigkeit entfernen"))
+    }
+
     /// Reaktiviert einen erledigten Task (Status zurück auf Pending).
     @discardableResult
     func reactivate(uuid: String) async -> Bool {

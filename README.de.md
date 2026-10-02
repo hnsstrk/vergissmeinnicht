@@ -53,6 +53,32 @@ SwiftUI-Frontend, Rust-Core via UniFFI, sandboxed, App-Store-tauglich.
 - **Multi-Selection** mit Bulk-Erledigt / Löschen / Projekt / Tag / Priorität /
   Fälligkeit über Kontextmenü, mit nativem `contextMenu(forSelectionType:)`.
 - **Drag & Drop** Tasks auf Projekte, Tags oder Eingang (löscht Projekt + Tags).
+- **Abhängigkeitsbaum** (*Ansicht ▸ Abhängigkeiten als Baum*, auch im
+  Sortiermenü, standardmäßig aus) — ordnet Aufgaben entlang von Taskwarriors
+  nativem `depends`: oben die Voraussetzung (was zuerst erledigt werden muss),
+  darunter gleichmäßig eingerückt die Aufgaben, die von ihr abhängen, mit
+  Aufklapp-Symbol (Chevron im Kreis) und einem dezenten Balken in der
+  Akzentfarbe entlang jeder Gruppe. Eine Aufgabe, die von mehreren abhängt,
+  erscheint einmal vollständig und sonst als „siehe oben"-/„siehe
+  unten"-Verweiszeilen; Abhängigkeitszyklen werden markiert. Voraussetzungen,
+  die in der aktuellen Ansicht nicht sichtbar sind, erscheinen als Kopfzeile
+  über ihren abhängigen Aufgaben: offene als ausgegraute „nicht in dieser
+  Ansicht"-Zeile, erledigte durchgestrichen und abgedimmt (auch bei
+  ausgeblendeten erledigten Aufgaben). Tooltips erklären die Zeilen. Zweige
+  auf-/zuklappen, mit ← / → wie im Finder. Reine Darstellung — es wird nichts
+  geschrieben.
+- **Abhängigkeiten per Drag & Drop** — Aufgabe B auf Aufgabe A ziehen, damit B
+  von A abhängt (in der flachen Liste und im Baum; Mehrfachauswahl möglich;
+  Zyklen werden abgelehnt; Hinweis während des Ziehens). In der Detailansicht
+  fügt ein Such-Popover (nach #ID, Titel oder Projekt; ↑/↓/↩/Esc; nur offene
+  Aufgaben, keine Zyklen) eine Abhängigkeit hinzu, und Abhängigkeiten werden mit
+  ihrer `#ID` aufgelistet. Hinzufügen und Entfernen von Abhängigkeiten lässt
+  sich mit ⌘Z / ⇧⌘Z rückgängig machen.
+- **Dringlichkeits-Sortierung** — Sortierung nach Taskwarriors Urgency
+  (höchste zuerst, wie `task next`), berechnet mit den Standard-Koeffizienten.
+  Solange aktiv, zeigt jede Zeile einen Urgency-Chip, und die Detailansicht
+  zeigt den Wert schreibgeschützt. Eigene `.taskrc`-Koeffizienten werden nicht
+  gelesen (Sandbox).
 - **Wiederkehrende Aufgaben** — daily / weekly / monthly / yearly + `Nd / Nw /
   Nm / Ny`. Erledigen einer Recurring-Task erzeugt atomar die nächste Instanz.
 - **Snooze / Wait** — Aufgaben verschieben; sie erscheinen unter „Wartend"

@@ -27,6 +27,7 @@ struct VergissmeinnichtApp: App {
     @State private var showSearchHelp = false
     @AppStorage(AppSettingsKey.hideCompleted) private var hideCompleted: Bool = false
     @AppStorage(AppSettingsKey.showDetailColumn) private var showDetailColumn: Bool = false
+    @AppStorage(AppSettingsKey.dependencyTree) private var dependencyTree: Bool = false
 
     init() {
         // Sprach-Override muss VOR App-Body-Init in `AppleLanguages` stehen,
@@ -108,6 +109,7 @@ struct VergissmeinnichtApp: App {
                     .keyboardShortcut("0", modifiers: [.option, .command])
                 Toggle("Erledigte Aufgaben ausblenden", isOn: $hideCompleted)
                     .keyboardShortcut("h", modifiers: [.shift, .command])
+                Toggle("Abhängigkeiten als Baum", isOn: $dependencyTree)
             }
             CommandMenu("Aufgabe") {
                 Button("Als erledigt markieren") {

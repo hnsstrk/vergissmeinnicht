@@ -18,7 +18,7 @@ final class BulkEditStateTests: XCTestCase {
             uuid: uuid, description: "Task", project: project, tags: tags,
             due: due, status: .pending, entry: nil, workingSetId: nil,
             priority: priority, annotations: [], wait: nil, recur: nil,
-            scheduled: scheduled, depends: [], isBlocked: false, isBlocking: false
+            scheduled: scheduled, depends: [], isBlocked: false, isBlocking: false, isActive: false
         )
     }
 

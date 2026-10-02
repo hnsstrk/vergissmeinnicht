@@ -20,6 +20,8 @@ struct RootViewToolbar: ToolbarContent {
     @Binding var sortAscending: Bool
     /// Sichtbarkeit der Detailspalte (#33) — persistiert via `@AppStorage` in `RootView`.
     @Binding var showDetailColumn: Bool
+    /// Abhängigkeiten als Baum (Schalter im Sortier-Menü) — persistiert via `@AppStorage` in `RootView`.
+    @Binding var dependencyTree: Bool
 
     let onNewTask: () -> Void
     let onMarkDoneSelection: () -> Void
@@ -39,6 +41,8 @@ struct RootViewToolbar: ToolbarContent {
                     Text("Aufsteigend").tag(true)
                     Text("Absteigend").tag(false)
                 } label: { Text("Richtung") }
+                Divider()
+                Toggle("Abhängigkeiten als Baum", isOn: $dependencyTree)
             } label: {
                 Label("Sortieren", systemImage: vm.sortAscending ? "arrow.up.arrow.down" : "arrow.up.arrow.down.circle")
             }

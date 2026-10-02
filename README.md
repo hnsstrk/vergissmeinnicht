@@ -52,6 +52,28 @@ front-end, Rust core via UniFFI, sandboxed, App-Store-friendly.
 - **Multi-select** with bulk done / delete / project / tag / priority / due
   via context menu, native `contextMenu(forSelectionType:)`.
 - **Drag & drop** tasks onto projects, tags, or Inbox (clears project + tags).
+- **Dependency tree** (*View ▸ Show Dependencies as Tree*, also in the sort
+  menu, off by default) — arranges tasks along Taskwarrior's native `depends`:
+  the prerequisite (what has to be done first) on top, the tasks that depend on
+  it indented evenly below, with a circled chevron to expand/collapse and a
+  subtle accent-colored bar along each group. A task that depends on several
+  others appears once in full and as "see above" / "see below" reference rows
+  elsewhere; dependency cycles are flagged. Prerequisites not visible in the
+  current view appear as a header row above their dependent tasks: pending ones
+  as a grayed "not in this view" row, completed ones struck through and dimmed
+  (even when completed tasks are hidden). Tooltips explain the rows.
+  Collapse/expand per branch, with ← / → like in Finder. Pure presentation —
+  nothing is written.
+- **Dependencies by drag & drop** — drag task B onto task A to make B depend on
+  A (in the flat list and in the tree; multi-selection works; cycles are
+  rejected; a hint is shown while dragging). In the detail view, a search
+  popover (by #ID, title, or project; ↑/↓/↩/Esc; open tasks only, no cycles)
+  adds a dependency, and dependencies are listed with their `#ID`. Adding and
+  removing dependencies can be undone with ⌘Z / ⇧⌘Z.
+- **Urgency sort** — sort by Taskwarrior's urgency (highest first, like
+  `task next`), computed with the default coefficients. While active, each row
+  shows an urgency chip and the detail view shows the value read-only. Custom
+  `.taskrc` coefficients are not read (sandbox).
 - **Recurring tasks** — daily / weekly / monthly / yearly + `Nd / Nw / Nm /
   Ny`. Completing a recurring task atomically creates the next instance.
 - **Snooze / Wait** — defer tasks; they appear under "Waiting" instead of

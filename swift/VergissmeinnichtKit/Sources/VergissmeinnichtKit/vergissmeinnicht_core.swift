@@ -1264,6 +1264,11 @@ public struct TaskInfo {
      * (Taskwarrior `+BLOCKING`).
      */
     public var isBlocking: Bool
+    /**
+     * `true`, wenn der Task gestartet ist (`start`-Property gesetzt, Taskwarrior `+ACTIVE`).
+     * Direkt aus `Task::is_active()` gelesen; wird für den Urgency-Term „active" gebraucht.
+     */
+    public var isActive: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -1322,7 +1327,11 @@ public struct TaskInfo {
         /**
          * `true`, wenn mindestens ein anderer noch *pending* Task von diesem abhängt
          * (Taskwarrior `+BLOCKING`).
-         */isBlocking: Bool) {
+         */isBlocking: Bool, 
+        /**
+         * `true`, wenn der Task gestartet ist (`start`-Property gesetzt, Taskwarrior `+ACTIVE`).
+         * Direkt aus `Task::is_active()` gelesen; wird für den Urgency-Term „active" gebraucht.
+         */isActive: Bool) {
         self.uuid = uuid
         self.description = description
         self.project = project
@@ -1339,6 +1348,7 @@ public struct TaskInfo {
         self.depends = depends
         self.isBlocked = isBlocked
         self.isBlocking = isBlocking
+        self.isActive = isActive
     }
 }
 
@@ -1397,6 +1407,9 @@ extension TaskInfo: Equatable, Hashable {
         if lhs.isBlocking != rhs.isBlocking {
             return false
         }
+        if lhs.isActive != rhs.isActive {
+            return false
+        }
         return true
     }
 
@@ -1417,6 +1430,7 @@ extension TaskInfo: Equatable, Hashable {
         hasher.combine(depends)
         hasher.combine(isBlocked)
         hasher.combine(isBlocking)
+        hasher.combine(isActive)
     }
 }
 
@@ -1444,7 +1458,8 @@ public struct FfiConverterTypeTaskInfo: FfiConverterRustBuffer {
                 scheduled: FfiConverterOptionInt64.read(from: &buf), 
                 depends: FfiConverterSequenceString.read(from: &buf), 
                 isBlocked: FfiConverterBool.read(from: &buf), 
-                isBlocking: FfiConverterBool.read(from: &buf)
+                isBlocking: FfiConverterBool.read(from: &buf), 
+                isActive: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -1465,6 +1480,7 @@ public struct FfiConverterTypeTaskInfo: FfiConverterRustBuffer {
         FfiConverterSequenceString.write(value.depends, into: &buf)
         FfiConverterBool.write(value.isBlocked, into: &buf)
         FfiConverterBool.write(value.isBlocking, into: &buf)
+        FfiConverterBool.write(value.isActive, into: &buf)
     }
 }
 

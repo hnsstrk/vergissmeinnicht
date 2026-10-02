@@ -62,6 +62,13 @@ struct ShortcutHelpView: View {
                 Entry(label: "Erledigte ausblenden",   keys: "⇧⌘H"),
                 Entry(label: "Detailspalte anzeigen",  keys: "⌥⌘0"),
             ]),
+            Section(title: "Abhängigkeitsbaum", note: "Nur bei aktivem Schalter „Abhängigkeiten als Baum“.", entries: [
+                Entry(label: "Zweig aufklappen / zum ersten Kind", keys: "→"),
+                Entry(label: "Zweig zuklappen / zur Elternzeile",  keys: "←"),
+            ]),
+            Section(title: "Abhängigkeiten", entries: [
+                Entry(label: "Hinzufügen / Entfernen widerrufen", keys: "⌘Z"),
+            ]),
             Section(title: "Detail-Editor", entries: [
                 Entry(label: "Speichern",              keys: "⌘S"),
             ]),
@@ -78,6 +85,7 @@ struct ShortcutHelpView: View {
                 Entry(label: "Erledigt",               keys: "Swipe ▶ (grün)"),
                 Entry(label: "Löschen",                keys: "Swipe ◀ (rot)"),
                 Entry(label: "Auf Sidebar ziehen",     keys: "Drag → Projekt / Tag / Eingang"),
+                Entry(label: "Auf Aufgabe ziehen",     keys: "Drag → hängt davon ab"),
             ]),
         ]
     }

@@ -16,6 +16,7 @@ struct DetailView: View {
     let task: TaskInfo?
 
     @Environment(AppContainer.self) private var container
+    @Environment(\.undoManager) private var undoManager
 
     // Editierbarer Zustand
     @State private var description: String = ""
@@ -30,6 +31,8 @@ struct DetailView: View {
 
     // Annotation-Sheet
     @State private var isAddingAnnotation = false
+    // Abhängigkeits-Picker
+    @State private var isPickingDependency = false
 
     // Lade-Marker, damit wir nicht jeden Re-Render den State überschreiben.
     @State private var loadedFromUuid: String?
@@ -183,26 +186,30 @@ struct DetailView: View {
 
     /// Abhängigkeiten-Editor (native Taskwarrior `depends`). Wie der Annotation-Editor
     /// schreibt jede Änderung sofort (kein Save) — Abhängigkeiten sind UUIDs, die der
-    /// Nutzer nicht tippen kann, daher Add via Picker / Remove via Button.
+    /// Nutzer nicht tippen kann, daher Add via Such-Picker / Remove via Button. Beide Aktionen
+    /// sind per ⌘Z widerrufbar.
     @ViewBuilder
     private func dependenciesSection(task: TaskInfo) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Abhängigkeiten")
+                Text("Hängt ab von")
                     .font(.title3.bold())
                 Spacer()
-                if !addableDependencies(for: task).isEmpty {
-                    Menu {
-                        ForEach(addableDependencies(for: task), id: \.uuid) { candidate in
-                            Button(dependencyLabel(candidate)) {
-                                Task { await container.addDependency(uuid: task.uuid, dependsOn: candidate.uuid) }
-                            }
+                Button {
+                    isPickingDependency = true
+                } label: {
+                    Label("Abhängigkeit hinzufügen", systemImage: "plus.circle")
+                }
+                .buttonStyle(.borderless)
+                .popover(isPresented: $isPickingDependency, arrowEdge: .bottom) {
+                    DependencyPickerPopover(task: task, tasks: container.tasks) { candidate in
+                        isPickingDependency = false
+                        Task {
+                            await container.addDependencies(
+                                uuids: [task.uuid], dependsOn: candidate.uuid, undoManager: undoManager
+                            )
                         }
-                    } label: {
-                        Label("Abhängigkeit hinzufügen", systemImage: "plus.circle")
                     }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
                 }
             }
 
@@ -234,7 +241,7 @@ struct DetailView: View {
                         .foregroundStyle(.green)
                         .help("Erledigt — blockiert nicht mehr")
                 }
-                Text(dep.description)
+                Text(dep.workingSetId.map { "#\($0) \(dep.description)" } ?? dep.description)
                     .font(.body)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
@@ -245,7 +252,9 @@ struct DetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             Button {
-                Task { await container.removeDependency(uuid: taskUuid, dependsOn: depUuid) }
+                Task {
+                    await container.removeDependencies(uuids: [taskUuid], dependsOn: depUuid, undoManager: undoManager)
+                }
             } label: {
                 Image(systemName: "trash")
             }
@@ -253,24 +262,6 @@ struct DetailView: View {
             .help("Abhängigkeit entfernen")
         }
         .padding(.vertical, 2)
-    }
-
-    /// Kandidaten für eine neue Abhängigkeit: alle pending Tasks außer der Task selbst
-    /// und bereits verknüpften. Zyklen werden bewusst nicht geprüft — Taskwarrior tut
-    /// das ebenfalls nicht (Karpathy 2).
-    private func addableDependencies(for task: TaskInfo) -> [TaskInfo] {
-        container.tasks
-            .filter { $0.status == .pending }
-            .filter { $0.uuid != task.uuid }
-            .filter { !task.depends.contains($0.uuid) }
-            .sorted { $0.description.localizedCaseInsensitiveCompare($1.description) == .orderedAscending }
-    }
-
-    private func dependencyLabel(_ candidate: TaskInfo) -> String {
-        if let id = candidate.workingSetId {
-            return "#\(id) \(candidate.description)"
-        }
-        return candidate.description
     }
 
     @ViewBuilder
@@ -335,6 +326,14 @@ struct DetailView: View {
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
+            }
+            if task.status == .pending {
+                LabeledContent("Dringlichkeit") {
+                    Text(Urgency.score(task, now: Date()).formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.currentFormattingLocale)))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .help("Taskwarrior-Standardkoeffizienten")
+                }
             }
             if let entry = task.entry {
                 LabeledContent("Angelegt") {
@@ -473,5 +472,85 @@ struct DetailView: View {
         case .deleted:   return ("Gelöscht",      .red)
         case .recurring: return ("Wiederkehrend", .purple)
         }
+    }
+}
+
+// MARK: - Abhängigkeits-Picker
+
+/// Popover mit Suchfeld und höchstens 12 Treffern. ↑/↓ verschieben die Markierung,
+/// ↩ oder Klick übernimmt den Treffer (der Aufrufer schließt das Popover), Esc schließt.
+private struct DependencyPickerPopover: View {
+    let task: TaskInfo
+    let tasks: [TaskInfo]
+    let onPick: (TaskInfo) -> Void
+
+    @State private var query = ""
+    @State private var highlighted = 0
+    @FocusState private var searchFocused: Bool
+
+    private var results: [TaskInfo] {
+        DependencyCandidates.filter(query: query, task: task, tasks: tasks)
+    }
+
+    var body: some View {
+        let results = results
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("Aufgabe suchen …", text: $query)
+                .textFieldStyle(.roundedBorder)
+                .focused($searchFocused)
+                .onSubmit {
+                    if results.indices.contains(highlighted) { onPick(results[highlighted]) }
+                }
+                .onKeyPress(.downArrow) {
+                    highlighted = min(highlighted + 1, max(results.count - 1, 0))
+                    return .handled
+                }
+                .onKeyPress(.upArrow) {
+                    highlighted = max(highlighted - 1, 0)
+                    return .handled
+                }
+            if results.isEmpty {
+                Text("Keine passende Aufgabe.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(results.enumerated()), id: \.element.uuid) { index, candidate in
+                        row(candidate, isHighlighted: index == highlighted)
+                            .onTapGesture { onPick(candidate) }
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .frame(width: 340)
+        .onAppear { searchFocused = true }
+        .onChange(of: query) { _, _ in highlighted = 0 }
+    }
+
+    private func row(_ candidate: TaskInfo, isHighlighted: Bool) -> some View {
+        HStack(spacing: 6) {
+            Text(label(candidate))
+                .lineLimit(1)
+                .truncationMode(.tail)
+            if let project = candidate.project {
+                Text(project)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(isHighlighted ? Color.accentColor.opacity(0.2) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+        .contentShape(Rectangle())
+    }
+
+    private func label(_ candidate: TaskInfo) -> String {
+        if let id = candidate.workingSetId { return "#\(id) \(candidate.description)" }
+        return candidate.description
     }
 }

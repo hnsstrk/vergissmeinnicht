@@ -66,6 +66,8 @@ struct RootView: View {
     @AppStorage(AppSettingsKey.savedSearches)  private var savedSearchesRaw: String = "[]"
     @AppStorage(AppSettingsKey.forecastConfigs) private var forecastConfigsRaw: String = "{}"
     @AppStorage(AppSettingsKey.showDetailColumn) private var showDetailColumn: Bool = false
+    @Environment(\.undoManager) private var undoManager
+    @AppStorage(AppSettingsKey.dependencyTree) private var dependencyTree: Bool = false
 
     var body: some View {
         @Bindable var vm = viewModel
@@ -103,6 +105,10 @@ struct RootView: View {
             case .list:
                 TaskListView(
                     tasks: visible,
+                    allTasks: container.tasks,
+                    dependencyTree: dependencyTree,
+                    showUrgency: viewModel.sortOrder == .urgency,
+                    collapsedTreeNodes: $vm.collapsedTreeNodes,
                     activeFilter: vm.activeFilter,
                     projects: projects,
                     tags: tags,
@@ -115,7 +121,8 @@ struct RootView: View {
                     onAssignProject: handleAssignProject,
                     onAddTag: handleAddTag,
                     onSetPriority: handleSetPriority,
-                    onSetDue: handleSetDue
+                    onSetDue: handleSetDue,
+                    onDropDependency: handleDropDependency
                 )
                 .safeAreaInset(edge: .top, spacing: 0) { forecastStrip }
                 .safeAreaInset(edge: .bottom) { syncFooter }
@@ -129,6 +136,7 @@ struct RootView: View {
                         defaultSortRaw: $defaultSortRaw,
                         sortAscending: $sortAscending,
                         showDetailColumn: $showDetailColumn,
+                        dependencyTree: $dependencyTree,
                         onNewTask: { showQuickCapture = true },
                         onMarkDoneSelection: { handleMarkDoneSelection() },
                         onRequestDelete: { requestDelete(uuids: $0) }
@@ -433,6 +441,11 @@ struct RootView: View {
                 viewModel.activeFilter = .inbox
             }
         }
+    }
+
+    /// Task-auf-Task-Drop: die gezogenen Tasks hängen danach von `target` ab (⌘Z-fähig).
+    private func handleDropDependency(_ uuids: [String], _ target: String) {
+        Task { await container.addDependencies(uuids: uuids, dependsOn: target, undoManager: undoManager) }
     }
 
     private func handleDropProject(_ uuid: String, _ project: String) {

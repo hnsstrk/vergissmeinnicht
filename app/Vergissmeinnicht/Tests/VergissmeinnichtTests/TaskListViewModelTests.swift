@@ -41,7 +41,7 @@ final class TaskListViewModelTests: XCTestCase {
             uuid: uuid, description: description, project: project, tags: tags,
             due: due, status: status, entry: entry, workingSetId: workingSetId,
             priority: priority, annotations: annotations, wait: wait, recur: recur,
-            scheduled: scheduled, depends: depends, isBlocked: isBlocked, isBlocking: isBlocking
+            scheduled: scheduled, depends: depends, isBlocked: isBlocked, isBlocking: isBlocking, isActive: false
         )
     }
 
