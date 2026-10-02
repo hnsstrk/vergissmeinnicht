@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows a loose [Semantic Versioning](https://semver.org/) scheme.
 Releases before 0.2.4 are recorded only as Git tags and GitHub Releases.
 
-## [Unreleased]
+## [0.4.0] - 2026-10-03
 
 ### Added
 - Dependency tree view: optional display mode (*Show dependencies as tree* in
